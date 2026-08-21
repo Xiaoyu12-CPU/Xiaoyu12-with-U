@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "id": "default",
+  "name": "Default Pet",
+  "supportedStates": ["idle"],
+  "fallbackState": "idle",
+  "states": {
+    "idle": {
+      "frames": [
+        { "path": "idle/normal-001.png", "durationMs": 250 },
+        { "path": "idle/normal-002.png", "durationMs": 250 },
+        { "path": "idle/normal-003.png", "durationMs": 250 },
+        { "path": "idle/normal-004.png", "durationMs": 0 }
+      ],
+      "animation": {
+        "loop": true,
+        "replay": {
+          "mode": "random",
+          "delayOptionsMs": [10000, 3000, 30000, 22000]
+        }
+      }
+    }
+  }
+}
