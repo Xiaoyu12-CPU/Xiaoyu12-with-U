@@ -27,42 +27,6 @@
           "delayOptionsMs": [10000, 3000, 30000, 22000]
         }
       }
-    },
-    "happy": {
-      "frames": [
-        { "path": "happy/placeholder-001.png", "durationMs": 1000 }
-      ],
-      "animation": { "loop": false }
-    },
-    "sleep": {
-      "frames": [
-        { "path": "sleep/placeholder-001.png", "durationMs": 1000 }
-      ],
-      "animation": { "loop": false }
-    },
-    "tired": {
-      "frames": [
-        { "path": "tired/placeholder-001.png", "durationMs": 1000 }
-      ],
-      "animation": { "loop": false }
-    },
-    "alert": {
-      "frames": [
-        { "path": "alert/placeholder-001.png", "durationMs": 1000 }
-      ],
-      "animation": { "loop": false }
-    },
-    "working": {
-      "frames": [
-        { "path": "working/placeholder-001.png", "durationMs": 1000 }
-      ],
-      "animation": { "loop": false }
-    },
-    "dragging": {
-      "frames": [
-        { "path": "dragging/placeholder-001.png", "durationMs": 1000 }
-      ],
-      "animation": { "loop": false }
     }
   }
 }
