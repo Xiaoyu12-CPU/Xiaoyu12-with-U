@@ -14,7 +14,7 @@ pub fn open_control_center(app: AppHandle) -> Result<(), String> {
     WebviewWindowBuilder::new(
         &app,
         CONTROL_CENTER_LABEL,
-        WebviewUrl::App("index.html?window=control-center".into()),
+        WebviewUrl::App("index.html".into()),
     )
     .title("DesktopPet 控制中心")
     .inner_size(760.0, 600.0)
