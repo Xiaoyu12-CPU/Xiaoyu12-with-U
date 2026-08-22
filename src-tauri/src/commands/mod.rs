@@ -1,3 +1,9 @@
 pub mod app;
+pub mod battery;
+pub mod cpu;
 pub mod dialogue;
+pub mod memory;
+pub mod network;
 pub mod pet_assets;
+pub mod settings;
+pub mod storage;

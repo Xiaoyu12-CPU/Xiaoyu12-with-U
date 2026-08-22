@@ -5,8 +5,9 @@ import { useRemotePetRuntime } from "../pet/runtimeBridge";
 import DialogueEditor from "./DialogueEditor.vue";
 import StateAnimationEditor from "./StateAnimationEditor.vue";
 import StatusPage from "./StatusPage.vue";
+import SettingsPage from "./SettingsPage.vue";
 
-type ControlCenterPage = "status" | "states" | "dialogue";
+type ControlCenterPage = "status" | "states" | "dialogue" | "settings";
 
 const activePage = ref<ControlCenterPage>("status");
 const { snapshot, isConnected, executeAction } = useRemotePetRuntime();
@@ -30,17 +31,17 @@ function handleAction(action: PetControlAction): void {
       <nav aria-label="控制中心页面">
         <button
           type="button"
-          :class="{ active: activePage === 'states' }"
-          @click="activePage = 'states'"
-        >
-          状态与动画
-        </button>
-        <button
-          type="button"
           :class="{ active: activePage === 'status' }"
           @click="activePage = 'status'"
         >
           当前状态
+        </button>
+        <button
+          type="button"
+          :class="{ active: activePage === 'states' }"
+          @click="activePage = 'states'"
+        >
+          状态与动画
         </button>
         <button
           type="button"
@@ -49,9 +50,16 @@ function handleAction(action: PetControlAction): void {
         >
           Dialogue 编辑
         </button>
+        <button
+          type="button"
+          :class="{ active: activePage === 'settings' }"
+          @click="activePage = 'settings'"
+        >
+          设置
+        </button>
       </nav>
 
-      <p>Phase 2-C</p>
+      <p>Phase 3-C</p>
     </aside>
 
     <div class="control-center__content">
@@ -65,7 +73,8 @@ function handleAction(action: PetControlAction): void {
         v-else-if="activePage === 'states'"
         :runtime-state="snapshot?.state"
       />
-      <DialogueEditor v-else @action="handleAction" />
+      <DialogueEditor v-else-if="activePage === 'dialogue'" @action="handleAction" />
+      <SettingsPage v-else />
     </div>
   </main>
 </template>

@@ -7,7 +7,9 @@
 - 权限、隐私、资源占用和可恢复性属于每个相关阶段的完成条件。
 - 本路线图描述目标，不代表对应功能当前已经实现。
 
-当前实现进度：Phase 1、Phase 1.5、Phase 2-A、Phase 2-B、Phase 2-C1 至 Phase 2-C6 已完成；Phase 3 及之后能力尚未接入。
+当前实现进度：Phase 1、Phase 1.5、Phase 2-A、Phase 2-B、Phase 2-C1 至 Phase 2-C6、Phase 2-D、Phase 2-E、Phase 3-A CPU Monitor、Phase 3-B Memory Monitor、Phase 3-C System Status Bubble 已完成；Phase 3 的 Battery、Network / Storage 真实采样及之后能力尚未接入。
+
+Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标交互调整为 Click + Drag。
 
 ## Phase 1：基础桌宠窗口
 
@@ -55,6 +57,42 @@
 
 当前默认 idle 眨眼迁移为四个逐帧 duration：`250 / 250 / 250 / 0 ms`，Animation Duration 仍为 `750 ms`；Random Delay 继续使用 `3000 / 10000 / 22000 / 30000 ms` 候选值。
 
+### Phase 2-D 完成记录：Application Settings System
+
+已完成：
+
+- 建立带 `schemaVersion` 的统一 DesktopPetSettings Schema 与集中默认值。
+- Settings Manager 提供响应式读取、单字段更新、批量更新、恢复默认值、自动保存和跨窗口通知。
+- 配置保存到 Tauri `app_data_dir()/settings.json`，不修改源码或 App Bundle。
+- 损坏 JSON 安全回退；缺失字段补默认值；未知字段不会阻止启动。
+- Control Center 增加“设置”页面，只展示当前真正生效的外观、Dialogue 和 Animation 配置。
+- petScale 支持 50%～200%，大尺寸同步扩展透明窗口以避免裁切。
+- Always On Top 可在运行时切换。
+- 气泡时长、启动 development 提示以及 Click/Drag Dialogue 开关已接入现有事件系统；Hover 开关仅为旧配置兼容保留。
+- Animation Enabled 复用 AnimationEngine pause/resume，关闭时稳定保留有效静态帧。
+- `systemMonitor`、`input`、`reminder` 仅保留配置数据，没有提前实现或展示尚不可用功能。
+
+### Interaction Cleanup 完成记录：Click + Drag
+
+- Hover 不再是 Runtime Interaction；鼠标进入或离开不会修改 PetState、触发 Dialogue 或执行恢复逻辑。
+- `alert` PetState 与对应资源编辑能力完整保留，供未来系统事件使用。
+- `enableHoverDialogue`、`hoverEnter`、`hoverLeave` 继续兼容旧 JSON，但不显示在正常 Settings / Dialogue 编辑列表中。
+- 修复 Drag Session 将 `startDragging()` resolve 误判为松开的时序问题。
+- Drag 只在真实释放时触发一次 `drag.end`，结束文本延迟 500ms 显示。
+- 保持 4px 阈值、拖动后 Click Suppression 和 `enableDragDialogue` 行为。
+
+### Phase 2-E 完成记录：Behavior Manager / State Arbitration
+
+- 新增轻量 Behavior Request 仲裁层；业务 source 不再直接决定最终 PetState。
+- Request 支持 source、state、priority、可选 durationMs、createdAt 和 sequence；同一 source 更新替换，不无限堆积。
+- 默认优先级集中定义为 dragging、alert、sleep、happy、working、tired、idle 的降序规则。
+- 同优先级由最新 sequence 获胜，避免依赖对象遍历顺序。
+- Held Request 显式 release；Transient Request 自动释放，并通过清除旧 timer 与 sequence 校验避免竞态。
+- Click 迁移为 1200ms happy transient；快速再次点击会重新计时。
+- Drag 迁移为 held dragging；真实 pointerup 立即 release 并恢复下一个有效 Request，500ms Dialogue 延迟保持独立。
+- Runtime Status 与 Control Center 增加 Effective State、Winning Source、Active Behavior Requests 和明确标记的 Development / Debug 验收入口。
+- Hover 没有 Behavior source；CPU、Reminder、Keyboard 仅记录未来 request/release 接入方式，没有实现真实功能。
+
 ## Phase 3：CPU / 内存 / 电池监控
 
 目标：让桌宠安全、低开销地感知设备状态。
@@ -68,6 +106,93 @@
 - 处理睡眠、唤醒、电池设备缺失和权限异常。
 
 完成标志：macOS 指标稳定准确，后台采样开销可接受，前端不会因高频更新产生明显负担。
+
+### Phase 3-A 完成记录：CPU Monitor
+
+- Rust 使用仅启用 `system` feature 的 `sysinfo` 读取整个系统总体 CPU 使用率，不调用 shell 或 Activity Monitor。
+- 主桌宠窗口是唯一 Monitor owner；Control Center 只通过 Runtime Status / Runtime Bridge 接收数据。
+- 首次采样只建立 delta baseline，500ms 后取得首个有效值；后续按 Settings 中的 Poll Interval 串行采样。
+- `systemMonitor.enabled` 与 `cpuEnabled` 控制启停；Threshold 与 Poll Interval 可在运行时修改。
+- Poll 使用单 timer、串行 invoke 和 generation 防护，避免重复 loop 与停用后的陈旧结果。
+- 使用 10 percentage points hysteresis：达到 Threshold 进入 High，低于或等于 Threshold - 10 才恢复 Normal。
+- CPU High 通过 Behavior Manager 请求 `system.cpu / tired / priority 30`；Normal 或 Disable release 请求。
+- CPU High / Normal Dialogue 只在状态边沿各触发一次，持续 High 不重复显示。
+- Runtime Status 与 Control Center 显示 CPU Usage、Status、Threshold 和 Monitoring State。
+- 本阶段未实现 Memory、Battery、Temperature、历史图表或其他系统能力。
+
+### Phase 3-B 完成记录：Memory Monitor
+
+- Rust 复用 `sysinfo 0.39.6` 的 RAM-only refresh，读取整个系统的 Total、Used 与 Available Memory；百分比按 `used / total × 100` 计算。
+- 主桌宠窗口是唯一 Memory Monitor owner；Control Center 仅通过 Runtime Status / Runtime Bridge 接收同一份快照。
+- `systemMonitor` 增加 `memoryEnabled` 与默认 85% 的 `memoryHighThreshold`；旧 settings.json 缺失字段时自动补默认值。
+- Memory 与 CPU 继续复用 `cpuPollIntervalMs` 作为共同采样间隔，避免重命名造成 Settings schema 迁移。
+- Memory 使用单 timer、串行 invoke 与 generation 防护；关闭 Memory 或 Master 开关会停止、清空 Runtime 数值并 release 请求。
+- 使用 5 percentage points hysteresis：达到 Threshold 进入 High，低于或等于 Threshold - 5 才恢复 Normal。
+- Memory High 通过 Behavior Manager 请求独立的 `system.memory / tired / priority 30`；不会与 `system.cpu` 互相释放。
+- `system.memory.high` / `system.memory.normal` 只在状态边沿触发，并已进入可编辑 Dialogue Catalog。
+- Control Center 显示 Usage、Used、Available、Total、Status、Threshold 与 Monitoring State。
+- 本阶段未实现 Battery、Temperature、Memory Pressure、Swap 专项、历史数据或其他系统能力。
+
+### Phase 3-C 完成记录：System Status Bubble
+
+- 新增与 Dialogue SpeechBubble 分离的长期 `SystemStatusBubble`，不创建第二个 Tauri Window。
+- Settings 增加 `pet-only`、`status-only`、`both` 三种桌面显示模式，默认保持 `pet-only`。
+- 面板直接消费现有 Runtime Status 的真实 CPU / Memory 数据；关闭 Monitor 时显示“未启用”。
+- Network 与 Storage 只保留 `--` 入口，不制造假数据，也不启动新采样器。
+- `both` 模式下拖 Pet 继续移动整个主窗口；拖 Bubble 只更新相对 offset，松手后才持久化。
+- `status-only` 模式下 Bubble 成为主窗口原生拖动手柄。
+- 新增纯 Window Bounding Box 计算，按当前可见 Pet / Bubble 矩形动态设置窗口 logical size。
+- 支持负 offset；布局通过 content origin 和窗口 position delta 补偿避免扩窗时视觉跳动。
+- Bubble offset 限制为 X / Y 各 -500～500，防止单窗口透明点击区域无限扩大。
+- Control Center 设置可修改背景色、透明度、字体色、边框色与宽度，并可重置面板到 Pet 右侧。
+- 50%～200% petScale 与三种 displayMode 共用同一布局规则；SpeechBubble、Click / Drag、CPU / Memory Monitor 保持原有链路。
+- 本阶段未实现 Network、Storage、Battery、历史图或第二窗口方案。
+
+### Phase 3-C 收尾记录：Bubble 可配置内容与尺寸
+
+- 主透明桌宠窗口关闭 native shadow，消除动态 Bounding Box 外围的系统灰色矩形；Control Center 窗口不受影响。
+- `systemStatusBubble` 增加 `panelWidth`（180～420）、`panelScale`（70%～160%）与数组型 `visibleItems`，旧配置自动补默认值且不升级 schemaVersion。
+- Control Center 的面板设置按显示、尺寸、外观分组，可即时调整宽度、整体缩放并选择 CPU、Memory、Network、Storage。
+- 所有项目可全部隐藏；面板仍保留最小 System Status header，高度始终由实际内容自动计算，不保存固定 panelHeight。
+- 缩放使用真实 CSS 尺寸而非 transform，ResizeObserver 与现有 Window Bounding Box 会在内容或尺寸变化后同步调整主窗口，保持 offset 且不裁切。
+- Network 与 Storage 继续仅显示 `--` 占位，本次未实现新的 Monitor。
+
+### Phase 3-D 完成记录：Network Monitor
+
+- Rust 复用 `sysinfo 0.39.6` 并仅增加 `network` feature，读取非 loopback 接口的累计接收/发送 bytes。
+- main Pet Window 是唯一 Network Monitor owner；Control Center 与 SystemStatusBubble 只消费 Runtime Bridge 的同一份数据。
+- 下载与上传速率按累计 counter delta / `Instant` 实际 elapsed seconds 计算，Runtime 保留 bytes per second 数值。
+- 首次采样只建立 baseline；超出 `max(interval × 3, 30 秒)` 的睡眠/唤醒间隔与 counter reset 都丢弃当前结果并重建 baseline。
+- Settings 增加默认关闭的 `networkEnabled`，继续复用兼容字段 `cpuPollIntervalMs` 作为共同 System Poll Interval。
+- Network lifecycle 支持 warming、active、error、disabled，并使用单 timer、串行 invoke 与 generation 防止重复 loop。
+- Control Center 增加 Network 设置与 Runtime 区域；SystemStatusBubble 的既有 Network item 显示真实 Download / Upload，隐藏机制保持不变。
+- Network 不参与 Behavior 或 Dialogue；本阶段未实现 Storage、Battery、Temperature、历史统计或接口选择器。
+
+### Phase 3-E 完成记录：Storage Monitor
+
+- Rust 复用 `sysinfo 0.39.6` 的 `disk` feature，通过 `Disks` / `Disk` 读取系统根卷的 mount point、total space 与 available space。
+- macOS 只选择 mount point 为 `/` 的条目，不按卷名称判断，也不合计外接盘、DMG、Time Machine、网络挂载或临时文件系统。
+- 容量按 `used = total - available`、`usage = used / total × 100` 计算，保留原始 bytes 并防止 total 为 0。
+- main Pet Window 是唯一 Storage Monitor owner；Control Center 与 SystemStatusBubble 只消费 Runtime Bridge 的同一份数据。
+- Settings 增加默认关闭的 `storageEnabled`，旧 settings.json 自动补默认字段，schemaVersion 保持为 1。
+- Storage 启用后立即采样，之后使用独立固定 30 秒周期；单 timer、串行 invoke 与 generation 防止重复 loop。
+- Disable、Master OFF 或读取错误会安全清理/降级，不影响 DesktopPet 其他功能。
+- Runtime Status 与 Control Center 增加 Usage、Used、Available、Total、Status 和 Monitoring；Bubble 的既有 Storage item 改为真实百分比、容量与进度条。
+- Memory 与 Storage 共用统一 Byte formatter；Storage 不参与 Behavior 或 Dialogue。
+- 本阶段未实现多磁盘、历史记录、Disk IO、SMART、APFS snapshot、Battery、Temperature 或其他系统能力。
+
+### Phase 3-F 完成记录：Battery Monitor
+
+- `sysinfo 0.39.6` 没有 Battery 容量 API，因此新增单一依赖 `starship-battery`，使用其跨平台 Manager、State 与 state_of_charge。
+- Rust 读取第一块成功解析的电池，将 Charging、Discharging、Full、Unknown 统一映射；Empty 归为 discharging。
+- 没有电池是正常 `batteryPresent = false / unavailable`，与 Manager 或设备读取 error 明确区分。
+- main Pet Window 是唯一 Battery Monitor owner；Control Center 与 SystemStatusBubble 只消费 Runtime Bridge 的同一份快照。
+- Settings 增加默认关闭的 `batteryEnabled`；旧 settings.json 自动补默认值，schemaVersion 保持为 1。
+- Battery Enable 后立即采样，之后使用固定 30 秒周期；单 timer、串行 invoke 与 generation 防止重复 loop。
+- Runtime Status 与 Control Center 增加 Charge、State、Present 和 Monitoring。
+- Battery 注册为可选 Status Item，但不加入默认 visibleItems，因此旧用户界面不会突然多出 Battery。
+- Bubble 支持电量百分比、充电中、使用电池、已充满、状态未知、无电池、未启用与读取失败，并复用轻量进度条。
+- Battery 当前不参与 Behavior 或 Dialogue；本阶段未实现低电量提醒、健康度、循环次数、温度、功耗、历史或高级分析。
 
 ## Phase 4：提醒和闹钟
 

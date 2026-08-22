@@ -46,10 +46,5 @@ body,
   height: 100%;
   place-items: center;
   background: transparent;
-  cursor: grab;
-}
-
-.pet-window:active {
-  cursor: grabbing;
 }
 </style>

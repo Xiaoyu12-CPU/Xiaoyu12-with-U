@@ -16,6 +16,7 @@ import {
   recordDialogueEvent,
   recordDialogueText,
 } from "./runtimeStatus";
+import { settingsManager } from "../settings/settingsManager";
 
 export type {
   DialogueEvent,
@@ -40,7 +41,6 @@ export interface DialogueController {
   dispose: () => void;
 }
 
-const DEFAULT_DISPLAY_DURATION_MS = 2500;
 type DialogueEventListener = (event: DialogueEvent) => void;
 const dialogueEventListeners = new Set<DialogueEventListener>();
 
@@ -68,10 +68,7 @@ export function useDialogue(
   const currentText = ref("");
   const isVisible = ref(false);
   void dialogueManager.initialize();
-  const displayDurationMs = Math.max(
-    0,
-    options.displayDurationMs ?? DEFAULT_DISPLAY_DURATION_MS,
-  );
+  void settingsManager.initialize();
   const random = options.random ?? Math.random;
   let hideTimerId: ReturnType<typeof setTimeout> | undefined;
   let disposed = false;
@@ -113,6 +110,11 @@ export function useDialogue(
     currentText.value = text;
     recordDialogueText(text);
     isVisible.value = true;
+    const displayDurationMs = Math.max(
+      0,
+      options.displayDurationMs ??
+        settingsManager.settings.value.dialogue.bubbleDurationMs,
+    );
     hideTimerId = setTimeout(hide, displayDurationMs);
   }
 

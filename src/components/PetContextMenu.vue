@@ -17,8 +17,8 @@ const emit = defineEmits<{
 }>();
 
 const menuStyle = computed(() => ({
-  left: `${Math.min(Math.max(props.x, 4), 64)}px`,
-  top: `${Math.min(Math.max(props.y, 4), 48)}px`,
+  left: `${Math.min(Math.max(props.x, 4), Math.max(4, window.innerWidth - 136))}px`,
+  top: `${Math.min(Math.max(props.y, 4), Math.max(4, window.innerHeight - 152))}px`,
 }));
 
 function select(type: PetControlActionType): void {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { dialogueManager } from "../pet/dialogueManager";
-import { DIALOGUE_EVENT_TYPE_LIST } from "../pet/dialogueEvents";
+import { ACTIVE_DIALOGUE_EVENT_TYPE_LIST } from "../pet/dialogueEvents";
 import type { DialogueEventType } from "../pet/dialogueEvents";
 import type { PetControlAction } from "../pet/petControl";
 import { PET_CONTROL_ACTION_TYPES } from "../pet/petControl";
@@ -67,7 +67,7 @@ function createDrafts(
   catalog: Readonly<Partial<Record<DialogueEventType, readonly string[]>>>,
 ): Record<DialogueEventType, string[]> {
   return Object.fromEntries(
-    DIALOGUE_EVENT_TYPE_LIST.map((eventType) => [
+    ACTIVE_DIALOGUE_EVENT_TYPE_LIST.map((eventType) => [
       eventType,
       [...(catalog[eventType] ?? [])],
     ]),
@@ -88,7 +88,7 @@ function createDrafts(
     <p v-if="storageError" class="error">{{ storageError }}</p>
 
     <div class="event-list">
-      <article v-for="eventType in DIALOGUE_EVENT_TYPE_LIST" :key="eventType">
+      <article v-for="eventType in ACTIVE_DIALOGUE_EVENT_TYPE_LIST" :key="eventType">
         <div class="event-heading">
           <div>
             <code>{{ eventType }}</code>

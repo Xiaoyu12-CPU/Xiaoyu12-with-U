@@ -4,10 +4,12 @@ import {
   onBeforeUnmount,
   onMounted,
   reactive,
+  ref,
   watch,
 } from "vue";
 import PetContextMenu from "../components/PetContextMenu.vue";
 import SpeechBubble from "../components/SpeechBubble.vue";
+import SystemStatusBubble from "../components/SystemStatusBubble.vue";
 import { usePetAnimation } from "./animationEngine";
 import {
   initializePetAssets,
@@ -20,7 +22,21 @@ import { createPetControl } from "./petControl";
 import type { PetControlActionType } from "./petControl";
 import { usePetStore } from "./petStore";
 import { useMainRuntimeBridge } from "./runtimeBridge";
-import { updateAnimationRuntime } from "./runtimeStatus";
+import { updateAnimationRuntime, usePetRuntimeStatus } from "./runtimeStatus";
+import { settingsManager } from "../settings/settingsManager";
+import { tauriPetWindowSettingsAdapter } from "./windowSettings";
+import { tauriWindowDragAdapter } from "./windowDrag";
+import {
+  calculatePetWindowLayout,
+  clampStatusBubbleOffset,
+  STATUS_BUBBLE_FALLBACK_SIZE,
+} from "./windowLayout";
+import type { PetWindowLayout } from "./windowLayout";
+import { useCpuMonitor } from "../system/cpuMonitor";
+import { useMemoryMonitor } from "../system/memoryMonitor";
+import { useNetworkMonitor } from "../system/networkMonitor";
+import { useStorageMonitor } from "../system/storageMonitor";
+import { useBatteryMonitor } from "../system/batteryMonitor";
 
 const { currentState } = usePetStore();
 const currentAsset = computed(() =>
@@ -28,13 +44,20 @@ const currentAsset = computed(() =>
 );
 const animation = usePetAnimation(currentAsset);
 const { currentFrame, currentFrameIndex, isPaused } = animation;
-const petControl = createPetControl(animation);
+const petControl = createPetControl(animation, {
+  isAnimationEnabled: () =>
+    settingsManager.settings.value.animation.enabled,
+});
 useMainRuntimeBridge(petControl.execute);
+useCpuMonitor();
+useMemoryMonitor();
+useNetworkMonitor();
+useStorageMonitor();
+useBatteryMonitor();
+const { snapshot: runtimeSnapshot } = usePetRuntimeStatus();
 const {
   dialogue,
   handleClick,
-  handleHoverEnter,
-  handleHoverLeave,
   handlePointerDown,
   handlePointerMove,
   handlePointerUp,
@@ -46,6 +69,122 @@ const contextMenu = reactive({
   x: 0,
   y: 0,
 });
+const bubbleSize = reactive<{ width: number; height: number }>({
+  ...STATUS_BUBBLE_FALLBACK_SIZE,
+});
+const bubbleOffset = reactive({
+  x: settingsManager.settings.value.systemStatusBubble.offsetX,
+  y: settingsManager.settings.value.systemStatusBubble.offsetY,
+});
+const displayMode = computed(
+  () => settingsManager.settings.value.systemStatusBubble.displayMode,
+);
+const showsPet = computed(() => displayMode.value !== "status-only");
+const showsStatusBubble = computed(() => displayMode.value !== "pet-only");
+const windowLayout = computed(() =>
+  calculatePetWindowLayout({
+    displayMode: displayMode.value,
+    petScale: settingsManager.settings.value.appearance.petScale,
+    bubbleWidth: bubbleSize.width,
+    bubbleHeight: bubbleSize.height,
+    offsetX: bubbleOffset.x,
+    offsetY: bubbleOffset.y,
+  }),
+);
+const petStyle = computed(() => ({
+  "--pet-scale": String(settingsManager.settings.value.appearance.petScale),
+  left: `${windowLayout.value.petX}px`,
+  top: `${windowLayout.value.petY}px`,
+  width: `${windowLayout.value.petSize}px`,
+  height: `${windowLayout.value.petSize}px`,
+}));
+const statusBubbleStyle = computed(() => ({
+  left: `${windowLayout.value.bubbleX}px`,
+  top: `${windowLayout.value.bubbleY}px`,
+}));
+const bubblePreferences = computed(
+  () => settingsManager.settings.value.systemStatusBubble,
+);
+
+interface BubbleDragSession {
+  pointerId: number;
+  startScreenX: number;
+  startScreenY: number;
+  startOffsetX: number;
+  startOffsetY: number;
+  captureTarget?: HTMLElement;
+}
+
+const bubbleDragSession = ref<BubbleDragSession>();
+let previousWindowLayout: PetWindowLayout | undefined;
+let windowApplyQueue = Promise.resolve();
+
+watch(
+  () => settingsManager.settings.value.animation.enabled,
+  (enabled) => {
+    if (enabled) {
+      animation.resume();
+    } else {
+      animation.pause();
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [
+    settingsManager.settings.value.systemStatusBubble.offsetX,
+    settingsManager.settings.value.systemStatusBubble.offsetY,
+  ] as const,
+  ([offsetX, offsetY]) => {
+    if (!bubbleDragSession.value) {
+      bubbleOffset.x = offsetX;
+      bubbleOffset.y = offsetY;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [
+    windowLayout.value.minX,
+    windowLayout.value.minY,
+    windowLayout.value.width,
+    windowLayout.value.height,
+    settingsManager.settings.value.appearance.petScale,
+    settingsManager.settings.value.appearance.alwaysOnTop,
+  ] as const,
+  ([, , , , petScale, alwaysOnTop]) => {
+    const nextLayout = { ...windowLayout.value };
+    const previousLayout = previousWindowLayout;
+    previousWindowLayout = nextLayout;
+
+    const positionDeltaX = previousLayout
+      ? nextLayout.minX - previousLayout.minX
+      : 0;
+    const positionDeltaY = previousLayout
+      ? nextLayout.minY - previousLayout.minY
+      : 0;
+
+    windowApplyQueue = windowApplyQueue
+      .then(() =>
+        tauriPetWindowSettingsAdapter.apply({
+          petScale,
+          alwaysOnTop,
+          layout: {
+            width: nextLayout.width,
+            height: nextLayout.height,
+            positionDeltaX,
+            positionDeltaY,
+          },
+        }),
+      )
+      .catch((windowError: unknown) => {
+        console.error("Failed to apply pet window layout.", windowError);
+      });
+  },
+  { immediate: true },
+);
 
 watch(
   [currentState, isPaused, currentFrame, currentFrameIndex],
@@ -77,45 +216,167 @@ function handleContextMenuAction(type: PetControlActionType): void {
   });
 }
 
-onMounted(() => {
-  document.addEventListener("pointerdown", closeContextMenu);
-  void initializePetAssets();
-  triggerDialogueEvent(DIALOGUE_EVENT_TYPES.DEVELOPMENT, {
-    candidateIndex: 0,
+function handleStatusBubbleSize(size: { width: number; height: number }): void {
+  if (size.width > 0 && size.height > 0) {
+    bubbleSize.width = size.width;
+    bubbleSize.height = size.height;
+  }
+}
+
+function handleStatusBubblePointerDown(event: PointerEvent): void {
+  if (event.button !== 0) {
+    return;
+  }
+
+  if (displayMode.value === "status-only") {
+    void tauriWindowDragAdapter.startDragging().catch((error: unknown) => {
+      console.error("Failed to start status bubble window dragging.", error);
+    });
+    return;
+  }
+
+  if (displayMode.value !== "both" || bubbleDragSession.value) {
+    return;
+  }
+
+  const captureTarget = event.currentTarget as HTMLElement | null;
+  bubbleDragSession.value = {
+    pointerId: event.pointerId,
+    startScreenX: event.screenX,
+    startScreenY: event.screenY,
+    startOffsetX: bubbleOffset.x,
+    startOffsetY: bubbleOffset.y,
+    captureTarget: captureTarget ?? undefined,
+  };
+  captureTarget?.setPointerCapture?.(event.pointerId);
+  window.addEventListener("pointerup", handleGlobalStatusBubblePointerUp, true);
+}
+
+function handleStatusBubblePointerMove(event: PointerEvent): void {
+  const session = bubbleDragSession.value;
+  if (!session || session.pointerId !== event.pointerId || (event.buttons & 1) === 0) {
+    return;
+  }
+
+  bubbleOffset.x = clampStatusBubbleOffset(
+    Math.round(session.startOffsetX + event.screenX - session.startScreenX),
+  );
+  bubbleOffset.y = clampStatusBubbleOffset(
+    Math.round(session.startOffsetY + event.screenY - session.startScreenY),
+  );
+}
+
+function handleStatusBubblePointerUp(event: PointerEvent): void {
+  if (bubbleDragSession.value?.pointerId === event.pointerId) {
+    finishStatusBubbleDrag();
+  }
+}
+
+function handleStatusBubblePointerCancel(event: PointerEvent): void {
+  if (bubbleDragSession.value?.pointerId === event.pointerId) {
+    finishStatusBubbleDrag();
+  }
+}
+
+function handleGlobalStatusBubblePointerUp(event: PointerEvent): void {
+  handleStatusBubblePointerUp(event);
+}
+
+function finishStatusBubbleDrag(): void {
+  const session = bubbleDragSession.value;
+  if (!session) {
+    return;
+  }
+
+  bubbleDragSession.value = undefined;
+  window.removeEventListener("pointerup", handleGlobalStatusBubblePointerUp, true);
+  if (session.captureTarget?.hasPointerCapture?.(session.pointerId)) {
+    session.captureTarget.releasePointerCapture(session.pointerId);
+  }
+
+  settingsManager.update({
+    systemStatusBubble: {
+      offsetX: bubbleOffset.x,
+      offsetY: bubbleOffset.y,
+    },
   });
+}
+
+onMounted(async () => {
+  document.addEventListener("pointerdown", closeContextMenu);
+  await Promise.all([
+    initializePetAssets(),
+    settingsManager.initialize(),
+  ]);
+
+  if (
+    settingsManager.settings.value.dialogue
+      .showDevelopmentMessageOnStartup
+  ) {
+    triggerDialogueEvent(DIALOGUE_EVENT_TYPES.DEVELOPMENT, {
+      candidateIndex: 0,
+    });
+  }
+
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("pointerdown", closeContextMenu);
+  window.removeEventListener("pointerup", handleGlobalStatusBubblePointerUp, true);
 });
 </script>
 
 <template>
-  <div
-    class="pet"
-    :data-pet="currentAsset.petId"
-    :data-state="currentState"
-    :data-resolved-state="currentAsset.resolvedState"
-    @click="handleClick"
-    @mouseenter="handleHoverEnter"
-    @mouseleave="handleHoverLeave"
-    @pointerdown="handlePointerDown"
-    @pointermove="handlePointerMove"
-    @pointerup="handlePointerUp"
-    @pointercancel="handlePointerCancel"
-    @contextmenu.prevent.stop="openContextMenu"
-  >
-    <SpeechBubble
-      class="pet__speech-bubble"
-      :text="dialogueText"
-      :visible="isDialogueVisible"
+  <div class="pet-scene">
+    <div
+      v-if="showsPet"
+      class="pet"
+      :style="petStyle"
+      :data-pet="currentAsset.petId"
+      :data-state="currentState"
+      :data-resolved-state="currentAsset.resolvedState"
+      @click="handleClick"
+      @pointerdown="handlePointerDown"
+      @pointermove="handlePointerMove"
+      @pointerup="handlePointerUp"
+      @pointercancel="handlePointerCancel"
+      @contextmenu.prevent.stop="openContextMenu"
+    >
+      <SpeechBubble
+        class="pet__speech-bubble"
+        :text="dialogueText"
+        :visible="isDialogueVisible"
+      />
+      <img
+        class="pet__frame"
+        :src="currentFrame"
+        :alt="currentAsset.petName"
+        draggable="false"
+      />
+    </div>
+
+    <SystemStatusBubble
+      v-if="showsStatusBubble"
+      class="pet__system-status"
+      :style="statusBubbleStyle"
+      :snapshot="runtimeSnapshot"
+      :background-color="bubblePreferences.backgroundColor"
+      :background-opacity="bubblePreferences.backgroundOpacity"
+      :text-color="bubblePreferences.textColor"
+      :border-color="bubblePreferences.borderColor"
+      :border-width="bubblePreferences.borderWidth"
+      :panel-width="bubblePreferences.panelWidth"
+      :panel-scale="bubblePreferences.panelScale"
+      :visible-items="bubblePreferences.visibleItems"
+      :window-drag-handle="displayMode === 'status-only'"
+      @pointer-down="handleStatusBubblePointerDown"
+      @pointer-move="handleStatusBubblePointerMove"
+      @pointer-up="handleStatusBubblePointerUp"
+      @pointer-cancel="handleStatusBubblePointerCancel"
+      @context-menu="openContextMenu"
+      @size-change="handleStatusBubbleSize"
     />
-    <img
-      class="pet__frame"
-      :src="currentFrame"
-      :alt="currentAsset.petName"
-      draggable="false"
-    />
+
     <PetContextMenu
       :visible="contextMenu.visible"
       :x="contextMenu.x"
@@ -128,13 +389,23 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .pet {
-  position: relative;
+  position: absolute;
   display: grid;
-  width: 100%;
-  height: 100%;
   place-items: center;
   touch-action: none;
+  cursor: grab;
 }
+
+.pet:active { cursor: grabbing; }
+
+.pet-scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.pet__system-status { position: absolute; }
 
 .pet__speech-bubble {
   position: absolute;
@@ -146,8 +417,8 @@ onBeforeUnmount(() => {
 
 .pet__frame {
   display: block;
-  width: 160px;
-  height: 160px;
+  width: calc(160px * var(--pet-scale, 1));
+  height: calc(160px * var(--pet-scale, 1));
   pointer-events: none;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
