@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "desktoppet",
+  "productName": "DesktopPet",
   "version": "0.1.0",
   "identifier": "com.Xiaoyu12.desktoppet",
   "build": {
@@ -13,7 +13,7 @@
     "macOSPrivateApi": true,
     "windows": [
       {
-        "title": "desktoppet",
+        "title": "DesktopPet",
         "width": 200,
         "height": 200,
         "resizable": false,
