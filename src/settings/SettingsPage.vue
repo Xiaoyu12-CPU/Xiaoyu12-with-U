@@ -585,6 +585,28 @@ function getRightSideBubbleOffset(): number {
           />
         </label>
       </article>
+
+      <article>
+        <div class="section-heading">
+          <div>
+            <h3>Reminder</h3>
+            <p>Phase 4-A 已支持提醒数据管理；准时触发将在 Phase 4-B 启用。</p>
+          </div>
+        </div>
+
+        <label class="setting-row">
+          <span>
+            <strong>Enable Reminder System</strong>
+            <small>当前只保存总开关，不会启动调度器或系统通知。</small>
+          </span>
+          <input
+            class="toggle"
+            type="checkbox"
+            :checked="settings.reminder.enabled"
+            @change="updateBoolean('reminder', 'enabled', $event)"
+          />
+        </label>
+      </article>
     </div>
 
     <footer>

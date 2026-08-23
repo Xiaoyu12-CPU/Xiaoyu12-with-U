@@ -32,6 +32,8 @@ pub fn run() {
             commands::pet_assets::upload_user_pet_png,
             commands::pet_assets::load_user_pet_png,
             commands::pet_assets::delete_user_pet_png,
+            commands::reminders::load_reminders,
+            commands::reminders::save_reminders,
             commands::settings::load_settings,
             commands::settings::save_settings,
         ])

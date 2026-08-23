@@ -8,11 +8,12 @@ import {
 } from "../pet/runtimeBridge";
 import type { ControlCenterDestination } from "../pet/runtimeBridge";
 import DialogueEditor from "./DialogueEditor.vue";
+import ReminderPage from "./ReminderPage.vue";
 import StateAnimationEditor from "./StateAnimationEditor.vue";
 import StatusPage from "./StatusPage.vue";
 import SettingsPage from "./SettingsPage.vue";
 
-type ControlCenterPage = "status" | "states" | "dialogue" | "settings";
+type ControlCenterPage = "status" | "states" | "dialogue" | "reminders" | "settings";
 
 const activePage = ref<ControlCenterPage>("status");
 const contentElement = ref<HTMLElement>();
@@ -74,6 +75,13 @@ function openSystemMonitorSettings(): void {
         </button>
         <button
           type="button"
+          :class="{ active: activePage === 'reminders' }"
+          @click="activePage = 'reminders'"
+        >
+          提醒
+        </button>
+        <button
+          type="button"
           :class="{ active: activePage === 'settings' }"
           @click="activePage = 'settings'"
         >
@@ -97,6 +105,7 @@ function openSystemMonitorSettings(): void {
         :runtime-state="snapshot?.state"
       />
       <DialogueEditor v-else-if="activePage === 'dialogue'" @action="handleAction" />
+      <ReminderPage v-else-if="activePage === 'reminders'" />
       <SettingsPage v-else />
     </div>
   </main>
