@@ -590,14 +590,14 @@ function getRightSideBubbleOffset(): number {
         <div class="section-heading">
           <div>
             <h3>Reminder</h3>
-            <p>Phase 4-A 已支持提醒数据管理；准时触发将在 Phase 4-B 启用。</p>
+            <p>启用后由桌宠主窗口按本机当前时区调度 once / daily Reminder。</p>
           </div>
         </div>
 
         <label class="setting-row">
           <span>
             <strong>Enable Reminder System</strong>
-            <small>当前只保存总开关，不会启动调度器或系统通知。</small>
+            <small>关闭只暂停 Scheduler，保留每条 Reminder 的启用状态。</small>
           </span>
           <input
             class="toggle"

@@ -19,6 +19,10 @@ try {
     async save(document) {
       storedDocument = structuredClone(document);
     },
+    async broadcast() {},
+    async subscribe() {
+      return () => {};
+    },
   };
   let timestamp = Date.parse("2026-08-24T00:00:00.000Z");
   let idSequence = 0;
@@ -80,6 +84,10 @@ try {
           return { schemaVersion: 1, reminders: "broken" };
         },
         async save() {},
+        async broadcast() {},
+        async subscribe() {
+          return () => {};
+        },
       },
     });
     await corruptManager.load();

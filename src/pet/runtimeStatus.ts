@@ -2,6 +2,10 @@ import { computed, readonly, ref } from "vue";
 import type { BehaviorRequest } from "./behavior";
 import type { DialogueEventType } from "./dialogueEvents";
 import type { PetState } from "./types";
+import type {
+  NextReminderRuntime,
+  ReminderTriggerPayload,
+} from "../reminder/reminderTypes";
 
 export type PetAnimationStatus = "playing" | "paused";
 export type CpuStatus = "disabled" | "normal" | "high";
@@ -16,6 +20,7 @@ export type BatteryState =
   | "unknown"
   | "unavailable"
   | "error";
+export type ReminderSchedulerStatus = "enabled" | "disabled";
 
 export interface PetRuntimeSnapshot {
   state: PetState;
@@ -47,6 +52,9 @@ export interface PetRuntimeSnapshot {
   batteryState: BatteryState;
   batteryMonitoring: boolean;
   batteryPresent: boolean;
+  reminderSchedulerStatus: ReminderSchedulerStatus;
+  nextReminder?: NextReminderRuntime;
+  lastReminderTrigger?: ReminderTriggerPayload;
   animationStatus: PetAnimationStatus;
   currentFrame: string;
   currentFrameIndex: number;
@@ -84,6 +92,9 @@ const batteryPercent = ref<number>();
 const batteryState = ref<BatteryState>("disabled");
 const batteryMonitoring = ref(false);
 const batteryPresent = ref(false);
+const reminderSchedulerStatus = ref<ReminderSchedulerStatus>("disabled");
+const nextReminder = ref<NextReminderRuntime>();
+const lastReminderTrigger = ref<ReminderTriggerPayload>();
 const animationStatus = ref<PetAnimationStatus>("playing");
 const currentFrame = ref("");
 const currentFrameIndex = ref(0);
@@ -121,6 +132,9 @@ const snapshot = computed<PetRuntimeSnapshot>(() => ({
   batteryState: batteryState.value,
   batteryMonitoring: batteryMonitoring.value,
   batteryPresent: batteryPresent.value,
+  reminderSchedulerStatus: reminderSchedulerStatus.value,
+  nextReminder: nextReminder.value,
+  lastReminderTrigger: lastReminderTrigger.value,
   animationStatus: animationStatus.value,
   currentFrame: currentFrame.value,
   currentFrameIndex: currentFrameIndex.value,
@@ -201,6 +215,17 @@ export function updateBatteryRuntime(input: {
   batteryState.value = input.state;
   batteryMonitoring.value = input.monitoring;
   batteryPresent.value = input.present;
+  touch();
+}
+
+export function updateReminderRuntime(input: {
+  status: ReminderSchedulerStatus;
+  nextReminder?: NextReminderRuntime;
+  lastTrigger?: ReminderTriggerPayload;
+}): void {
+  reminderSchedulerStatus.value = input.status;
+  nextReminder.value = input.nextReminder;
+  lastReminderTrigger.value = input.lastTrigger;
   touch();
 }
 

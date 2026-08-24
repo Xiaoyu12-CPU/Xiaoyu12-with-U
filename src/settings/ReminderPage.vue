@@ -6,6 +6,11 @@ import type {
   ReminderInput,
   ReminderScheduleType,
 } from "../reminder/reminderTypes";
+import type { PetRuntimeSnapshot } from "../pet/runtimeStatus";
+
+defineProps<{
+  runtime?: PetRuntimeSnapshot;
+}>();
 
 const isEditing = ref(false);
 const editingId = ref<string>();
@@ -107,6 +112,13 @@ function today(): string {
   const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return localDate.toISOString().slice(0, 10);
 }
+
+function formatRuntimeDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
 </script>
 
 <template>
@@ -115,7 +127,7 @@ function today(): string {
       <div>
         <p class="eyebrow">Reminder Management</p>
         <h2>提醒</h2>
-        <p class="subtitle">Phase 4-A 只负责保存和管理；按时触发将在 Phase 4-B 接入。</p>
+        <p class="subtitle">Scheduler 按本机当前时区调度；本阶段只记录 Trigger，不产生桌宠反馈。</p>
       </div>
       <button v-if="!isEditing" class="primary" type="button" @click="beginCreate">
         新增提醒
@@ -126,6 +138,34 @@ function today(): string {
       读取提醒失败，当前使用安全空列表：{{ reminderManager.lastError.value }}
     </p>
     <p v-if="formError" class="error">{{ formError }}</p>
+
+    <article class="scheduler-status">
+      <div>
+        <p class="eyebrow">Scheduler</p>
+        <strong v-if="runtime">
+          {{ runtime.reminderSchedulerStatus === "enabled" ? "Active" : "Disabled" }}
+        </strong>
+        <strong v-else>连接中…</strong>
+      </div>
+      <div class="runtime-detail">
+        <span>Next Reminder</span>
+        <strong v-if="runtime?.nextReminder">{{ runtime.nextReminder.text }}</strong>
+        <small v-if="runtime?.nextReminder">
+          {{ formatRuntimeDate(runtime.nextReminder.nextTriggerAt) }}
+        </small>
+        <small v-else>无待调度提醒</small>
+      </div>
+      <div class="runtime-detail">
+        <span>Last Trigger</span>
+        <strong v-if="runtime?.lastReminderTrigger">
+          {{ runtime.lastReminderTrigger.text }}
+        </strong>
+        <small v-if="runtime?.lastReminderTrigger">
+          {{ formatRuntimeDate(runtime.lastReminderTrigger.triggeredAt) }}
+        </small>
+        <small v-else>本次运行尚未触发</small>
+      </div>
+    </article>
 
     <form v-if="isEditing" class="editor" @submit.prevent="saveReminder">
       <div class="editor-heading">
@@ -238,7 +278,12 @@ button:disabled { cursor: default; opacity: .55; }
 .primary { color: #fff; background: #745bc9; border-color: #745bc9; }
 .primary:hover { background: #654db9; }
 .danger { color: #a44050; border-color: #e9cbd0; }
-.editor, .reminder-list article, .empty-state { padding: 17px; background: #faf9fd; border: 1px solid #e8e4f0; border-radius: 13px; }
+.editor, .reminder-list article, .empty-state, .scheduler-status { padding: 17px; background: #faf9fd; border: 1px solid #e8e4f0; border-radius: 13px; }
+.scheduler-status { display: grid; grid-template-columns: minmax(100px, .7fr) repeat(2, minmax(150px, 1fr)); gap: 16px; }
+.scheduler-status > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
+.scheduler-status strong { overflow: hidden; color: #433750; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-detail { padding-left: 14px; border-left: 1px solid #e5dfed; }
+.runtime-detail span, .runtime-detail small { color: #8a8094; font-size: 10px; }
 .editor { display: grid; gap: 15px; }
 .enabled-control { display: flex; align-items: center; gap: 8px; color: #655b70; font-size: 12px; }
 .enabled-control input, fieldset input { accent-color: #745bc9; }
@@ -267,5 +312,7 @@ fieldset label { display: flex; align-items: center; gap: 6px; color: #4d4358; f
   header, .reminder-list article { align-items: flex-start; flex-direction: column; }
   .date-time-fields { flex-direction: column; }
   .row-actions, .delete-confirmation { align-self: stretch; justify-content: flex-start; }
+  .scheduler-status { grid-template-columns: 1fr; }
+  .runtime-detail { padding: 10px 0 0; border-top: 1px solid #e5dfed; border-left: 0; }
 }
 </style>

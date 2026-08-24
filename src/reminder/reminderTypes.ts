@@ -23,3 +23,18 @@ export interface ReminderStorageDocument {
   schemaVersion: 1;
   reminders: Reminder[];
 }
+
+export interface ReminderTriggerPayload {
+  id: string;
+  text: string;
+  scheduleType: ReminderScheduleType;
+  scheduledAt: string;
+  triggeredAt: string;
+}
+
+export interface NextReminderRuntime {
+  id: string;
+  text: string;
+  scheduleType: ReminderScheduleType;
+  nextTriggerAt: string;
+}

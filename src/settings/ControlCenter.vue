@@ -89,7 +89,7 @@ function openSystemMonitorSettings(): void {
         </button>
       </nav>
 
-      <p>Phase 3-G</p>
+      <p>Phase 4-B</p>
     </aside>
 
     <div ref="contentElement" class="control-center__content">
@@ -105,7 +105,10 @@ function openSystemMonitorSettings(): void {
         :runtime-state="snapshot?.state"
       />
       <DialogueEditor v-else-if="activePage === 'dialogue'" @action="handleAction" />
-      <ReminderPage v-else-if="activePage === 'reminders'" />
+      <ReminderPage
+        v-else-if="activePage === 'reminders'"
+        :runtime="snapshot"
+      />
       <SettingsPage v-else />
     </div>
   </main>

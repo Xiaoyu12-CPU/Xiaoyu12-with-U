@@ -58,7 +58,26 @@ export function createReminderManager(
 
   async function initialize(): Promise<void> {
     if (!initializePromise) {
-      initializePromise = load();
+      initializePromise = (async () => {
+        let subscriptionError: string | undefined;
+        try {
+          await storage.subscribe((value) => {
+            try {
+              reminders.value = normalizeDocument(value).reminders;
+              lastError.value = undefined;
+            } catch (error) {
+              console.error("Ignored invalid reminders update.", error);
+            }
+          });
+        } catch (error) {
+          subscriptionError = `无法监听提醒更新：${toErrorMessage(error)}`;
+          console.error("Failed to subscribe to reminder updates.", error);
+        }
+        await load();
+        if (subscriptionError) {
+          lastError.value = subscriptionError;
+        }
+      })();
     }
 
     return initializePromise;
@@ -72,6 +91,12 @@ export function createReminderManager(
     try {
       await storage.save({ schemaVersion: 1, reminders: persistedReminders });
       reminders.value = persistedReminders;
+      try {
+        await storage.broadcast({ schemaVersion: 1, reminders: persistedReminders });
+      } catch (error) {
+        lastError.value = `提醒已保存，但跨窗口同步失败：${toErrorMessage(error)}`;
+        console.error("Failed to broadcast reminder storage update.", error);
+      }
     } catch (error) {
       lastError.value = toErrorMessage(error);
       throw error;
