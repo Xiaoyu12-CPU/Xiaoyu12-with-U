@@ -359,7 +359,7 @@ function getRightSideBubbleOffset(): number {
 
       </article>
 
-      <article>
+      <article id="system-monitor-settings">
         <div class="section-heading">
           <div>
             <h3>System Monitor</h3>
@@ -368,7 +368,10 @@ function getRightSideBubbleOffset(): number {
         </div>
 
         <label class="setting-row">
-          <span><strong>Enable System Monitor</strong></span>
+          <span>
+            <strong>System Monitor</strong>
+            <small>暂停时保留各硬件子开关；重新开启后按原设置恢复。</small>
+          </span>
           <input
             class="toggle"
             type="checkbox"
@@ -376,6 +379,27 @@ function getRightSideBubbleOffset(): number {
             @change="updateBoolean('systemMonitor', 'enabled', $event)"
           />
         </label>
+
+        <label class="setting-row">
+          <span>
+            <strong>System Poll Interval</strong>
+            <small>CPU、Memory 与 Network 共用，500 ～ 10000 毫秒。</small>
+          </span>
+          <div class="number-control">
+            <input
+              type="number"
+              min="500"
+              max="10000"
+              step="500"
+              :value="settings.systemMonitor.cpuPollIntervalMs"
+              :disabled="!settings.systemMonitor.enabled || (!settings.systemMonitor.cpuEnabled && !settings.systemMonitor.memoryEnabled && !settings.systemMonitor.networkEnabled)"
+              @change="updateNumber('systemMonitor', 'cpuPollIntervalMs', $event)"
+            />
+            <span>ms</span>
+          </div>
+        </label>
+
+        <h4 class="settings-group-heading">CPU</h4>
 
         <label class="setting-row">
           <span><strong>Enable CPU Monitor</strong></span>
@@ -407,24 +431,7 @@ function getRightSideBubbleOffset(): number {
           </div>
         </label>
 
-        <label class="setting-row">
-          <span>
-            <strong>System Poll Interval</strong>
-            <small>CPU、Memory 与 Network 共用，500 ～ 10000 毫秒</small>
-          </span>
-          <div class="number-control">
-            <input
-              type="number"
-              min="500"
-              max="10000"
-              step="500"
-              :value="settings.systemMonitor.cpuPollIntervalMs"
-              :disabled="!settings.systemMonitor.enabled || (!settings.systemMonitor.cpuEnabled && !settings.systemMonitor.memoryEnabled && !settings.systemMonitor.networkEnabled)"
-              @change="updateNumber('systemMonitor', 'cpuPollIntervalMs', $event)"
-            />
-            <span>ms</span>
-          </div>
-        </label>
+        <h4 class="settings-group-heading">Memory</h4>
 
         <label class="setting-row">
           <span><strong>Enable Memory Monitor</strong></span>
@@ -456,6 +463,8 @@ function getRightSideBubbleOffset(): number {
           </div>
         </label>
 
+        <h4 class="settings-group-heading">Network</h4>
+
         <label class="setting-row">
           <span>
             <strong>Enable Network Monitor</strong>
@@ -470,6 +479,8 @@ function getRightSideBubbleOffset(): number {
           />
         </label>
 
+        <h4 class="settings-group-heading">Storage</h4>
+
         <label class="setting-row">
           <span>
             <strong>Enable Storage Monitor</strong>
@@ -483,6 +494,8 @@ function getRightSideBubbleOffset(): number {
             @change="updateBoolean('systemMonitor', 'storageEnabled', $event)"
           />
         </label>
+
+        <h4 class="settings-group-heading">Battery</h4>
 
         <label class="setting-row">
           <span>
@@ -575,7 +588,7 @@ function getRightSideBubbleOffset(): number {
     </div>
 
     <footer>
-      <p>System Status Bubble 使用真实 CPU / Memory / Network 数据；Storage、Input 和 Reminder 仍未启用。</p>
+      <p>System Status Bubble 使用真实 CPU、Memory、Network、Storage 与 Battery 数据。</p>
       <button type="button" @click="settingsManager.resetDefaults">
         恢复默认设置
       </button>
@@ -592,6 +605,7 @@ h2 { color: #211b31; font-size: 26px; }
 .save-state { color: #6e6579; font-size: 12px; }
 .settings-sections { display: grid; gap: 14px; }
 article { display: grid; gap: 4px; padding: 17px; background: #faf9fd; border: 1px solid #e8e4f0; border-radius: 13px; }
+#system-monitor-settings { scroll-margin-top: 16px; }
 .section-heading { padding-bottom: 12px; }
 .section-heading h3 { color: #2d253a; font-size: 16px; }
 .section-heading p, footer p { margin-top: 3px; color: #857c91; font-size: 11px; }

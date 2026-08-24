@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { nextTick, ref } from "vue";
 import type { PetControlAction } from "../pet/petControl";
-import { useRemotePetRuntime } from "../pet/runtimeBridge";
+import {
+  CONTROL_CENTER_DESTINATIONS,
+  useControlCenterNavigation,
+  useRemotePetRuntime,
+} from "../pet/runtimeBridge";
+import type { ControlCenterDestination } from "../pet/runtimeBridge";
 import DialogueEditor from "./DialogueEditor.vue";
 import StateAnimationEditor from "./StateAnimationEditor.vue";
 import StatusPage from "./StatusPage.vue";
@@ -10,10 +15,27 @@ import SettingsPage from "./SettingsPage.vue";
 type ControlCenterPage = "status" | "states" | "dialogue" | "settings";
 
 const activePage = ref<ControlCenterPage>("status");
+const contentElement = ref<HTMLElement>();
 const { snapshot, isConnected, executeAction } = useRemotePetRuntime();
+useControlCenterNavigation(handleExternalNavigation);
 
 function handleAction(action: PetControlAction): void {
   executeAction(action);
+}
+
+function handleExternalNavigation(destination: ControlCenterDestination): void {
+  if (destination === CONTROL_CENTER_DESTINATIONS.SYSTEM_MONITOR_SETTINGS) {
+    openSystemMonitorSettings();
+  }
+}
+
+function openSystemMonitorSettings(): void {
+  activePage.value = "settings";
+  void nextTick(() => {
+    contentElement.value
+      ?.querySelector<HTMLElement>("#system-monitor-settings")
+      ?.scrollIntoView({ block: "start" });
+  });
 }
 </script>
 
@@ -59,15 +81,16 @@ function handleAction(action: PetControlAction): void {
         </button>
       </nav>
 
-      <p>Phase 3-C</p>
+      <p>Phase 3-G</p>
     </aside>
 
-    <div class="control-center__content">
+    <div ref="contentElement" class="control-center__content">
       <StatusPage
         v-if="activePage === 'status'"
         :snapshot="snapshot"
         :connected="isConnected"
         @action="handleAction"
+        @open-system-monitor-settings="openSystemMonitorSettings"
       />
       <StateAnimationEditor
         v-else-if="activePage === 'states'"

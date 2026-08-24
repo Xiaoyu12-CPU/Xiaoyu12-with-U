@@ -25,10 +25,13 @@ const emit = defineEmits<{
   pointerCancel: [event: PointerEvent];
   contextMenu: [event: MouseEvent];
   sizeChange: [size: { width: number; height: number }];
+  openSystemMonitorSettings: [];
 }>();
 
 const panelElement = ref<HTMLElement>();
 let resizeObserver: ResizeObserver | undefined;
+let lastReportedWidth = 0;
+let lastReportedHeight = 0;
 
 const panelStyle = computed(() => {
   const scale = props.panelScale;
@@ -65,14 +68,18 @@ const panelStyle = computed(() => {
 const visibleItemSet = computed(() => new Set(props.visibleItems));
 
 const cpuUsageText = computed(() =>
-  props.snapshot.cpuMonitoring && props.snapshot.cpuUsagePercent !== undefined
-    ? `${props.snapshot.cpuUsagePercent.toFixed(1)}%`
-    : "未启用",
+  !props.snapshot.cpuMonitoring
+    ? "未启用"
+    : props.snapshot.cpuUsagePercent === undefined
+      ? "采样中…"
+      : `${props.snapshot.cpuUsagePercent.toFixed(1)}%`,
 );
 const memoryUsageText = computed(() =>
-  props.snapshot.memoryMonitoring && props.snapshot.memoryUsagePercent !== undefined
-    ? `${props.snapshot.memoryUsagePercent.toFixed(1)}%`
-    : "未启用",
+  !props.snapshot.memoryMonitoring
+    ? "未启用"
+    : props.snapshot.memoryUsagePercent === undefined
+      ? "采样中…"
+      : `${props.snapshot.memoryUsagePercent.toFixed(1)}%`,
 );
 const memoryBytesText = computed(() => {
   if (
@@ -80,7 +87,7 @@ const memoryBytesText = computed(() => {
     props.snapshot.memoryUsedBytes === undefined ||
     props.snapshot.memoryTotalBytes === undefined
   ) {
-    return "可在设置中开启";
+    return "";
   }
 
   return formatBytePair(
@@ -163,10 +170,16 @@ onBeforeUnmount(() => {
 });
 
 function reportSize(element: HTMLElement): void {
-  emit("sizeChange", {
-    width: element.offsetWidth,
-    height: element.offsetHeight,
-  });
+  const width = element.offsetWidth;
+  const height = element.offsetHeight;
+
+  if (width === lastReportedWidth && height === lastReportedHeight) {
+    return;
+  }
+
+  lastReportedWidth = width;
+  lastReportedHeight = height;
+  emit("sizeChange", { width, height });
 }
 
 function percentageWidth(value: number | undefined, active: boolean): string {
@@ -215,7 +228,16 @@ function toRgba(hexColor: string, opacity: number): string {
       <div v-if="snapshot.cpuMonitoring" class="progress" aria-hidden="true">
         <span :style="{ width: percentageWidth(snapshot.cpuUsagePercent, snapshot.cpuMonitoring) }"></span>
       </div>
-      <small v-else>可在设置中开启</small>
+      <button
+        v-else
+        class="settings-link"
+        type="button"
+        @pointerdown.stop
+        @pointerup.stop
+        @click.stop="emit('openSystemMonitorSettings')"
+      >
+        前往设置
+      </button>
     </div>
 
     <div v-if="isVisible('memory')" class="metric">
@@ -223,10 +245,20 @@ function toRgba(hexColor: string, opacity: number): string {
         <strong>内存</strong>
         <span :class="`metric__value--${snapshot.memoryStatus}`">{{ memoryUsageText }}</span>
       </div>
-      <small>{{ memoryBytesText }}</small>
+      <small v-if="memoryBytesText">{{ memoryBytesText }}</small>
       <div v-if="snapshot.memoryMonitoring" class="progress" aria-hidden="true">
         <span :style="{ width: percentageWidth(snapshot.memoryUsagePercent, snapshot.memoryMonitoring) }"></span>
       </div>
+      <button
+        v-else
+        class="settings-link"
+        type="button"
+        @pointerdown.stop
+        @pointerup.stop
+        @click.stop="emit('openSystemMonitorSettings')"
+      >
+        前往设置
+      </button>
     </div>
 
     <div v-if="isVisible('network')" class="metric">
@@ -240,7 +272,16 @@ function toRgba(hexColor: string, opacity: number): string {
         <small>↓ {{ formatNetworkRate(snapshot.networkDownloadBytesPerSecond) }}</small>
         <small>↑ {{ formatNetworkRate(snapshot.networkUploadBytesPerSecond) }}</small>
       </div>
-      <small v-else-if="!snapshot.networkMonitoring">可在设置中开启</small>
+      <button
+        v-else-if="!snapshot.networkMonitoring"
+        class="settings-link"
+        type="button"
+        @pointerdown.stop
+        @pointerup.stop
+        @click.stop="emit('openSystemMonitorSettings')"
+      >
+        前往设置
+      </button>
     </div>
 
     <div v-if="isVisible('storage')" class="metric">
@@ -267,7 +308,16 @@ function toRgba(hexColor: string, opacity: number): string {
           }"
         ></span>
       </div>
-      <small v-else-if="!snapshot.storageMonitoring">可在设置中开启</small>
+      <button
+        v-else-if="!snapshot.storageMonitoring"
+        class="settings-link"
+        type="button"
+        @pointerdown.stop
+        @pointerup.stop
+        @click.stop="emit('openSystemMonitorSettings')"
+      >
+        前往设置
+      </button>
     </div>
 
     <div v-if="isVisible('battery')" class="metric">
@@ -292,7 +342,16 @@ function toRgba(hexColor: string, opacity: number): string {
           }"
         ></span>
       </div>
-      <small v-else-if="!snapshot.batteryMonitoring">可在设置中开启</small>
+      <button
+        v-else-if="snapshot.batteryState === 'disabled'"
+        class="settings-link"
+        type="button"
+        @pointerdown.stop
+        @pointerup.stop
+        @click.stop="emit('openSystemMonitorSettings')"
+      >
+        前往设置
+      </button>
     </div>
   </section>
 </template>
@@ -360,9 +419,32 @@ header i {
 .metric__heading--storage strong,
 .metric__heading--storage span { white-space: nowrap; }
 .metric__heading--storage span { font-size: var(--metric-label-size); }
-.metric small { font-size: var(--metric-small-size); opacity: .62; }
+.metric small {
+  overflow: hidden;
+  font-size: var(--metric-small-size);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: .62;
+}
 .network-rates { display: grid; gap: calc(var(--metric-gap) * .55); }
 .network-rates small { font-size: var(--metric-label-size); font-weight: 700; opacity: .82; }
+
+.settings-link {
+  width: fit-content;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: var(--metric-small-size);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  opacity: .72;
+}
+
+.settings-link:hover { opacity: 1; }
 
 .progress {
   height: var(--progress-height);

@@ -548,3 +548,15 @@ Rust 将 Charging、Discharging、Full、Unknown 映射到统一 Runtime state�
 Settings schemaVersion 保持为 1，在 `systemMonitor` 增加默认关闭的 `batteryEnabled`。启用后立即采样，之后使用单个串行 `setTimeout` 每 30 秒刷新；Disable、Master OFF 与组件销毁会清理 timer、递增 generation、清空有效电量并发布 disabled。Battery 是当前状态快照，不需要 Network 式 delta baseline 或睡眠事件监听。
 
 Runtime Snapshot 增加 Battery Percent、`disabled / charging / discharging / full / unknown / unavailable / error`、monitoring 与 present。Battery 注册为新的轻量 Status Item，但默认 `visibleItems` 仍只有原有 CPU、Memory、Network、Storage；旧配置不会自动显示 Battery。当前阶段 Battery 只展示数据，不请求 Behavior，也不触发 Dialogue。
+
+## 19. Phase 3-G：System Monitor Integration & UX Cleanup
+
+Phase 3-G 不新增采样源，只统一 CPU、Memory、Network、Storage、Battery 的设置、Runtime 状态表达和导航体验。主桌宠窗口继续是五项 Monitor 的唯一 owner；Control Center 与 SystemStatusBubble 仍只消费 Runtime Snapshot。
+
+`systemMonitor.enabled` 是暂停所有 Monitor 的 Master Switch，但不会修改 `cpuEnabled / memoryEnabled / networkEnabled / storageEnabled / batteryEnabled`。重新启用 Master 后，各模块按保留的子开关恢复。兼容字段 `cpuPollIntervalMs` 在 UI 中显示为 System Poll Interval，继续只驱动 CPU、Memory、Network；Storage 与 Battery 保持各自固定 30 秒周期。
+
+五个 Monitor 继续独立维护单个串行 `setTimeout` 与 generation。Enable、Disable、Master 切换和共享间隔热更新都会使旧 generation 失效，因此每项最多只有一个有效 polling loop；单项读取错误由本模块捕获并发布 Error，不影响其他 Monitor。
+
+Control Center 的 Current Status 固定按 CPU、Memory、Network、Storage、Battery 排列，并统一展示 Active、Disabled、Warming、Error、Unavailable 等生命周期状态。Disabled 项目的“前往设置”直接切换到 Settings 的 System Monitor 区域。SystemStatusBubble 提供相同行为：主窗口先打开或聚焦 Control Center，再通过现有跨窗口 Runtime Bridge 的 navigation ready / acknowledgement 事件可靠导航，不会自动修改 Monitor 开关。
+
+SystemStatusBubble 的 ResizeObserver 只在实测宽高变化时上报，Pet 端再次去重相同尺寸；动态百分比和速率文本使用固定单行布局，常规 Runtime 数值更新不会持续触发 Window Bounding Box resize。`visibleItems` 正式支持 Battery，但默认值和旧用户数组都不会自动加入 Battery，只有用户主动勾选后才显示。

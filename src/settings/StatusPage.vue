@@ -18,6 +18,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   action: [action: PetControlAction];
+  openSystemMonitorSettings: [];
 }>();
 
 const frameName = computed(() => {
@@ -71,6 +72,47 @@ const batteryStateText = computed(() => {
     error: "Error",
   };
   return labels[state];
+});
+const cpuLifecycleStatus = computed(() =>
+  props.snapshot?.cpuMonitoring ? "Active" : "Disabled",
+);
+const memoryLifecycleStatus = computed(() =>
+  props.snapshot?.memoryMonitoring ? "Active" : "Disabled",
+);
+const networkLifecycleStatus = computed(() => {
+  switch (props.snapshot?.networkStatus) {
+    case "active":
+      return "Active";
+    case "warming":
+      return "Warming";
+    case "error":
+      return "Error";
+    default:
+      return "Disabled";
+  }
+});
+const storageLifecycleStatus = computed(() => {
+  switch (props.snapshot?.storageStatus) {
+    case "active":
+      return "Active";
+    case "error":
+      return "Error";
+    default:
+      return "Disabled";
+  }
+});
+const batteryLifecycleStatus = computed(() => {
+  switch (props.snapshot?.batteryState) {
+    case "unavailable":
+      return "Unavailable";
+    case "error":
+      return "Error";
+    case "disabled":
+    case undefined:
+      return "Disabled";
+    default:
+      return props.snapshot?.batteryMonitoring ? "Active" : "Disabled";
+  }
 });
 
 function execute(type: PetControlActionType): void {
@@ -127,10 +169,20 @@ function execute(type: PetControlActionType): void {
       </article>
     </div>
 
-    <section class="cpu-panel">
-      <div>
-        <p class="eyebrow">System Monitor / CPU</p>
-        <h3>真实系统 CPU</h3>
+    <section class="cpu-panel monitor-panel">
+      <div class="monitor-panel__heading">
+        <div>
+          <p class="eyebrow">System Monitor / CPU</p>
+          <h3>真实系统 CPU</h3>
+        </div>
+        <button
+          v-if="cpuLifecycleStatus === 'Disabled'"
+          class="secondary"
+          type="button"
+          @click="emit('openSystemMonitorSettings')"
+        >
+          前往设置
+        </button>
       </div>
       <div class="cpu-grid">
         <article>
@@ -138,7 +190,7 @@ function execute(type: PetControlActionType): void {
           <strong>{{ cpuUsage }}</strong>
         </article>
         <article>
-          <span>CPU Status</span>
+          <span>CPU Condition</span>
           <strong :class="{ high: snapshot?.cpuStatus === 'high' }">
             {{ snapshot?.cpuStatus ?? "disabled" }}
           </strong>
@@ -148,16 +200,26 @@ function execute(type: PetControlActionType): void {
           <strong>{{ snapshot?.cpuHighThreshold ?? 80 }}%</strong>
         </article>
         <article>
-          <span>Monitoring</span>
-          <strong>{{ snapshot?.cpuMonitoring ? "Active" : "Disabled" }}</strong>
+          <span>Status</span>
+          <strong>{{ cpuLifecycleStatus }}</strong>
         </article>
       </div>
     </section>
 
-    <section class="memory-panel">
-      <div>
-        <p class="eyebrow">System Monitor / Memory</p>
-        <h3>真实系统内存</h3>
+    <section class="memory-panel monitor-panel">
+      <div class="monitor-panel__heading">
+        <div>
+          <p class="eyebrow">System Monitor / Memory</p>
+          <h3>真实系统内存</h3>
+        </div>
+        <button
+          v-if="memoryLifecycleStatus === 'Disabled'"
+          class="secondary"
+          type="button"
+          @click="emit('openSystemMonitorSettings')"
+        >
+          前往设置
+        </button>
       </div>
       <div class="memory-grid">
         <article>
@@ -177,7 +239,7 @@ function execute(type: PetControlActionType): void {
           <strong>{{ formatBytes(snapshot?.memoryTotalBytes) }}</strong>
         </article>
         <article>
-          <span>Memory Status</span>
+          <span>Memory Condition</span>
           <strong :class="{ high: snapshot?.memoryStatus === 'high' }">
             {{ snapshot?.memoryStatus ?? "disabled" }}
           </strong>
@@ -187,16 +249,26 @@ function execute(type: PetControlActionType): void {
           <strong>{{ snapshot?.memoryHighThreshold ?? 85 }}%</strong>
         </article>
         <article>
-          <span>Monitoring</span>
-          <strong>{{ snapshot?.memoryMonitoring ? "Active" : "Disabled" }}</strong>
+          <span>Status</span>
+          <strong>{{ memoryLifecycleStatus }}</strong>
         </article>
       </div>
     </section>
 
-    <section class="network-panel">
-      <div>
-        <p class="eyebrow">System Monitor / Network</p>
-        <h3>真实系统网络吞吐</h3>
+    <section class="network-panel monitor-panel">
+      <div class="monitor-panel__heading">
+        <div>
+          <p class="eyebrow">System Monitor / Network</p>
+          <h3>真实系统网络吞吐</h3>
+        </div>
+        <button
+          v-if="networkLifecycleStatus === 'Disabled'"
+          class="secondary"
+          type="button"
+          @click="emit('openSystemMonitorSettings')"
+        >
+          前往设置
+        </button>
       </div>
       <div class="network-grid">
         <article>
@@ -208,20 +280,26 @@ function execute(type: PetControlActionType): void {
           <strong>{{ networkUpload }}</strong>
         </article>
         <article>
-          <span>Network Status</span>
-          <strong>{{ snapshot?.networkStatus ?? "disabled" }}</strong>
-        </article>
-        <article>
-          <span>Monitoring</span>
-          <strong>{{ snapshot?.networkMonitoring ? "Active" : "Disabled" }}</strong>
+          <span>Status</span>
+          <strong>{{ networkLifecycleStatus }}</strong>
         </article>
       </div>
     </section>
 
-    <section class="storage-panel">
-      <div>
-        <p class="eyebrow">System Monitor / Storage</p>
-        <h3>真实系统卷储存空间</h3>
+    <section class="storage-panel monitor-panel">
+      <div class="monitor-panel__heading">
+        <div>
+          <p class="eyebrow">System Monitor / Storage</p>
+          <h3>真实系统卷储存空间</h3>
+        </div>
+        <button
+          v-if="storageLifecycleStatus === 'Disabled'"
+          class="secondary"
+          type="button"
+          @click="emit('openSystemMonitorSettings')"
+        >
+          前往设置
+        </button>
       </div>
       <div class="storage-grid">
         <article>
@@ -241,20 +319,26 @@ function execute(type: PetControlActionType): void {
           <strong>{{ formatBytes(snapshot?.storageTotalBytes) }}</strong>
         </article>
         <article>
-          <span>Storage Status</span>
-          <strong>{{ snapshot?.storageStatus ?? "disabled" }}</strong>
-        </article>
-        <article>
-          <span>Monitoring</span>
-          <strong>{{ snapshot?.storageMonitoring ? "Active" : "Disabled" }}</strong>
+          <span>Status</span>
+          <strong>{{ storageLifecycleStatus }}</strong>
         </article>
       </div>
     </section>
 
-    <section class="battery-panel">
-      <div>
-        <p class="eyebrow">System Monitor / Battery</p>
-        <h3>真实系统电池</h3>
+    <section class="battery-panel monitor-panel">
+      <div class="monitor-panel__heading">
+        <div>
+          <p class="eyebrow">System Monitor / Battery</p>
+          <h3>真实系统电池</h3>
+        </div>
+        <button
+          v-if="batteryLifecycleStatus === 'Disabled'"
+          class="secondary"
+          type="button"
+          @click="emit('openSystemMonitorSettings')"
+        >
+          前往设置
+        </button>
       </div>
       <div class="battery-grid">
         <article>
@@ -270,8 +354,8 @@ function execute(type: PetControlActionType): void {
           <strong>{{ snapshot?.batteryPresent ? "Yes" : "No" }}</strong>
         </article>
         <article>
-          <span>Monitoring</span>
-          <strong>{{ snapshot?.batteryMonitoring ? "Active" : "Disabled" }}</strong>
+          <span>Status</span>
+          <strong>{{ batteryLifecycleStatus }}</strong>
         </article>
       </div>
     </section>
@@ -483,6 +567,13 @@ article strong {
 .battery-panel {
   display: grid;
   gap: 13px;
+}
+
+.monitor-panel__heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .cpu-grid {

@@ -21,7 +21,10 @@ import { usePetInteraction } from "./interaction";
 import { createPetControl } from "./petControl";
 import type { PetControlActionType } from "./petControl";
 import { usePetStore } from "./petStore";
-import { useMainRuntimeBridge } from "./runtimeBridge";
+import {
+  openSystemMonitorSettings,
+  useMainRuntimeBridge,
+} from "./runtimeBridge";
 import { updateAnimationRuntime, usePetRuntimeStatus } from "./runtimeStatus";
 import { settingsManager } from "../settings/settingsManager";
 import { tauriPetWindowSettingsAdapter } from "./windowSettings";
@@ -217,10 +220,22 @@ function handleContextMenuAction(type: PetControlActionType): void {
 }
 
 function handleStatusBubbleSize(size: { width: number; height: number }): void {
-  if (size.width > 0 && size.height > 0) {
-    bubbleSize.width = size.width;
-    bubbleSize.height = size.height;
+  if (
+    size.width <= 0 ||
+    size.height <= 0 ||
+    (size.width === bubbleSize.width && size.height === bubbleSize.height)
+  ) {
+    return;
   }
+
+  bubbleSize.width = size.width;
+  bubbleSize.height = size.height;
+}
+
+function handleOpenSystemMonitorSettings(): void {
+  void openSystemMonitorSettings().catch((error: unknown) => {
+    console.error("Failed to open System Monitor settings.", error);
+  });
 }
 
 function handleStatusBubblePointerDown(event: PointerEvent): void {
@@ -375,6 +390,7 @@ onBeforeUnmount(() => {
       @pointer-cancel="handleStatusBubblePointerCancel"
       @context-menu="openContextMenu"
       @size-change="handleStatusBubbleSize"
+      @open-system-monitor-settings="handleOpenSystemMonitorSettings"
     />
 
     <PetContextMenu

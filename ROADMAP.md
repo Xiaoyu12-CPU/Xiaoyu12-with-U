@@ -194,6 +194,20 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - Bubble 支持电量百分比、充电中、使用电池、已充满、状态未知、无电池、未启用与读取失败，并复用轻量进度条。
 - Battery 当前不参与 Behavior 或 Dialogue；本阶段未实现低电量提醒、健康度、循环次数、温度、功耗、历史或高级分析。
 
+### Phase 3-G 完成记录：System Monitor Integration & UX Cleanup
+
+- Settings 的 System Monitor 区域统一为 Master Switch、System Poll Interval，以及 CPU、Memory、Network、Storage、Battery 五个独立分组。
+- Master OFF 只暂停所有 Monitor，不重置五个子开关；重新开启后按原子项配置恢复。
+- `cpuPollIntervalMs` 保持兼容字段名，UI 统一显示为 System Poll Interval，并继续只供 CPU、Memory、Network 使用。
+- Storage 与 Battery 保持固定 30 秒周期，不受 System Poll Interval 影响。
+- Current Status 固定按 CPU、Memory、Network、Storage、Battery 排列，统一显示 Active、Disabled、Warming、Error、Unavailable。
+- Current Status 与 SystemStatusBubble 的 Disabled 项目均提供“前往设置”，打开或聚焦 Control Center 并导航至 System Monitor Settings，不自动启用 Monitor。
+- 跨窗口导航复用 Runtime Bridge，并使用 ready / acknowledgement 处理 Control Center 首次创建时的事件时序。
+- 五项 Monitor 生命周期审计确认继续使用独立单 timer、串行 invoke 与 generation，单项错误不影响其他 Monitor。
+- Bubble 尺寸上报与 Pet 布局应用增加相同宽高去重；常规 CPU、Memory、Network 数值变化不会持续触发 Window resize。
+- Battery 继续是可选 visible item；默认和旧用户 visibleItems 不会自动增加 Battery。
+- develop 分支保留 HAPPY、SLEEP、TIRED、ALERT、WORKING、DRAGGING 文字 Placeholder，供 Behavior 与 Monitor Runtime 肉眼验收。
+
 ## Phase 4：提醒和闹钟
 
 目标：提供可靠、可恢复的本地提醒能力。

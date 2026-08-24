@@ -1,4 +1,4 @@
-import { isTauri } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { emitTo, listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import {
@@ -17,6 +17,38 @@ const MAIN_WINDOW_LABEL = "main";
 const CONTROL_ACTION_EVENT = "desktop-pet://control-action";
 const STATUS_REQUEST_EVENT = "desktop-pet://status-request";
 const STATUS_UPDATED_EVENT = "desktop-pet://status-updated";
+const CONTROL_CENTER_NAVIGATION_EVENT =
+  "desktop-pet://control-center-navigation";
+const CONTROL_CENTER_NAVIGATION_READY_EVENT =
+  "desktop-pet://control-center-navigation-ready";
+const CONTROL_CENTER_NAVIGATION_ACK_EVENT =
+  "desktop-pet://control-center-navigation-ack";
+
+export const CONTROL_CENTER_DESTINATIONS = {
+  SYSTEM_MONITOR_SETTINGS: "system-monitor-settings",
+} as const;
+
+export type ControlCenterDestination =
+  (typeof CONTROL_CENTER_DESTINATIONS)[keyof typeof CONTROL_CENTER_DESTINATIONS];
+
+let pendingControlCenterDestination: ControlCenterDestination | undefined;
+
+export async function openSystemMonitorSettings(): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  pendingControlCenterDestination =
+    CONTROL_CENTER_DESTINATIONS.SYSTEM_MONITOR_SETTINGS;
+
+  try {
+    await invoke("open_control_center");
+    await publishPendingControlCenterNavigation();
+  } catch (error) {
+    pendingControlCenterDestination = undefined;
+    throw error;
+  }
+}
 
 export function useMainRuntimeBridge(
   executeAction: (action: PetControlAction) => void | Promise<void>,
@@ -25,6 +57,8 @@ export function useMainRuntimeBridge(
   let disposed = false;
   let unlistenAction: UnlistenFn | undefined;
   let unlistenRequest: UnlistenFn | undefined;
+  let unlistenNavigationReady: UnlistenFn | undefined;
+  let unlistenNavigationAck: UnlistenFn | undefined;
 
   async function publishStatus(): Promise<void> {
     if (!isTauri() || disposed) {
@@ -54,6 +88,31 @@ export function useMainRuntimeBridge(
         unlistenRequest = unlisten;
       }
     });
+
+    void listen(CONTROL_CENTER_NAVIGATION_READY_EVENT, () => {
+      void publishPendingControlCenterNavigation();
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+      } else {
+        unlistenNavigationReady = unlisten;
+      }
+    });
+
+    void listen<ControlCenterDestination>(
+      CONTROL_CENTER_NAVIGATION_ACK_EVENT,
+      ({ payload }) => {
+        if (pendingControlCenterDestination === payload) {
+          pendingControlCenterDestination = undefined;
+        }
+      },
+    ).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+      } else {
+        unlistenNavigationAck = unlisten;
+      }
+    });
   }
 
   const stopWatching = watch(
@@ -69,6 +128,42 @@ export function useMainRuntimeBridge(
     stopWatching();
     unlistenAction?.();
     unlistenRequest?.();
+    unlistenNavigationReady?.();
+    unlistenNavigationAck?.();
+  }
+
+  if (getCurrentScope()) {
+    onScopeDispose(dispose);
+  }
+}
+
+export function useControlCenterNavigation(
+  navigate: (destination: ControlCenterDestination) => void,
+): void {
+  let disposed = false;
+  let unlistenNavigation: UnlistenFn | undefined;
+
+  if (isTauri()) {
+    void listen<ControlCenterDestination>(
+      CONTROL_CENTER_NAVIGATION_EVENT,
+      ({ payload }) => {
+        navigate(payload);
+        void emitTo(MAIN_WINDOW_LABEL, CONTROL_CENTER_NAVIGATION_ACK_EVENT, payload);
+      },
+    ).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+        return;
+      }
+
+      unlistenNavigation = unlisten;
+      void emitTo(MAIN_WINDOW_LABEL, CONTROL_CENTER_NAVIGATION_READY_EVENT);
+    });
+  }
+
+  function dispose(): void {
+    disposed = true;
+    unlistenNavigation?.();
   }
 
   if (getCurrentScope()) {
@@ -118,4 +213,16 @@ export function useRemotePetRuntime() {
     executeAction,
     dispose,
   };
+}
+
+async function publishPendingControlCenterNavigation(): Promise<void> {
+  if (!isTauri() || !pendingControlCenterDestination) {
+    return;
+  }
+
+  await emitTo(
+    CONTROL_CENTER_LABEL,
+    CONTROL_CENTER_NAVIGATION_EVENT,
+    pendingControlCenterDestination,
+  );
 }
