@@ -41,6 +41,7 @@ import { useNetworkMonitor } from "../system/networkMonitor";
 import { useStorageMonitor } from "../system/storageMonitor";
 import { useBatteryMonitor } from "../system/batteryMonitor";
 import { useReminderScheduler } from "../reminder/reminderScheduler";
+import { useReminderRuntimeConsumer } from "../reminder/reminderRuntimeConsumer";
 
 const { currentState } = usePetStore();
 const currentAsset = computed(() =>
@@ -58,6 +59,7 @@ useMemoryMonitor();
 useNetworkMonitor();
 useStorageMonitor();
 useBatteryMonitor();
+useReminderRuntimeConsumer();
 useReminderScheduler();
 const { snapshot: runtimeSnapshot } = usePetRuntimeStatus();
 const {

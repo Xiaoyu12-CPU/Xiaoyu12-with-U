@@ -59,9 +59,11 @@ export interface DialogueEvent {
   type: DialogueEventType;
   context?: Readonly<Record<string, unknown>>;
   candidateIndex?: number;
+  textOverride?: string;
 }
 
 export interface TriggerDialogueEventOptions {
   context?: Readonly<Record<string, unknown>>;
   candidateIndex?: number;
+  textOverride?: string;
 }

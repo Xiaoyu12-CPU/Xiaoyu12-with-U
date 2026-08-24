@@ -149,6 +149,11 @@ export function selectDialogueText(
   catalog: DialogueCatalog = dialogueManager.getCatalog(),
   random: () => number = Math.random,
 ): string | undefined {
+  const textOverride = event.textOverride?.trim();
+  if (textOverride) {
+    return textOverride;
+  }
+
   const candidates = catalog[event.type]?.filter(
     (text) => text.trim().length > 0,
   );
