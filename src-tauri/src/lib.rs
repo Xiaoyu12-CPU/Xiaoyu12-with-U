@@ -1,5 +1,6 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 mod commands;
+mod input;
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -15,6 +16,7 @@ pub fn run() {
         .manage(commands::memory::MemorySampler::default())
         .manage(commands::network::NetworkSampler::default())
         .manage(commands::storage::StorageSampler::default())
+        .manage(input::keyboard::KeyboardMonitor::default())
         .invoke_handler(tauri::generate_handler![
             greet,
             commands::app::open_control_center,
@@ -36,6 +38,8 @@ pub fn run() {
             commands::reminders::save_reminders,
             commands::settings::load_settings,
             commands::settings::save_settings,
+            input::keyboard::start_keyboard_monitor,
+            input::keyboard::stop_keyboard_monitor,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

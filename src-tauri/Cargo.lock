@@ -732,6 +732,8 @@ dependencies = [
 name = "desktoppet"
 version = "0.1.0"
 dependencies = [
+ "core-foundation",
+ "core-graphics",
  "serde",
  "serde_json",
  "starship-battery",

@@ -49,6 +49,7 @@ import {
   useReminderRuntimeConsumer,
 } from "../reminder/reminderRuntimeConsumer";
 import type { SnoozeMinutes } from "../reminder/reminderSnooze";
+import { useKeyboardMonitor } from "../input/keyboardMonitor";
 
 const { currentState } = usePetStore();
 const currentAsset = computed(() =>
@@ -68,6 +69,7 @@ useStorageMonitor();
 useBatteryMonitor();
 useReminderRuntimeConsumer();
 useReminderScheduler();
+useKeyboardMonitor();
 const { snapshot: runtimeSnapshot } = usePetRuntimeStatus();
 const {
   dialogue,

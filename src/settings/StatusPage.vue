@@ -114,6 +114,30 @@ const batteryLifecycleStatus = computed(() => {
       return props.snapshot?.batteryMonitoring ? "Active" : "Disabled";
   }
 });
+const keyboardLifecycleStatus = computed(() => {
+  const labels: Record<NonNullable<PetRuntimeSnapshot["keyboardStatus"]>, string> = {
+    disabled: "Disabled",
+    starting: "Starting",
+    "permission-required": "Permission Required",
+    active: "Active",
+    error: "Error",
+    unsupported: "Unsupported",
+  };
+  return labels[props.snapshot?.keyboardStatus ?? "disabled"];
+});
+const pressedKeysText = computed(() =>
+  props.snapshot?.pressedKeys.length
+    ? props.snapshot.pressedKeys.join(" + ")
+    : "—",
+);
+const lastKeyboardActivity = computed(() => {
+  const timestamp = props.snapshot?.lastKeyboardActivityAt;
+  if (timestamp === undefined) {
+    return "—";
+  }
+  return new Intl.DateTimeFormat(undefined, { timeStyle: "medium" })
+    .format(new Date(timestamp));
+});
 
 function execute(type: PetControlActionType): void {
   emit("action", { type });
@@ -360,6 +384,39 @@ function execute(type: PetControlActionType): void {
       </div>
     </section>
 
+    <section class="keyboard-panel monitor-panel">
+      <div class="monitor-panel__heading">
+        <div>
+          <p class="eyebrow">Input Monitor / Keyboard</p>
+          <h3>全局键盘监听</h3>
+        </div>
+        <strong>{{ keyboardLifecycleStatus }}</strong>
+      </div>
+      <p
+        v-if="snapshot?.keyboardStatus === 'permission-required'"
+        class="permission-note"
+      >
+        需要在 macOS 系统设置 → 隐私与安全性 → 输入监听中允许 DesktopPet。
+      </p>
+      <p v-else-if="snapshot?.keyboardMessage" class="permission-note">
+        {{ snapshot.keyboardMessage }}
+      </p>
+      <div class="keyboard-grid">
+        <article>
+          <span>Pressed Keys</span>
+          <strong>{{ pressedKeysText }}</strong>
+        </article>
+        <article>
+          <span>Last Key</span>
+          <strong>{{ snapshot?.lastKey ?? "—" }}</strong>
+        </article>
+        <article>
+          <span>Last Activity</span>
+          <strong>{{ lastKeyboardActivity }}</strong>
+        </article>
+      </div>
+    </section>
+
     <section class="behavior-panel">
       <div class="behavior-panel__heading">
         <div>
@@ -569,6 +626,11 @@ article strong {
   gap: 13px;
 }
 
+.keyboard-panel {
+  display: grid;
+  gap: 13px;
+}
+
 .monitor-panel__heading {
   display: flex;
   align-items: flex-start;
@@ -606,6 +668,12 @@ article strong {
   gap: 9px;
 }
 
+.keyboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
 .cpu-grid article {
   min-height: 58px;
   padding: 12px;
@@ -629,6 +697,20 @@ article strong {
 .battery-grid article {
   min-height: 58px;
   padding: 12px;
+}
+
+.keyboard-grid article {
+  min-height: 58px;
+  padding: 12px;
+}
+
+.permission-note {
+  margin: 0;
+  padding: 10px 12px;
+  color: #7a5a35;
+  font-size: 12px;
+  background: #fff7e7;
+  border-radius: 9px;
 }
 
 .cpu-grid strong {

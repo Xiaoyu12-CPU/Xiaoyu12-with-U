@@ -597,6 +597,28 @@ function getRightSideBubbleOffset(): number {
       <article>
         <div class="section-heading">
           <div>
+            <h3>Input Monitor</h3>
+            <p>全局键盘监听默认关闭；只维护当前按键状态，不保存输入历史或文本。</p>
+          </div>
+        </div>
+
+        <label class="setting-row">
+          <span>
+            <strong>Keyboard Monitoring</strong>
+            <small>macOS 可能要求在隐私与安全性中授予输入监听权限。</small>
+          </span>
+          <input
+            class="toggle"
+            type="checkbox"
+            :checked="settings.input.keyboardEnabled"
+            @change="updateBoolean('input', 'keyboardEnabled', $event)"
+          />
+        </label>
+      </article>
+
+      <article>
+        <div class="section-heading">
+          <div>
             <h3>Reminder</h3>
             <p>启用后由桌宠主窗口按本机当前时区调度 once / daily Reminder。</p>
           </div>

@@ -250,6 +250,17 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 
 完成标志：用户可明确控制监听状态；未授权时应用正常降级；不保存敏感键入内容。
 
+### Phase 5-A 实现记录：Global Keyboard Input Monitor Foundation
+
+- macOS 使用 Core Graphics Session Event Tap 的 ListenOnly 模式接收真正的全局 KeyDown、KeyUp 与 Modifier FlagsChanged，不依赖 WebView 焦点。
+- Rust App Runtime 是唯一 Native listener owner；main Pet Window 维护权威 pressedKeys，Control Center 只消费 Runtime Bridge 快照。
+- Event schema 仅包含 down/up、稳定 key 名和 timestamp，不保存输入历史、不组合文字、不记录原始按键日志。
+- `settings.input.keyboardEnabled` 默认关闭；启停会创建/停止监听并清空当前 pressedKeys，重复 start 不创建第二 Listener。
+- Runtime 状态支持 Disabled、Starting、Permission Required、Active、Error、Unsupported，以及 Last Key / Last Activity 调试信息。
+- macOS 使用系统 Input Monitoring 权限预检与标准请求，拒绝或缺失权限时安全降级；不会反复打开系统设置。
+- Windows 当前保留 platform adapter 和统一 schema，Native Hook 尚未实现并明确返回 Unsupported。
+- Phase 5-A 状态：Implemented；Phase 5 仍为 In Progress，尚未实现 Key Bubble、WORKING Behavior、鼠标监听、历史或统计。
+
 ## Phase 6：自定义皮肤
 
 目标：允许安全地安装、切换和管理桌宠外观。

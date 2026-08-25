@@ -3,6 +3,10 @@ import type { BehaviorRequest } from "./behavior";
 import type { DialogueEventType } from "./dialogueEvents";
 import type { PetState } from "./types";
 import type {
+  KeyboardMonitorStatus,
+  KeyboardRuntimeSnapshot,
+} from "../input/types";
+import type {
   NextReminderRuntime,
   ReminderTriggerPayload,
 } from "../reminder/reminderTypes";
@@ -55,6 +59,11 @@ export interface PetRuntimeSnapshot {
   reminderSchedulerStatus: ReminderSchedulerStatus;
   nextReminder?: NextReminderRuntime;
   lastReminderTrigger?: ReminderTriggerPayload;
+  keyboardStatus: KeyboardMonitorStatus;
+  pressedKeys: readonly string[];
+  lastKey?: string;
+  lastKeyboardActivityAt?: number;
+  keyboardMessage?: string;
   animationStatus: PetAnimationStatus;
   currentFrame: string;
   currentFrameIndex: number;
@@ -95,6 +104,11 @@ const batteryPresent = ref(false);
 const reminderSchedulerStatus = ref<ReminderSchedulerStatus>("disabled");
 const nextReminder = ref<NextReminderRuntime>();
 const lastReminderTrigger = ref<ReminderTriggerPayload>();
+const keyboardStatus = ref<KeyboardMonitorStatus>("disabled");
+const pressedKeys = ref<readonly string[]>([]);
+const lastKey = ref<string>();
+const lastKeyboardActivityAt = ref<number>();
+const keyboardMessage = ref<string>();
 const animationStatus = ref<PetAnimationStatus>("playing");
 const currentFrame = ref("");
 const currentFrameIndex = ref(0);
@@ -135,6 +149,11 @@ const snapshot = computed<PetRuntimeSnapshot>(() => ({
   reminderSchedulerStatus: reminderSchedulerStatus.value,
   nextReminder: nextReminder.value,
   lastReminderTrigger: lastReminderTrigger.value,
+  keyboardStatus: keyboardStatus.value,
+  pressedKeys: pressedKeys.value,
+  lastKey: lastKey.value,
+  lastKeyboardActivityAt: lastKeyboardActivityAt.value,
+  keyboardMessage: keyboardMessage.value,
   animationStatus: animationStatus.value,
   currentFrame: currentFrame.value,
   currentFrameIndex: currentFrameIndex.value,
@@ -226,6 +245,15 @@ export function updateReminderRuntime(input: {
   reminderSchedulerStatus.value = input.status;
   nextReminder.value = input.nextReminder;
   lastReminderTrigger.value = input.lastTrigger;
+  touch();
+}
+
+export function updateKeyboardRuntime(input: KeyboardRuntimeSnapshot): void {
+  keyboardStatus.value = input.status;
+  pressedKeys.value = [...input.pressedKeys];
+  lastKey.value = input.lastKey;
+  lastKeyboardActivityAt.value = input.lastActivityAt;
+  keyboardMessage.value = input.message;
   touch();
 }
 

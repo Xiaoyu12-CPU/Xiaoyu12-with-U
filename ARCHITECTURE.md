@@ -584,3 +584,23 @@ Scheduler 的唯一 owner 是主桌宠窗口。它按机器当前本地时区计
 Snooze 使用 5、10、30 分钟固定选项，在同一 `reminders.json` 中保存文本与声音快照，不修改原 once / daily schedule。Scheduler 把 Snooze 与普通 Reminder 放入同一个候选集合；触发后删除该 Snooze。Control Center 的 Next Reminder 直接读取 Runtime Bridge 的 Scheduler Snapshot，不另行计算；Pending Snooze 仅按 `triggerAt` 排序展示，取消后经原有跨窗口事件使主 Scheduler 立即重算。
 
 Reminder Feedback 使用唯一 occurrence Behavior source。ALERT 在 5 秒后独立释放，但带“完成 / 稍后提醒”的 Actionable SpeechBubble 持续到用户操作；普通 Dialogue 在此期间不能覆盖它。Dismiss 或 Snooze 都会立即隐藏反馈、release 对应 Behavior 并停止当前声音。声音来自内置跨平台资源，使用全局 Reminder Sound Volume；本阶段不包含 System Notification、Weekly、Monthly、自定义音频或复杂历史。
+
+## 21. Phase 5-A：Global Keyboard Input Monitor Foundation
+
+全局键盘监听由 Rust Runtime 唯一持有，Control Center 不创建第二个 Hook。macOS adapter 使用 Core Graphics Session 级 `CGEventTap` 的 ListenOnly 模式，监听 KeyDown、KeyUp 与 FlagsChanged；专用 RunLoop 线程通过停止标记低频检查退出，Settings 关闭、Pet WebView dispose 或应用退出时会清理监听线程。重复 start 在前端 controller 与 Rust managed state 两层防护。
+
+```text
+macOS CGEventTap（Rust唯一owner）
+        ↓ normalized KeyboardInputEvent
+Tauri event → main Pet Window
+        ↓
+Keyboard Runtime pressedKeys Set
+        ↓ Runtime Status / Runtime Bridge
+Control Center debug status
+```
+
+事件只包含 `eventType: down | up`、稳定人类可读 `key` 和 epoch millisecond `timestamp`。Native keyCode 在 Rust adapter 内映射为 A～Z、数字、Shift、Control、Option、Command、Space、Enter、Escape、Tab、Backspace、方向键等；未知键使用 `Unknown(<code>)`，不向前端暴露 macOS 数字作为业务接口，也不解析或组合输入文本。
+
+主窗口只在内存维护当前 `pressedKeys`、`lastKey` 和 `lastActivityAt`。重复 keydown 在 Native autorepeat 与 Runtime Set 两层过滤；keyup 删除对应键。关闭或非 Active 状态会清空 pressedKeys，不写磁盘、不保存历史、不上传数据。Keyboard Monitor 错误只更新自身的 disabled / starting / permission-required / active / error / unsupported 状态，不影响 Pet、Reminder 或 System Monitor。
+
+`settings.input.keyboardEnabled` 正式启用但默认仍为 false。macOS 启动前使用 `CGPreflightListenEventAccess` 检查 Input Monitoring 权限，首次开启至多调用一次系统标准请求；未授权时安全进入 permission-required。Windows 本阶段复用同一前端 schema 和 Rust platform adapter 边界，但 Native Hook 尚未实现，明确返回 unsupported。
