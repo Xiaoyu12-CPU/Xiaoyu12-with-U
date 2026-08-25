@@ -49,9 +49,24 @@ try {
     date: null,
     time: "12:00",
   });
+  const audible = await manager.create({
+    text: "有声音的提醒",
+    enabled: true,
+    scheduleType: "daily",
+    date: null,
+    time: "18:00",
+    soundEnabled: true,
+    soundId: "soft",
+  });
   assert.equal(once.text, "开会时间到了");
   assert.equal(daily.date, null);
-  assert.equal(manager.reminders.value.length, 2);
+  assert.equal(once.soundEnabled, false);
+  assert.equal(once.soundId, null);
+  assert.equal(daily.soundEnabled, false);
+  assert.equal(daily.soundId, null);
+  assert.equal(audible.soundEnabled, true);
+  assert.equal(audible.soundId, "soft");
+  assert.equal(manager.reminders.value.length, 3);
 
   const updated = await manager.update(once.id, {
     text: "会议提前了",
@@ -71,9 +86,13 @@ try {
   const reloadedManager = createManager();
   await reloadedManager.load();
   assert.deepEqual(reloadedManager.reminders.value, manager.reminders.value);
+  assert.equal(
+    reloadedManager.reminders.value.find(({ id }) => id === audible.id)?.soundId,
+    "soft",
+  );
 
   await manager.delete(once.id);
-  assert.deepEqual(manager.reminders.value.map(({ id }) => id), [daily.id]);
+  assert.deepEqual(manager.reminders.value.map(({ id }) => id), [daily.id, audible.id]);
 
   const originalConsoleError = console.error;
   console.error = () => {};

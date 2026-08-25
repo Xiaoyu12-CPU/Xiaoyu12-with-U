@@ -97,6 +97,8 @@ try {
   });
   await dueOnce.scheduler.refresh();
   assert.equal(dueOnce.triggers.length, 1);
+  assert.equal(dueOnce.triggers[0].soundEnabled, false);
+  assert.equal(dueOnce.triggers[0].soundId, null);
   assert.equal(dueOnce.reminders[0].enabled, false);
   await dueOnce.scheduler.refresh();
   assert.equal(dueOnce.triggers.length, 1);
@@ -189,6 +191,8 @@ try {
       time: "14:30",
       createdAt: "2026-08-24T00:00:00.000Z",
       updatedAt: "2026-08-24T00:00:00.000Z",
+      soundEnabled: false,
+      soundId: null,
       ...overrides,
     };
   }

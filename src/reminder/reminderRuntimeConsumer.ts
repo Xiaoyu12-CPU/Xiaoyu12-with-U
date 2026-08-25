@@ -2,14 +2,14 @@ import { isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentScope, onScopeDispose } from "vue";
-import {
-  requestState,
-} from "../pet/behavior";
+import { requestState } from "../pet/behavior";
 import type { BehaviorRequestInput } from "../pet/behavior";
 import { triggerDialogueEvent } from "../pet/dialogue";
 import type { TriggerDialogueEventOptions } from "../pet/dialogue";
 import { DIALOGUE_EVENT_TYPES } from "../pet/dialogueEvents";
+import { settingsManager } from "../settings/settingsManager";
 import { REMINDER_TRIGGERED_EVENT } from "./reminderScheduler";
+import { playReminderSound } from "./reminderSoundPlayer";
 import type { ReminderTriggerPayload } from "./reminderTypes";
 
 export const REMINDER_ALERT_DURATION_MS = 5_000;
@@ -22,6 +22,11 @@ interface ReminderRuntimeConsumerDependencies {
     type: typeof DIALOGUE_EVENT_TYPES.REMINDER,
     options: TriggerDialogueEventOptions,
   ) => void;
+  playSound?: (
+    soundId: ReminderTriggerPayload["soundId"],
+    volume: number,
+  ) => Promise<void>;
+  getSoundVolume?: () => number;
 }
 
 export function handleReminderTrigger(
@@ -30,6 +35,9 @@ export function handleReminderTrigger(
 ): void {
   const requestBehavior = dependencies.requestBehavior ?? requestState;
   const triggerDialogue = dependencies.triggerDialogue ?? triggerDialogueEvent;
+  const playSound = dependencies.playSound ?? playReminderSound;
+  const getSoundVolume = dependencies.getSoundVolume
+    ?? (() => settingsManager.settings.value.reminder.soundVolume);
 
   try {
     requestBehavior({
@@ -53,6 +61,16 @@ export function handleReminderTrigger(
     });
   } catch (error) {
     console.error("Failed to show Reminder dialogue.", error);
+  }
+
+  if (payload.soundEnabled) {
+    try {
+      void playSound(payload.soundId, getSoundVolume()).catch((error: unknown) => {
+        console.error("Failed to play Reminder sound.", error);
+      });
+    } catch (error) {
+      console.error("Failed to start Reminder sound playback.", error);
+    }
   }
 }
 

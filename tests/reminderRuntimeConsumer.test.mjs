@@ -50,6 +50,58 @@ try {
     assert.equal(firstRequest.durationMs, REMINDER_ALERT_DURATION_MS);
     assert.equal(selectDialogueText(dialogueEvent, {}), "该吃饭啦");
 
+    let disabledSoundRequests = 0;
+    handleReminderTrigger(firstPayload, {
+      requestBehavior() {},
+      triggerDialogue() {},
+      async playSound() {
+        disabledSoundRequests += 1;
+      },
+    });
+    assert.equal(disabledSoundRequests, 0);
+
+    let soundRequest;
+    handleReminderTrigger({
+      ...payload("sound-enabled", "有声音的提醒"),
+      soundEnabled: true,
+      soundId: "digital",
+    }, {
+      requestBehavior() {},
+      triggerDialogue() {},
+      async playSound(soundId, volume) {
+        soundRequest = { soundId, volume };
+      },
+      getSoundVolume: () => 0.35,
+    });
+    assert.deepEqual(soundRequest, { soundId: "digital", volume: 0.35 });
+
+    let behaviorHandled = false;
+    let dialogueHandled = false;
+    const originalConsoleError = console.error;
+    console.error = () => {};
+    try {
+      handleReminderTrigger({
+        ...payload("sound-failure", "声音失败也要反馈"),
+        soundEnabled: true,
+        soundId: "soft",
+      }, {
+        requestBehavior() {
+          behaviorHandled = true;
+        },
+        triggerDialogue() {
+          dialogueHandled = true;
+        },
+        async playSound() {
+          throw new Error("test playback failure");
+        },
+      });
+      await Promise.resolve();
+    } finally {
+      console.error = originalConsoleError;
+    }
+    assert.equal(behaviorHandled, true);
+    assert.equal(dialogueHandled, true);
+
     mock.timers.tick(REMINDER_ALERT_DURATION_MS);
     assert.equal(behavior.effectiveState.value, "idle");
 
@@ -127,6 +179,8 @@ try {
       scheduleType: "once",
       scheduledAt: "2026-08-25T12:00:00.000Z",
       triggeredAt: "2026-08-25T12:00:01.000Z",
+      soundEnabled: false,
+      soundId: null,
     };
   }
 } finally {

@@ -17,6 +17,9 @@ const scalePercent = computed(() =>
 const panelScalePercent = computed(() =>
   Math.round(settings.value.systemStatusBubble.panelScale * 100),
 );
+const reminderSoundVolumePercent = computed(() =>
+  Math.round(settings.value.reminder.soundVolume * 100),
+);
 
 onMounted(() => {
   void settingsManager.initialize();
@@ -82,6 +85,11 @@ function updateDisplayMode(displayMode: DesktopDisplayMode): void {
 function updatePanelScale(event: Event): void {
   const percent = Number((event.target as HTMLInputElement).value);
   update("systemStatusBubble", "panelScale", percent / 100);
+}
+
+function updateReminderSoundVolume(event: Event): void {
+  const percent = Number((event.target as HTMLInputElement).value);
+  update("reminder", "soundVolume", percent / 100);
 }
 
 function updateVisibleItem(itemId: SystemStatusItemId, event: Event): void {
@@ -356,7 +364,6 @@ function getRightSideBubbleOffset(): number {
             <span>px</span>
           </div>
         </label>
-
       </article>
 
       <article id="system-monitor-settings">
@@ -510,6 +517,7 @@ function getRightSideBubbleOffset(): number {
             @change="updateBoolean('systemMonitor', 'batteryEnabled', $event)"
           />
         </label>
+
       </article>
 
       <article>
@@ -605,6 +613,24 @@ function getRightSideBubbleOffset(): number {
             :checked="settings.reminder.enabled"
             @change="updateBoolean('reminder', 'enabled', $event)"
           />
+        </label>
+
+        <label class="setting-row scale-row">
+          <span>
+            <strong>Reminder Sound Volume</strong>
+            <small>作用于之后触发或试听的内置提醒声音。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              :value="reminderSoundVolumePercent"
+              @input="updateReminderSoundVolume"
+            />
+            <output>{{ reminderSoundVolumePercent }}%</output>
+          </div>
         </label>
       </article>
     </div>

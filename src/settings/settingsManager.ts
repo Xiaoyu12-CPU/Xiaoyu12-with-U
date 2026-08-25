@@ -322,6 +322,12 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         reminder.enabled,
         DEFAULT_SETTINGS.reminder.enabled,
       ),
+      soundVolume: clampNumber(
+        reminder.soundVolume,
+        0,
+        1,
+        DEFAULT_SETTINGS.reminder.soundVolume,
+      ),
     },
   };
 }

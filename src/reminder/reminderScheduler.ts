@@ -131,6 +131,8 @@ export function createReminderScheduler(
           scheduleType: reminder.scheduleType,
           scheduledAt: scheduledAt.toISOString(),
           triggeredAt: now().toISOString(),
+          soundEnabled: reminder.soundEnabled,
+          soundId: reminder.soundId,
         };
         await dependencies.publishTrigger(payload);
         lastTrigger = payload;

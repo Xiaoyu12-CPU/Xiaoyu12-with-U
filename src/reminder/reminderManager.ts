@@ -7,6 +7,10 @@ import type {
   ReminderInput,
   ReminderStorageDocument,
 } from "./reminderTypes";
+import {
+  DEFAULT_REMINDER_SOUND_ID,
+  isReminderSoundId,
+} from "./reminderSounds";
 
 export interface ReminderManager {
   reminders: DeepReadonly<Ref<Reminder[]>>;
@@ -203,6 +207,8 @@ function normalizeReminder(value: unknown): Reminder {
     scheduleType: value.scheduleType,
     date: value.date,
     time: value.time,
+    soundEnabled: value.soundEnabled,
+    soundId: value.soundId,
   });
 
   return {
@@ -237,12 +243,23 @@ function normalizeInput(value: unknown): ReminderInput {
     throw new Error("请选择合法的提醒日期。");
   }
 
+  const soundEnabled = typeof value.soundEnabled === "boolean"
+    ? value.soundEnabled
+    : false;
+  const soundId = isReminderSoundId(value.soundId)
+    ? value.soundId
+    : soundEnabled
+      ? DEFAULT_REMINDER_SOUND_ID
+      : null;
+
   return {
     text,
     enabled: value.enabled,
     scheduleType: value.scheduleType,
     date: typeof date === "string" ? date : null,
     time: value.time,
+    soundEnabled,
+    soundId,
   };
 }
 

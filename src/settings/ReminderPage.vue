@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 import { reminderManager } from "../reminder/reminderManager";
+import { playReminderSound } from "../reminder/reminderSoundPlayer";
+import {
+  DEFAULT_REMINDER_SOUND_ID,
+  REMINDER_SOUNDS,
+} from "../reminder/reminderSounds";
 import type {
   Reminder,
   ReminderInput,
   ReminderScheduleType,
 } from "../reminder/reminderTypes";
 import type { PetRuntimeSnapshot } from "../pet/runtimeStatus";
+import { settingsManager } from "./settingsManager";
 
 defineProps<{
   runtime?: PetRuntimeSnapshot;
@@ -17,9 +23,16 @@ const editingId = ref<string>();
 const pendingDeleteId = ref<string>();
 const formError = ref<string>();
 const form = reactive<ReminderInput>(createEmptyForm());
+const selectedSoundId = computed({
+  get: () => form.soundId ?? DEFAULT_REMINDER_SOUND_ID,
+  set: (value) => {
+    form.soundId = value;
+  },
+});
 
 onMounted(() => {
   void reminderManager.initialize();
+  void settingsManager.initialize();
 });
 
 function beginCreate(): void {
@@ -37,6 +50,8 @@ function beginEdit(reminder: Reminder): void {
     scheduleType: reminder.scheduleType,
     date: reminder.date,
     time: reminder.time,
+    soundEnabled: reminder.soundEnabled,
+    soundId: reminder.soundId,
   });
   formError.value = undefined;
   pendingDeleteId.value = undefined;
@@ -64,6 +79,8 @@ async function saveReminder(): Promise<void> {
       scheduleType: form.scheduleType,
       date: form.scheduleType === "once" ? form.date : null,
       time: form.time,
+      soundEnabled: form.soundEnabled,
+      soundId: form.soundEnabled ? selectedSoundId.value : form.soundId,
     };
 
     if (editingId.value) {
@@ -72,6 +89,25 @@ async function saveReminder(): Promise<void> {
       await reminderManager.create(input);
     }
     cancelEdit();
+  } catch (error) {
+    formError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
+function updateSoundEnabled(event: Event): void {
+  form.soundEnabled = (event.target as HTMLInputElement).checked;
+  if (form.soundEnabled && form.soundId === null) {
+    form.soundId = DEFAULT_REMINDER_SOUND_ID;
+  }
+}
+
+async function previewSound(): Promise<void> {
+  formError.value = undefined;
+  try {
+    await playReminderSound(
+      selectedSoundId.value,
+      settingsManager.settings.value.reminder.soundVolume,
+    );
   } catch (error) {
     formError.value = error instanceof Error ? error.message : String(error);
   }
@@ -104,6 +140,8 @@ function createEmptyForm(): ReminderInput {
     scheduleType: "once",
     date: today(),
     time: "09:00",
+    soundEnabled: false,
+    soundId: null,
   };
 }
 
@@ -127,7 +165,7 @@ function formatRuntimeDate(value: string): string {
       <div>
         <p class="eyebrow">Reminder Management</p>
         <h2>提醒</h2>
-        <p class="subtitle">Scheduler 按本机当前时区调度；本阶段只记录 Trigger，不产生桌宠反馈。</p>
+        <p class="subtitle">Scheduler 按本机当前时区调度，并提供 ALERT、文本与可选内置声音反馈。</p>
       </div>
       <button v-if="!isEditing" class="primary" type="button" @click="beginCreate">
         新增提醒
@@ -217,6 +255,36 @@ function formatRuntimeDate(value: string): string {
         </label>
       </div>
 
+      <div class="sound-fields">
+        <label class="enabled-control">
+          <span>播放声音</span>
+          <input
+            type="checkbox"
+            :checked="form.soundEnabled"
+            @change="updateSoundEnabled"
+          />
+        </label>
+        <label v-if="form.soundEnabled" class="field sound-select">
+          <span>声音</span>
+          <select v-model="selectedSoundId">
+            <option
+              v-for="sound in REMINDER_SOUNDS"
+              :key="sound.id"
+              :value="sound.id"
+            >
+              {{ sound.label }}
+            </option>
+          </select>
+        </label>
+        <button
+          v-if="form.soundEnabled"
+          type="button"
+          @click="previewSound"
+        >
+          试听
+        </button>
+      </div>
+
       <div class="editor-actions">
         <button type="button" @click="cancelEdit">取消</button>
         <button class="primary" type="submit" :disabled="reminderManager.isSaving.value">
@@ -228,7 +296,7 @@ function formatRuntimeDate(value: string): string {
     <div v-if="!reminderManager.isLoaded.value" class="empty-state">正在读取提醒…</div>
     <div v-else-if="reminderManager.reminders.value.length === 0" class="empty-state">
       <strong>还没有提醒</strong>
-      <span>可以先创建一次性或每日提醒；本阶段不会自动触发。</span>
+      <span>可以创建一次性或每日提醒，并按需启用内置声音。</span>
     </div>
     <div v-else class="reminder-list">
       <article v-for="reminder in reminderManager.reminders.value" :key="reminder.id">
@@ -242,6 +310,7 @@ function formatRuntimeDate(value: string): string {
             <time v-if="reminder.date">{{ reminder.date }}</time>
             <time>{{ reminder.time }}</time>
             <span>{{ reminder.enabled ? "已启用" : "已停用" }}</span>
+            <span v-if="reminder.soundEnabled">声音</span>
           </div>
         </div>
 
@@ -290,10 +359,13 @@ button:disabled { cursor: default; opacity: .55; }
 .field { display: grid; gap: 6px; min-width: 180px; color: #6e6479; font-size: 11px; }
 .field--wide { width: 100%; }
 .field input { padding: 9px 10px; color: #30283d; font: inherit; font-size: 13px; background: #fff; border: 1px solid #dcd6e7; border-radius: 8px; }
+.field select { padding: 9px 10px; color: #30283d; font: inherit; font-size: 12px; background: #fff; border: 1px solid #dcd6e7; border-radius: 8px; }
 fieldset { display: flex; gap: 18px; margin: 0; padding: 0; border: 0; }
 fieldset legend { margin-bottom: 7px; color: #6e6479; font-size: 11px; }
 fieldset label { display: flex; align-items: center; gap: 6px; color: #4d4358; font-size: 12px; }
 .date-time-fields { display: flex; gap: 14px; }
+.sound-fields { display: flex; align-items: flex-end; gap: 14px; padding-top: 12px; border-top: 1px solid #ebe6f1; }
+.sound-select { flex: 1; }
 .editor-actions { justify-content: flex-end; padding-top: 2px; }
 .empty-state { display: grid; gap: 5px; min-height: 110px; color: #8a8094; font-size: 12px; place-content: center; text-align: center; }
 .empty-state strong { color: #4e4359; font-size: 14px; }
@@ -311,6 +383,7 @@ fieldset label { display: flex; align-items: center; gap: 6px; color: #4d4358; f
 @media (max-width: 720px) {
   header, .reminder-list article { align-items: flex-start; flex-direction: column; }
   .date-time-fields { flex-direction: column; }
+  .sound-fields { align-items: stretch; flex-direction: column; }
   .row-actions, .delete-confirmation { align-self: stretch; justify-content: flex-start; }
   .scheduler-status { grid-template-columns: 1fr; }
   .runtime-detail { padding: 10px 0 0; border-top: 1px solid #e5dfed; border-left: 0; }

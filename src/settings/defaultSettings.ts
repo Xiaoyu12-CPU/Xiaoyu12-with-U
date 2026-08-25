@@ -47,6 +47,7 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
   },
   reminder: {
     enabled: false,
+    soundVolume: 0.7,
   },
 };
 

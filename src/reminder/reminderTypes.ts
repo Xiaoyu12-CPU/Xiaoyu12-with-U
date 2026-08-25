@@ -1,4 +1,5 @@
 export type ReminderScheduleType = "once" | "daily";
+export type ReminderSoundId = "default" | "soft" | "digital";
 
 export interface Reminder {
   id: string;
@@ -7,6 +8,8 @@ export interface Reminder {
   scheduleType: ReminderScheduleType;
   date: string | null;
   time: string;
+  soundEnabled: boolean;
+  soundId: ReminderSoundId | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -17,6 +20,8 @@ export interface ReminderInput {
   scheduleType: ReminderScheduleType;
   date: string | null;
   time: string;
+  soundEnabled: boolean;
+  soundId: ReminderSoundId | null;
 }
 
 export interface ReminderStorageDocument {
@@ -30,6 +35,8 @@ export interface ReminderTriggerPayload {
   scheduleType: ReminderScheduleType;
   scheduledAt: string;
   triggeredAt: string;
+  soundEnabled: boolean;
+  soundId: ReminderSoundId | null;
 }
 
 export interface NextReminderRuntime {

@@ -49,6 +49,7 @@ export interface DesktopPetSettings {
   };
   reminder: {
     enabled: boolean;
+    soundVolume: number;
   };
 }
 
