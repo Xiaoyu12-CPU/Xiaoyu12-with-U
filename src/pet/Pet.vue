@@ -8,6 +8,7 @@ import {
   watch,
 } from "vue";
 import PetContextMenu from "../components/PetContextMenu.vue";
+import ReminderFeedbackActions from "../components/ReminderFeedbackActions.vue";
 import SpeechBubble from "../components/SpeechBubble.vue";
 import SystemStatusBubble from "../components/SystemStatusBubble.vue";
 import { usePetAnimation } from "./animationEngine";
@@ -41,7 +42,13 @@ import { useNetworkMonitor } from "../system/networkMonitor";
 import { useStorageMonitor } from "../system/storageMonitor";
 import { useBatteryMonitor } from "../system/batteryMonitor";
 import { useReminderScheduler } from "../reminder/reminderScheduler";
-import { useReminderRuntimeConsumer } from "../reminder/reminderRuntimeConsumer";
+import {
+  activeReminderFeedback,
+  dismissReminderFeedback,
+  snoozeReminderFeedback,
+  useReminderRuntimeConsumer,
+} from "../reminder/reminderRuntimeConsumer";
+import type { SnoozeMinutes } from "../reminder/reminderSnooze";
 
 const { currentState } = usePetStore();
 const currentAsset = computed(() =>
@@ -71,6 +78,14 @@ const {
   handlePointerCancel,
 } = usePetInteraction();
 const { currentText: dialogueText, isVisible: isDialogueVisible } = dialogue;
+const showsReminderActions = computed(() => {
+  const feedback = activeReminderFeedback.value;
+  return Boolean(
+    feedback
+    && isDialogueVisible.value
+    && dialogueText.value === feedback.text.trim(),
+  );
+});
 const contextMenu = reactive({
   visible: false,
   x: 0,
@@ -242,6 +257,30 @@ function handleOpenSystemMonitorSettings(): void {
   });
 }
 
+function handleReminderDismiss(): void {
+  const occurrenceId = activeReminderFeedback.value?.occurrenceId;
+  if (!occurrenceId) {
+    return;
+  }
+
+  dismissReminderFeedback(occurrenceId, { hideDialogue: dialogue.hide });
+}
+
+async function handleReminderSnooze(minutes: SnoozeMinutes): Promise<void> {
+  const occurrenceId = activeReminderFeedback.value?.occurrenceId;
+  if (!occurrenceId) {
+    return;
+  }
+
+  try {
+    await snoozeReminderFeedback(occurrenceId, minutes, {
+      hideDialogue: dialogue.hide,
+    });
+  } catch (error) {
+    console.error("Failed to snooze Reminder feedback.", error);
+  }
+}
+
 function handleStatusBubblePointerDown(event: PointerEvent): void {
   if (event.button !== 0) {
     return;
@@ -365,7 +404,15 @@ onBeforeUnmount(() => {
         class="pet__speech-bubble"
         :text="dialogueText"
         :visible="isDialogueVisible"
-      />
+        :interactive="showsReminderActions"
+      >
+        <ReminderFeedbackActions
+          v-if="showsReminderActions"
+          :key="activeReminderFeedback?.occurrenceId"
+          @dismiss="handleReminderDismiss"
+          @snooze="handleReminderSnooze"
+        />
+      </SpeechBubble>
       <img
         class="pet__frame"
         :src="currentFrame"

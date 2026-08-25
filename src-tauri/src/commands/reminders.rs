@@ -105,6 +105,12 @@ fn validate_reminders(contents: &str) -> Result<(), String> {
     if !document.get("reminders").is_some_and(Value::is_array) {
         return Err("Reminders must contain a reminders array.".to_string());
     }
+    if document
+        .get("snoozes")
+        .is_some_and(|value| !value.is_array())
+    {
+        return Err("Reminder snoozes must be an array when present.".to_string());
+    }
 
     Ok(())
 }
@@ -162,5 +168,13 @@ mod tests {
         );
 
         fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn rejects_invalid_snooze_collection() {
+        assert!(
+            validate_reminders(r#"{"schemaVersion":1,"reminders":[],"snoozes":"broken"}"#).is_err()
+        );
+        assert!(validate_reminders(r#"{"schemaVersion":1,"reminders":[]}"#).is_ok());
     }
 }

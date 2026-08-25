@@ -18,6 +18,7 @@ export interface ReminderSoundPlayer {
     soundId: ReminderSoundId | string | null,
     volume: number,
   ) => Promise<void>;
+  stop: () => void;
 }
 
 export function createReminderSoundPlayer(
@@ -56,7 +57,17 @@ export function createReminderSoundPlayer(
     }
   }
 
-  return { play };
+  function stop(): void {
+    if (!activeAudio) {
+      return;
+    }
+
+    activeAudio.pause();
+    activeAudio.currentTime = 0;
+    activeAudio = undefined;
+  }
+
+  return { play, stop };
 }
 
 export const reminderSoundPlayer = createReminderSoundPlayer();
@@ -66,6 +77,10 @@ export function playReminderSound(
   volume: number,
 ): Promise<void> {
   return reminderSoundPlayer.play(soundId, volume);
+}
+
+export function stopReminderSound(): void {
+  reminderSoundPlayer.stop();
 }
 
 function clampVolume(value: number): number {

@@ -50,6 +50,9 @@ try {
     resolveReminderSound(DEFAULT_REMINDER_SOUND_ID).url,
   );
   assert.equal(createdAudio[1].volume, 1);
+  player.stop();
+  assert.equal(createdAudio[1].paused, true);
+  assert.equal(createdAudio[1].currentTime, 0);
 
   assert.equal(normalizeSettings({ reminder: {} }).reminder.soundVolume, 0.7);
   assert.equal(

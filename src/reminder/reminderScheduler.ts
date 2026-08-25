@@ -7,6 +7,7 @@ import { reminderManager } from "./reminderManager";
 import type {
   NextReminderRuntime,
   Reminder,
+  ReminderSnooze,
   ReminderTriggerPayload,
 } from "./reminderTypes";
 
@@ -23,8 +24,10 @@ export interface ReminderOccurrence {
 
 interface ReminderSchedulerDependencies {
   getReminders: () => readonly Reminder[];
+  getSnoozes: () => readonly ReminderSnooze[];
   isEnabled: () => boolean;
   setReminderEnabled: (id: string, enabled: boolean) => Promise<unknown>;
+  deleteSnooze: (id: string) => Promise<unknown>;
   publishTrigger: (payload: ReminderTriggerPayload) => Promise<void>;
   updateRuntime: (input: {
     status: "enabled" | "disabled";
@@ -94,8 +97,14 @@ export function createReminderScheduler(
     const currentTime = now();
     const enabledReminders = dependencies.getReminders().filter(({ enabled }) => enabled);
     const occurrences = enabledReminders.map((reminder) => ({
+      occurrenceType: "reminder" as const,
       reminder,
       occurrence: evaluateReminderOccurrence(reminder, currentTime),
+    }));
+    const snoozeOccurrences = dependencies.getSnoozes().map((snooze) => ({
+      occurrenceType: "snooze" as const,
+      snooze,
+      occurrence: evaluateSnoozeOccurrence(snooze, currentTime),
     }));
 
     for (const { reminder, occurrence } of occurrences) {
@@ -105,37 +114,49 @@ export function createReminderScheduler(
       }
     }
 
-    const dueOccurrences = occurrences
+    for (const { snooze, occurrence } of snoozeOccurrences) {
+      if (occurrence.status === "expired") {
+        await dependencies.deleteSnooze(snooze.id);
+        reconcileRequested = true;
+      }
+    }
+
+    const dueOccurrences = [...occurrences, ...snoozeOccurrences]
       .filter(({ occurrence }) => occurrence.status === "due" && occurrence.scheduledAt)
       .sort((left, right) =>
         left.occurrence.scheduledAt!.getTime() - right.occurrence.scheduledAt!.getTime()
       );
 
-    for (const { reminder, occurrence } of dueOccurrences) {
+    for (const candidate of dueOccurrences) {
+      const { occurrence } = candidate;
       const scheduledAt = occurrence.scheduledAt!;
-      const occurrenceKey = createOccurrenceKey(reminder.id, scheduledAt);
+      const occurrenceKey = candidate.occurrenceType === "reminder"
+        ? createOccurrenceKey(candidate.reminder.id, scheduledAt)
+        : createSnoozeOccurrenceKey(candidate.snooze);
       if (triggeredOccurrences.has(occurrenceKey)) {
         continue;
       }
 
       triggeredOccurrences.add(occurrenceKey);
       try {
-        if (reminder.scheduleType === "once") {
-          await dependencies.setReminderEnabled(reminder.id, false);
+        if (
+          candidate.occurrenceType === "reminder"
+          && candidate.reminder.scheduleType === "once"
+        ) {
+          await dependencies.setReminderEnabled(candidate.reminder.id, false);
           reconcileRequested = true;
         }
 
-        const payload: ReminderTriggerPayload = {
-          id: reminder.id,
-          text: reminder.text,
-          scheduleType: reminder.scheduleType,
-          scheduledAt: scheduledAt.toISOString(),
-          triggeredAt: now().toISOString(),
-          soundEnabled: reminder.soundEnabled,
-          soundId: reminder.soundId,
-        };
+        const payload = candidate.occurrenceType === "reminder"
+          ? createReminderTriggerPayload(candidate.reminder, scheduledAt, now())
+          : createSnoozeTriggerPayload(candidate.snooze, scheduledAt, now());
         await dependencies.publishTrigger(payload);
         lastTrigger = payload;
+
+        if (candidate.occurrenceType === "snooze") {
+          await dependencies.deleteSnooze(candidate.snooze.id);
+          reconcileRequested = true;
+        }
       } catch (error) {
         triggeredOccurrences.delete(occurrenceKey);
         throw error;
@@ -146,6 +167,7 @@ export function createReminderScheduler(
       dependencies.getReminders(),
       now(),
       triggeredOccurrences,
+      dependencies.getSnoozes(),
     );
     dependencies.updateRuntime({
       status: "enabled",
@@ -209,12 +231,30 @@ export function evaluateReminderOccurrence(
   };
 }
 
+export function evaluateSnoozeOccurrence(
+  snooze: ReminderSnooze,
+  now: Date,
+  graceWindowMs = REMINDER_GRACE_WINDOW_MS,
+): ReminderOccurrence {
+  const scheduledAt = new Date(snooze.triggerAt);
+  const differenceMs = now.getTime() - scheduledAt.getTime();
+
+  if (differenceMs < 0) {
+    return { status: "future", scheduledAt };
+  }
+  if (differenceMs <= graceWindowMs) {
+    return { status: "due", scheduledAt };
+  }
+  return { status: "expired", scheduledAt };
+}
+
 export function findNextReminder(
   reminders: readonly Reminder[],
   now: Date,
   triggeredOccurrences: ReadonlySet<string> = new Set(),
+  snoozes: readonly ReminderSnooze[] = [],
 ): NextReminderRuntime | undefined {
-  const candidates = reminders
+  const reminderCandidates = reminders
     .filter(({ enabled }) => enabled)
     .flatMap((reminder) => {
       const occurrence = evaluateReminderOccurrence(reminder, now);
@@ -231,16 +271,45 @@ export function findNextReminder(
         scheduledAt = createLocalDailyDate(now, reminder.time, 1);
       }
 
-      return [{ reminder, scheduledAt }];
-    })
+      return [{
+        id: reminder.id,
+        occurrenceId: createOccurrenceKey(reminder.id, scheduledAt),
+        occurrenceType: "reminder" as const,
+        text: reminder.text,
+        scheduleType: reminder.scheduleType,
+        scheduledAt,
+      }];
+    });
+  const snoozeCandidates = snoozes.flatMap((snooze) => {
+    const occurrence = evaluateSnoozeOccurrence(snooze, now);
+    if (
+      !occurrence.scheduledAt
+      || occurrence.status === "expired"
+      || triggeredOccurrences.has(createSnoozeOccurrenceKey(snooze))
+    ) {
+      return [];
+    }
+
+    return [{
+      id: snooze.reminderId,
+      occurrenceId: snooze.id,
+      occurrenceType: "snooze" as const,
+      text: snooze.text,
+      scheduleType: snooze.scheduleType,
+      scheduledAt: occurrence.scheduledAt,
+    }];
+  });
+  const candidates = [...reminderCandidates, ...snoozeCandidates]
     .sort((left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime());
   const next = candidates[0];
 
   return next
     ? {
-        id: next.reminder.id,
-        text: next.reminder.text,
-        scheduleType: next.reminder.scheduleType,
+        id: next.id,
+        occurrenceId: next.occurrenceId,
+        occurrenceType: next.occurrenceType,
+        text: next.text,
+        scheduleType: next.scheduleType,
         nextTriggerAt: next.scheduledAt.toISOString(),
       }
     : undefined;
@@ -249,8 +318,10 @@ export function findNextReminder(
 export function useReminderScheduler(): void {
   const scheduler = createReminderScheduler({
     getReminders: () => reminderManager.reminders.value,
+    getSnoozes: () => reminderManager.snoozes.value,
     isEnabled: () => settingsManager.settings.value.reminder.enabled,
     setReminderEnabled: (id, enabled) => reminderManager.setEnabled(id, enabled),
+    deleteSnooze: (id) => reminderManager.deleteSnooze(id),
     publishTrigger: publishReminderTrigger,
     updateRuntime: updateReminderRuntime,
   });
@@ -270,6 +341,7 @@ export function useReminderScheduler(): void {
     [
       () => settingsManager.settings.value.reminder.enabled,
       reminderManager.reminders,
+      reminderManager.snoozes,
     ],
     () => {
       if (ready) {
@@ -312,6 +384,46 @@ function createLocalDailyDate(now: Date, time: string, dayOffset: number): Date 
 
 function createOccurrenceKey(reminderId: string, scheduledAt: Date): string {
   return `${reminderId}:${scheduledAt.toISOString()}`;
+}
+
+function createSnoozeOccurrenceKey(snooze: ReminderSnooze): string {
+  return `snooze:${snooze.id}:${snooze.triggerAt}`;
+}
+
+function createReminderTriggerPayload(
+  reminder: Reminder,
+  scheduledAt: Date,
+  triggeredAt: Date,
+): ReminderTriggerPayload {
+  return {
+    id: reminder.id,
+    occurrenceId: createOccurrenceKey(reminder.id, scheduledAt),
+    occurrenceType: "reminder",
+    text: reminder.text,
+    scheduleType: reminder.scheduleType,
+    scheduledAt: scheduledAt.toISOString(),
+    triggeredAt: triggeredAt.toISOString(),
+    soundEnabled: reminder.soundEnabled,
+    soundId: reminder.soundId,
+  };
+}
+
+function createSnoozeTriggerPayload(
+  snooze: ReminderSnooze,
+  scheduledAt: Date,
+  triggeredAt: Date,
+): ReminderTriggerPayload {
+  return {
+    id: snooze.reminderId,
+    occurrenceId: snooze.id,
+    occurrenceType: "snooze",
+    text: snooze.text,
+    scheduleType: snooze.scheduleType,
+    scheduledAt: scheduledAt.toISOString(),
+    triggeredAt: triggeredAt.toISOString(),
+    soundEnabled: snooze.soundEnabled,
+    soundId: snooze.soundId,
+  };
 }
 
 async function publishReminderTrigger(payload: ReminderTriggerPayload): Promise<void> {

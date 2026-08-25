@@ -3,9 +3,11 @@ withDefaults(
   defineProps<{
     text: string;
     visible?: boolean;
+    interactive?: boolean;
   }>(),
   {
     visible: false,
+    interactive: false,
   },
 );
 </script>
@@ -13,8 +15,13 @@ withDefaults(
 <template>
   <div class="speech-bubble-host" aria-live="polite" aria-atomic="true">
     <Transition name="speech-bubble">
-      <div v-if="visible && text" class="speech-bubble" role="status">
-        {{ text }}
+      <div
+        v-if="visible && text"
+        :class="['speech-bubble', { 'speech-bubble--interactive': interactive }]"
+        role="status"
+      >
+        <span>{{ text }}</span>
+        <slot />
       </div>
     </Transition>
   </div>
@@ -44,6 +51,10 @@ withDefaults(
   border: var(--speech-bubble-border, 1px solid rgba(47, 41, 56, 0.18));
   border-radius: var(--speech-bubble-border-radius, 10px);
   box-shadow: var(--speech-bubble-shadow, 0 2px 8px rgba(24, 20, 30, 0.18));
+}
+
+.speech-bubble--interactive {
+  pointer-events: auto;
 }
 
 .speech-bubble::after {

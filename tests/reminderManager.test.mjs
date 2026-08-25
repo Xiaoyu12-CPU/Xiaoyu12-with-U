@@ -34,6 +34,7 @@ try {
   const manager = createManager();
   await manager.initialize();
   assert.deepEqual(manager.reminders.value, []);
+  assert.deepEqual(manager.snoozes.value, []);
 
   const once = await manager.create({
     text: "  开会时间到了  ",
@@ -68,6 +69,18 @@ try {
   assert.equal(audible.soundId, "soft");
   assert.equal(manager.reminders.value.length, 3);
 
+  const snooze = await manager.createSnooze({
+    reminderId: daily.id,
+    scheduleType: daily.scheduleType,
+    text: daily.text,
+    soundEnabled: daily.soundEnabled,
+    soundId: daily.soundId,
+    triggerAt: "2026-08-24T00:10:00.000Z",
+  });
+  assert.equal(snooze.reminderId, daily.id);
+  assert.equal(snooze.text, "该吃饭啦");
+  assert.equal(manager.snoozes.value.length, 1);
+
   const updated = await manager.update(once.id, {
     text: "会议提前了",
     enabled: true,
@@ -83,9 +96,19 @@ try {
   await manager.setEnabled(daily.id, true);
   assert.equal(manager.reminders.value.find(({ id }) => id === daily.id)?.enabled, true);
 
+  await manager.update(daily.id, {
+    text: "原提醒文本已修改",
+    enabled: true,
+    scheduleType: "daily",
+    date: null,
+    time: "12:00",
+  });
+  assert.equal(manager.snoozes.value[0].text, "该吃饭啦");
+
   const reloadedManager = createManager();
   await reloadedManager.load();
   assert.deepEqual(reloadedManager.reminders.value, manager.reminders.value);
+  assert.deepEqual(reloadedManager.snoozes.value, manager.snoozes.value);
   assert.equal(
     reloadedManager.reminders.value.find(({ id }) => id === audible.id)?.soundId,
     "soft",
@@ -93,6 +116,24 @@ try {
 
   await manager.delete(once.id);
   assert.deepEqual(manager.reminders.value.map(({ id }) => id), [daily.id, audible.id]);
+  assert.equal(manager.snoozes.value.length, 1);
+  await manager.deleteSnooze(snooze.id);
+  assert.deepEqual(manager.snoozes.value, []);
+
+  const legacyManager = createReminderManager({
+    storage: {
+      async load() {
+        return { schemaVersion: 1, reminders: [] };
+      },
+      async save() {},
+      async broadcast() {},
+      async subscribe() {
+        return () => {};
+      },
+    },
+  });
+  await legacyManager.load();
+  assert.deepEqual(legacyManager.snoozes.value, []);
 
   const originalConsoleError = console.error;
   console.error = () => {};
@@ -111,6 +152,7 @@ try {
     });
     await corruptManager.load();
     assert.deepEqual(corruptManager.reminders.value, []);
+    assert.deepEqual(corruptManager.snoozes.value, []);
     assert.match(corruptManager.lastError.value, /Unsupported reminders JSON format/);
   } finally {
     console.error = originalConsoleError;

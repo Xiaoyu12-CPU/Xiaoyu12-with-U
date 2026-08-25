@@ -13,6 +13,7 @@ try {
   const {
     createReminderScheduler,
     evaluateReminderOccurrence,
+    evaluateSnoozeOccurrence,
     findNextReminder,
     REMINDER_MAX_TIMER_DELAY_MS,
   } = await vite.ssrLoadModule("/src/reminder/reminderScheduler.ts");
@@ -99,6 +100,7 @@ try {
   assert.equal(dueOnce.triggers.length, 1);
   assert.equal(dueOnce.triggers[0].soundEnabled, false);
   assert.equal(dueOnce.triggers[0].soundId, null);
+  assert.equal(dueOnce.triggers[0].occurrenceType, "reminder");
   assert.equal(dueOnce.reminders[0].enabled, false);
   await dueOnce.scheduler.refresh();
   assert.equal(dueOnce.triggers.length, 1);
@@ -139,15 +141,77 @@ try {
   assert.equal(dailyMissed.triggers.length, 0);
   assert.equal(new Date(dailyMissed.runtime.nextReminder.nextTriggerAt).getDate(), 26);
 
+  const futureSnooze = snooze({ triggerAt: "2026-08-25T14:10:00.000-04:00" });
+  assert.equal(
+    evaluateSnoozeOccurrence(futureSnooze, new Date(2026, 7, 25, 14, 0)).status,
+    "future",
+  );
+
+  const snoozeFirst = createHarness({
+    now: new Date(2026, 7, 25, 10, 0),
+    reminders: [reminder({ id: "daily-source", scheduleType: "daily", date: null, time: "12:00" })],
+    snoozes: [snooze({ id: "snooze-next", reminderId: "daily-source", triggerAt: new Date(2026, 7, 25, 10, 5).toISOString() })],
+  });
+  await snoozeFirst.scheduler.refresh();
+  assert.equal(snoozeFirst.runtime.nextReminder.occurrenceType, "snooze");
+  assert.equal(snoozeFirst.runtime.nextReminder.occurrenceId, "snooze-next");
+
+  snoozeFirst.currentTime = new Date(2026, 7, 25, 10, 5);
+  await snoozeFirst.scheduler.refresh();
+  assert.equal(snoozeFirst.triggers.length, 1);
+  assert.equal(snoozeFirst.triggers[0].occurrenceType, "snooze");
+  assert.equal(snoozeFirst.triggers[0].occurrenceId, "snooze-next");
+  assert.equal(snoozeFirst.snoozes.length, 0);
+  assert.equal(snoozeFirst.reminders[0].time, "12:00");
+
+  const snoozeGrace = createHarness({
+    now: new Date(2026, 7, 25, 12, 4),
+    reminders: [],
+    snoozes: [snooze({ id: "snooze-grace", triggerAt: new Date(2026, 7, 25, 12, 0).toISOString() })],
+  });
+  await snoozeGrace.scheduler.refresh();
+  assert.equal(snoozeGrace.triggers.length, 1);
+  assert.equal(snoozeGrace.snoozes.length, 0);
+
+  const snoozeExpired = createHarness({
+    now: new Date(2026, 7, 25, 12, 6),
+    reminders: [],
+    snoozes: [snooze({ id: "snooze-expired", triggerAt: new Date(2026, 7, 25, 12, 0).toISOString() })],
+  });
+  await snoozeExpired.scheduler.refresh();
+  assert.equal(snoozeExpired.triggers.length, 0);
+  assert.equal(snoozeExpired.snoozes.length, 0);
+
+  const snoozeMasterOff = createHarness({
+    now: new Date(2026, 7, 25, 12, 0),
+    reminders: [],
+    snoozes: [snooze({ id: "snooze-paused", triggerAt: new Date(2026, 7, 25, 12, 0).toISOString() })],
+  });
+  snoozeMasterOff.masterEnabled = false;
+  await snoozeMasterOff.scheduler.refresh();
+  assert.equal(snoozeMasterOff.triggers.length, 0);
+  assert.equal(snoozeMasterOff.snoozes.length, 1);
+
+  const snoozeDuplicate = createHarness({
+    now: new Date(2026, 7, 25, 12, 0),
+    reminders: [],
+    snoozes: [snooze({ id: "snooze-duplicate", triggerAt: new Date(2026, 7, 25, 12, 0).toISOString() })],
+    retainTriggeredSnooze: true,
+  });
+  await snoozeDuplicate.scheduler.refresh();
+  await snoozeDuplicate.scheduler.refresh();
+  assert.equal(snoozeDuplicate.triggers.length, 1);
+
   console.log("Reminder scheduler tests passed.");
 
-  function createHarness({ now, reminders }) {
+  function createHarness({ now, reminders, snoozes = [], retainTriggeredSnooze = false }) {
     const timers = [];
     const triggers = [];
     const runtime = {};
     const harness = {
       currentTime: now,
       reminders,
+      snoozes,
       triggers,
       runtime,
       masterEnabled: true,
@@ -155,9 +219,16 @@ try {
     };
     harness.scheduler = createReminderScheduler({
       getReminders: () => harness.reminders,
+      getSnoozes: () => harness.snoozes,
       isEnabled: () => harness.masterEnabled,
       async setReminderEnabled(id, enabled) {
         harness.reminders.find((item) => item.id === id).enabled = enabled;
+      },
+      async deleteSnooze(id) {
+        if (!retainTriggeredSnooze) {
+          const index = harness.snoozes.findIndex((item) => item.id === id);
+          harness.snoozes.splice(index, 1);
+        }
       },
       async publishTrigger(payload) {
         triggers.push(payload);
@@ -193,6 +264,20 @@ try {
       updatedAt: "2026-08-24T00:00:00.000Z",
       soundEnabled: false,
       soundId: null,
+      ...overrides,
+    };
+  }
+
+  function snooze(overrides = {}) {
+    return {
+      id: "snooze",
+      reminderId: "reminder",
+      scheduleType: "once",
+      text: "Snoozed Test",
+      soundEnabled: true,
+      soundId: "soft",
+      triggerAt: "2026-08-25T14:30:00.000-04:00",
+      createdAt: "2026-08-25T14:00:00.000-04:00",
       ...overrides,
     };
   }

@@ -29,6 +29,10 @@ const selectedSoundId = computed({
     form.soundId = value;
   },
 });
+const pendingSnoozes = computed(() =>
+  [...reminderManager.snoozes.value]
+    .sort((left, right) => Date.parse(left.triggerAt) - Date.parse(right.triggerAt)),
+);
 
 onMounted(() => {
   void reminderManager.initialize();
@@ -133,6 +137,14 @@ async function confirmDelete(id: string): Promise<void> {
   }
 }
 
+async function cancelSnooze(id: string): Promise<void> {
+  try {
+    await reminderManager.deleteSnooze(id);
+  } catch (error) {
+    formError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
 function createEmptyForm(): ReminderInput {
   return {
     text: "",
@@ -189,6 +201,7 @@ function formatRuntimeDate(value: string): string {
         <span>Next Reminder</span>
         <strong v-if="runtime?.nextReminder">{{ runtime.nextReminder.text }}</strong>
         <small v-if="runtime?.nextReminder">
+          {{ runtime.nextReminder.occurrenceType === "snooze" ? "稍后提醒 · " : "" }}
           {{ formatRuntimeDate(runtime.nextReminder.nextTriggerAt) }}
         </small>
         <small v-else>无待调度提醒</small>
@@ -204,6 +217,27 @@ function formatRuntimeDate(value: string): string {
         <small v-else>本次运行尚未触发</small>
       </div>
     </article>
+
+    <section v-if="pendingSnoozes.length" class="pending-snoozes">
+      <div class="pending-snoozes__heading">
+        <div>
+          <p class="eyebrow">Pending Snooze</p>
+          <h3>稍后提醒</h3>
+        </div>
+        <span>{{ pendingSnoozes.length }} 项</span>
+      </div>
+      <div
+        v-for="snooze in pendingSnoozes"
+        :key="snooze.id"
+        class="pending-snoozes__row"
+      >
+        <div>
+          <strong>{{ snooze.text }}</strong>
+          <small>{{ formatRuntimeDate(snooze.triggerAt) }}</small>
+        </div>
+        <button type="button" @click="cancelSnooze(snooze.id)">取消</button>
+      </div>
+    </section>
 
     <form v-if="isEditing" class="editor" @submit.prevent="saveReminder">
       <div class="editor-heading">
@@ -347,12 +381,19 @@ button:disabled { cursor: default; opacity: .55; }
 .primary { color: #fff; background: #745bc9; border-color: #745bc9; }
 .primary:hover { background: #654db9; }
 .danger { color: #a44050; border-color: #e9cbd0; }
-.editor, .reminder-list article, .empty-state, .scheduler-status { padding: 17px; background: #faf9fd; border: 1px solid #e8e4f0; border-radius: 13px; }
+.editor, .reminder-list article, .empty-state, .scheduler-status, .pending-snoozes { padding: 17px; background: #faf9fd; border: 1px solid #e8e4f0; border-radius: 13px; }
 .scheduler-status { display: grid; grid-template-columns: minmax(100px, .7fr) repeat(2, minmax(150px, 1fr)); gap: 16px; }
 .scheduler-status > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
 .scheduler-status strong { overflow: hidden; color: #433750; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .runtime-detail { padding-left: 14px; border-left: 1px solid #e5dfed; }
 .runtime-detail span, .runtime-detail small { color: #8a8094; font-size: 10px; }
+.pending-snoozes { display: grid; gap: 10px; }
+.pending-snoozes__heading, .pending-snoozes__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pending-snoozes__heading > span { color: #8a8094; font-size: 11px; }
+.pending-snoozes__row { padding-top: 9px; border-top: 1px solid #ebe6f1; }
+.pending-snoozes__row > div { display: grid; gap: 3px; min-width: 0; }
+.pending-snoozes__row strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.pending-snoozes__row small { color: #8a8094; font-size: 10px; }
 .editor { display: grid; gap: 15px; }
 .enabled-control { display: flex; align-items: center; gap: 8px; color: #655b70; font-size: 12px; }
 .enabled-control input, fieldset input { accent-color: #745bc9; }

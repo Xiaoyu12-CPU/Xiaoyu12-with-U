@@ -5,6 +5,8 @@ import type { ReminderStorage } from "./reminderStorage";
 import type {
   Reminder,
   ReminderInput,
+  ReminderSnooze,
+  ReminderSnoozeInput,
   ReminderStorageDocument,
 } from "./reminderTypes";
 import {
@@ -14,6 +16,7 @@ import {
 
 export interface ReminderManager {
   reminders: DeepReadonly<Ref<Reminder[]>>;
+  snoozes: DeepReadonly<Ref<ReminderSnooze[]>>;
   isLoaded: DeepReadonly<Ref<boolean>>;
   isSaving: DeepReadonly<Ref<boolean>>;
   lastError: DeepReadonly<Ref<string | undefined>>;
@@ -23,6 +26,8 @@ export interface ReminderManager {
   update: (id: string, input: ReminderInput) => Promise<Reminder>;
   delete: (id: string) => Promise<void>;
   setEnabled: (id: string, enabled: boolean) => Promise<Reminder>;
+  createSnooze: (input: ReminderSnoozeInput) => Promise<ReminderSnooze>;
+  deleteSnooze: (id: string) => Promise<void>;
   save: () => Promise<void>;
 }
 
@@ -39,6 +44,7 @@ export function createReminderManager(
   const now = dependencies.now ?? (() => new Date());
   const createId = dependencies.createId ?? createReminderId;
   const reminders = ref<Reminder[]>([]);
+  const snoozes = ref<ReminderSnooze[]>([]);
   const isLoaded = ref(false);
   const isSaving = ref(false);
   const lastError = ref<string>();
@@ -47,12 +53,15 @@ export function createReminderManager(
   async function load(): Promise<void> {
     try {
       const storedDocument = await storage.load();
-      reminders.value = storedDocument === undefined
-        ? []
-        : normalizeDocument(storedDocument).reminders;
+      const document = storedDocument === undefined
+        ? { schemaVersion: 1 as const, reminders: [], snoozes: [] }
+        : normalizeDocument(storedDocument);
+      reminders.value = document.reminders;
+      snoozes.value = document.snoozes;
       lastError.value = undefined;
     } catch (error) {
       reminders.value = [];
+      snoozes.value = [];
       lastError.value = toErrorMessage(error);
       console.error("Failed to load reminders; using an empty list.", error);
     } finally {
@@ -67,7 +76,9 @@ export function createReminderManager(
         try {
           await storage.subscribe((value) => {
             try {
-              reminders.value = normalizeDocument(value).reminders;
+              const document = normalizeDocument(value);
+              reminders.value = document.reminders;
+              snoozes.value = document.snoozes;
               lastError.value = undefined;
             } catch (error) {
               console.error("Ignored invalid reminders update.", error);
@@ -87,16 +98,26 @@ export function createReminderManager(
     return initializePromise;
   }
 
-  async function persist(nextReminders: Reminder[]): Promise<void> {
+  async function persist(
+    nextReminders: Reminder[],
+    nextSnoozes: ReminderSnooze[] = [...snoozes.value],
+  ): Promise<void> {
     isSaving.value = true;
     lastError.value = undefined;
     const persistedReminders = nextReminders.map((reminder) => ({ ...reminder }));
+    const persistedSnoozes = nextSnoozes.map((snooze) => ({ ...snooze }));
+    const document: ReminderStorageDocument = {
+      schemaVersion: 1,
+      reminders: persistedReminders,
+      snoozes: persistedSnoozes,
+    };
 
     try {
-      await storage.save({ schemaVersion: 1, reminders: persistedReminders });
+      await storage.save(document);
       reminders.value = persistedReminders;
+      snoozes.value = persistedSnoozes;
       try {
-        await storage.broadcast({ schemaVersion: 1, reminders: persistedReminders });
+        await storage.broadcast(document);
       } catch (error) {
         lastError.value = `提醒已保存，但跨窗口同步失败：${toErrorMessage(error)}`;
         console.error("Failed to broadcast reminder storage update.", error);
@@ -152,12 +173,31 @@ export function createReminderManager(
     return reminder;
   }
 
+  async function createSnooze(input: ReminderSnoozeInput): Promise<ReminderSnooze> {
+    const snooze: ReminderSnooze = {
+      id: createId(),
+      ...normalizeSnoozeInput(input),
+      createdAt: now().toISOString(),
+    };
+    await persist([...reminders.value], [...snoozes.value, snooze]);
+    return snooze;
+  }
+
+  async function deleteSnooze(id: string): Promise<void> {
+    const nextSnoozes = snoozes.value.filter((snooze) => snooze.id !== id);
+    if (nextSnoozes.length === snoozes.value.length) {
+      throw new Error(`Reminder snooze not found: ${id}`);
+    }
+    await persist([...reminders.value], nextSnoozes);
+  }
+
   async function save(): Promise<void> {
     await persist([...reminders.value]);
   }
 
   return {
     reminders: readonly(reminders),
+    snoozes: readonly(snoozes),
     isLoaded: readonly(isLoaded),
     isSaving: readonly(isSaving),
     lastError: readonly(lastError),
@@ -167,6 +207,8 @@ export function createReminderManager(
     update,
     delete: remove,
     setEnabled,
+    createSnooze,
+    deleteSnooze,
     save,
   };
 }
@@ -184,7 +226,64 @@ function normalizeDocument(value: unknown): ReminderStorageDocument {
     throw new Error("Reminder IDs must be unique.");
   }
 
-  return { schemaVersion: 1, reminders };
+  const rawSnoozes = value.snoozes === undefined ? [] : value.snoozes;
+  if (!Array.isArray(rawSnoozes)) {
+    throw new Error("Reminder snoozes must be an array.");
+  }
+  const snoozes = rawSnoozes.map(normalizeSnooze);
+  const snoozeIds = new Set(snoozes.map(({ id }) => id));
+  if (snoozeIds.size !== snoozes.length) {
+    throw new Error("Reminder snooze IDs must be unique.");
+  }
+
+  return { schemaVersion: 1, reminders, snoozes };
+}
+
+function normalizeSnooze(value: unknown): ReminderSnooze {
+  if (
+    !isRecord(value)
+    || typeof value.id !== "string"
+    || value.id.trim().length === 0
+    || typeof value.createdAt !== "string"
+    || Number.isNaN(Date.parse(value.createdAt))
+  ) {
+    throw new Error("Stored Reminder snooze metadata is invalid.");
+  }
+
+  return {
+    id: value.id,
+    ...normalizeSnoozeInput(value),
+    createdAt: value.createdAt,
+  };
+}
+
+function normalizeSnoozeInput(value: unknown): ReminderSnoozeInput {
+  if (
+    !isRecord(value)
+    || typeof value.reminderId !== "string"
+    || value.reminderId.trim().length === 0
+    || (value.scheduleType !== "once" && value.scheduleType !== "daily")
+    || typeof value.text !== "string"
+    || value.text.trim().length === 0
+    || typeof value.soundEnabled !== "boolean"
+    || typeof value.triggerAt !== "string"
+    || Number.isNaN(Date.parse(value.triggerAt))
+  ) {
+    throw new Error("Reminder snooze is invalid.");
+  }
+
+  return {
+    reminderId: value.reminderId,
+    scheduleType: value.scheduleType,
+    text: value.text.trim(),
+    soundEnabled: value.soundEnabled,
+    soundId: isReminderSoundId(value.soundId)
+      ? value.soundId
+      : value.soundEnabled
+        ? DEFAULT_REMINDER_SOUND_ID
+        : null,
+    triggerAt: new Date(value.triggerAt).toISOString(),
+  };
 }
 
 function normalizeReminder(value: unknown): Reminder {
