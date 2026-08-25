@@ -52,6 +52,7 @@ try {
     assert.equal(firstRequest.priority, behavior.DEFAULT_BEHAVIOR_PRIORITIES.alert);
     assert.equal(firstRequest.durationMs, REMINDER_ALERT_DURATION_MS);
     assert.equal(selectDialogueText(dialogueEvent, {}), "该吃饭啦");
+    assert.equal(dialogueEvent.persistent, true);
 
     let disabledSoundRequests = 0;
     handleReminderTrigger(firstPayload, {
@@ -107,6 +108,7 @@ try {
 
     mock.timers.tick(REMINDER_ALERT_DURATION_MS);
     assert.equal(behavior.effectiveState.value, "idle");
+    assert.ok(activeReminderFeedback.value);
 
     behavior.requestState({
       source: behavior.BEHAVIOR_SOURCES.DEVELOPMENT_TIRED,
@@ -138,11 +140,20 @@ try {
     const sourceB = createReminderBehaviorSource(simultaneousB.occurrenceId);
     reminderSources.push(sourceA, sourceB);
     handleReminderTrigger(simultaneousA, { triggerDialogue() {} });
-    handleReminderTrigger(simultaneousB, { triggerDialogue() {} });
+    let replacedSoundStopped = false;
+    handleReminderTrigger(simultaneousB, {
+      triggerDialogue() {},
+      stopSound() {
+        replacedSoundStopped = true;
+      },
+    });
     const sources = behavior.activeRequests.value.map(({ source }) => source);
-    assert.ok(sources.includes(sourceA));
+    assert.ok(!sources.includes(sourceA));
     assert.ok(sources.includes(sourceB));
     assert.notEqual(sourceA, sourceB);
+    assert.equal(replacedSoundStopped, true);
+    assert.equal(activeReminderFeedback.value.occurrenceId, simultaneousB.occurrenceId);
+    assert.equal(dismissReminderFeedback(simultaneousA.occurrenceId), false);
 
     const dismissPayload = payload("dismiss", "完成测试");
     const dismissSource = createReminderBehaviorSource(dismissPayload.occurrenceId);
@@ -198,6 +209,7 @@ try {
     assert.equal(snoozeInput.soundId, "soft");
     assert.equal(snoozeSoundStopped, true);
     assert.ok(!behavior.activeRequests.value.some(({ source }) => source === snoozeSource));
+    assert.equal(activeReminderFeedback.value, undefined);
 
     let fallbackEvent;
     handleReminderTrigger(payload("fallback", "   "), {

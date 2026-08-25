@@ -36,6 +36,7 @@ export interface DialogueOptions {
 export interface DialogueController {
   currentText: Readonly<Ref<string>>;
   isVisible: Readonly<Ref<boolean>>;
+  isPersistent: Readonly<Ref<boolean>>;
   notify: (event: DialogueEvent) => void;
   hide: () => void;
   dispose: () => void;
@@ -67,6 +68,7 @@ export function useDialogue(
 ): DialogueController {
   const currentText = ref("");
   const isVisible = ref(false);
+  const isPersistent = ref(false);
   void dialogueManager.initialize();
   void settingsManager.initialize();
   const random = options.random ?? Math.random;
@@ -83,10 +85,15 @@ export function useDialogue(
   function hide(): void {
     clearHideTimer();
     isVisible.value = false;
+    isPersistent.value = false;
   }
 
   function notify(event: DialogueEvent): void {
     if (disposed) {
+      return;
+    }
+
+    if (isPersistent.value && !event.persistent) {
       return;
     }
 
@@ -108,8 +115,13 @@ export function useDialogue(
 
     clearHideTimer();
     currentText.value = text;
+    isPersistent.value = event.persistent === true;
     recordDialogueText(text);
     isVisible.value = true;
+    if (isPersistent.value) {
+      return;
+    }
+
     const displayDurationMs = Math.max(
       0,
       options.displayDurationMs ??
@@ -138,6 +150,7 @@ export function useDialogue(
   return {
     currentText: readonly(currentText),
     isVisible: readonly(isVisible),
+    isPersistent: readonly(isPersistent),
     notify,
     hide,
     dispose,

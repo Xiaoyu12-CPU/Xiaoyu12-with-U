@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "test:reminders": "node tests/reminderManager.test.mjs && node tests/reminderScheduler.test.mjs && node tests/reminderRuntimeConsumer.test.mjs && node tests/reminderSound.test.mjs && node tests/reminderSnooze.test.mjs",
+    "test:reminders": "node tests/reminderManager.test.mjs && node tests/reminderScheduler.test.mjs && node tests/reminderRuntimeConsumer.test.mjs && node tests/reminderSound.test.mjs && node tests/reminderSnooze.test.mjs && node tests/dialogueLifecycle.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

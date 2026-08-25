@@ -21,7 +21,6 @@ export const REMINDER_ALERT_DURATION_MS = 5_000;
 export const REMINDER_BEHAVIOR_SOURCE_PREFIX = "reminder.active:";
 const REMINDER_TEXT_FALLBACK = "提醒时间到了";
 const activeReminderFeedbackState = ref<ReminderTriggerPayload>();
-let feedbackTimer: ReturnType<typeof setTimeout> | undefined;
 
 export const activeReminderFeedback = readonly(activeReminderFeedbackState);
 
@@ -36,6 +35,8 @@ interface ReminderRuntimeConsumerDependencies {
     volume: number,
   ) => Promise<void>;
   getSoundVolume?: () => number;
+  releaseBehavior?: (source: string) => void;
+  stopSound?: () => void;
 }
 
 interface ReminderFeedbackActionDependencies {
@@ -57,7 +58,11 @@ export function handleReminderTrigger(
   const playSound = dependencies.playSound ?? playReminderSound;
   const getSoundVolume = dependencies.getSoundVolume
     ?? (() => settingsManager.settings.value.reminder.soundVolume);
-  activateReminderFeedback(payload);
+  activateReminderFeedback(
+    payload,
+    dependencies.releaseBehavior ?? releaseState,
+    dependencies.stopSound ?? stopReminderSound,
+  );
 
   try {
     requestBehavior({
@@ -72,6 +77,7 @@ export function handleReminderTrigger(
   try {
     triggerDialogue(DIALOGUE_EVENT_TYPES.REMINDER, {
       textOverride: payload.text.trim() || REMINDER_TEXT_FALLBACK,
+      persistent: true,
       context: {
         reminderId: payload.id,
         scheduleType: payload.scheduleType,
@@ -179,31 +185,23 @@ export function createReminderBehaviorSource(occurrenceId: string): string {
   return `${REMINDER_BEHAVIOR_SOURCE_PREFIX}${occurrenceId}`;
 }
 
-function activateReminderFeedback(payload: ReminderTriggerPayload): void {
-  clearFeedbackTimer();
+function activateReminderFeedback(
+  payload: ReminderTriggerPayload,
+  releaseBehavior: (source: string) => void,
+  stopSound: () => void,
+): void {
+  const previousFeedback = activeReminderFeedbackState.value;
+  if (previousFeedback) {
+    releaseBehavior(
+      createReminderBehaviorSource(getReminderOccurrenceId(previousFeedback)),
+    );
+    stopSound();
+  }
   activeReminderFeedbackState.value = payload;
-  const occurrenceId = getReminderOccurrenceId(payload);
-  feedbackTimer = setTimeout(() => {
-    if (
-      activeReminderFeedbackState.value
-      && getReminderOccurrenceId(activeReminderFeedbackState.value) === occurrenceId
-    ) {
-      activeReminderFeedbackState.value = undefined;
-    }
-    feedbackTimer = undefined;
-  }, REMINDER_ALERT_DURATION_MS);
 }
 
 function clearReminderFeedback(): void {
-  clearFeedbackTimer();
   activeReminderFeedbackState.value = undefined;
-}
-
-function clearFeedbackTimer(): void {
-  if (feedbackTimer !== undefined) {
-    clearTimeout(feedbackTimer);
-    feedbackTimer = undefined;
-  }
 }
 
 function getReminderOccurrenceId(payload: ReminderTriggerPayload): string {

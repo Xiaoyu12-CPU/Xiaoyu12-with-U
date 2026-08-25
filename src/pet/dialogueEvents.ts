@@ -60,10 +60,12 @@ export interface DialogueEvent {
   context?: Readonly<Record<string, unknown>>;
   candidateIndex?: number;
   textOverride?: string;
+  persistent?: boolean;
 }
 
 export interface TriggerDialogueEventOptions {
   context?: Readonly<Record<string, unknown>>;
   candidateIndex?: number;
   textOverride?: string;
+  persistent?: boolean;
 }
