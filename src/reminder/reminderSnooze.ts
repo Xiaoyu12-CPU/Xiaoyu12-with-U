@@ -1,4 +1,5 @@
 import type {
+  ReminderSnooze,
   ReminderSnoozeInput,
   ReminderTriggerPayload,
 } from "./reminderTypes";
@@ -8,6 +9,14 @@ export type SnoozeMinutes = typeof SNOOZE_OPTIONS_MINUTES[number];
 
 export function isSnoozeMinutes(value: number): value is SnoozeMinutes {
   return SNOOZE_OPTIONS_MINUTES.includes(value as SnoozeMinutes);
+}
+
+export function sortReminderSnoozesByTriggerAt(
+  snoozes: readonly ReminderSnooze[],
+): ReminderSnooze[] {
+  return [...snoozes].sort(
+    (left, right) => Date.parse(left.triggerAt) - Date.parse(right.triggerAt),
+  );
 }
 
 export function createReminderSnoozeInput(

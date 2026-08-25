@@ -300,7 +300,7 @@ app_data_dir()/settings.json
 - `appearance`：桌宠缩放与 Always On Top。
 - `dialogue`：气泡时长、启动提示和 Click/Drag 文本开关；旧 `enableHoverDialogue` 字段仅为 settings.json 兼容保留。
 - `animation`：全局动画启停。
-- Phase 2-D 完成时，`systemMonitor`、`input`、`reminder` 仅作为后续阶段的数据占位；其中 CPU 与 Memory 配置已在 Phase 3-A / 3-B 正式接入，Input 与 Reminder 仍未驱动功能。
+- Phase 2-D 完成时，`systemMonitor`、`input`、`reminder` 仅作为后续阶段的数据占位；System Monitor 已在 Phase 3 接入，Reminder 已在 Phase 4 接入，Input 仍未驱动功能。
 
 所有默认值集中在 `defaultSettings.ts`。读取时按字段校验并与默认配置合并，缺失字段自动补齐，未知字段忽略；损坏 JSON 或不支持的 schemaVersion 会安全回退默认配置。
 
@@ -560,3 +560,27 @@ Phase 3-G 不新增采样源，只统一 CPU、Memory、Network、Storage、Batt
 Control Center 的 Current Status 固定按 CPU、Memory、Network、Storage、Battery 排列，并统一展示 Active、Disabled、Warming、Error、Unavailable 等生命周期状态。Disabled 项目的“前往设置”直接切换到 Settings 的 System Monitor 区域。SystemStatusBubble 提供相同行为：主窗口先打开或聚焦 Control Center，再通过现有跨窗口 Runtime Bridge 的 navigation ready / acknowledgement 事件可靠导航，不会自动修改 Monitor 开关。
 
 SystemStatusBubble 的 ResizeObserver 只在实测宽高变化时上报，Pet 端再次去重相同尺寸；动态百分比和速率文本使用固定单行布局，常规 Runtime 数值更新不会持续触发 Window Bounding Box resize。`visibleItems` 正式支持 Battery，但默认值和旧用户数组都不会自动加入 Battery，只有用户主动勾选后才显示。
+
+## 20. Phase 4：Reminder & Alarm
+
+Reminder 数据继续存放在跨平台 `app_data_dir()/reminders.json`，同一个 version 1 文档保存 `reminders` 与 `snoozes`。旧文档缺少 `snoozes` 或旧 Reminder 缺少声音字段时会补为空数组、`soundEnabled = false` 与 `soundId = null`；损坏 JSON 会保留 corrupt 文件并安全使用空文档。
+
+```text
+Control Center Reminder Manager
+        ↓ safe save + reminders-updated
+main Pet Window Reminder Manager
+        ↓
+single Reminder Scheduler
+  candidates: once / daily / snooze
+        ↓ reminder.triggered
+Reminder Runtime Consumer
+  ├── Behavior alert（5s）
+  ├── persistent actionable Dialogue
+  └── optional built-in alarm sound
+```
+
+Scheduler 的唯一 owner 是主桌宠窗口。它按机器当前本地时区计算 once 与 daily occurrence，以 5 分钟 Grace Window 处理睡眠或唤醒后的短暂错过，并使用 occurrence key 防止重复触发。Daily 每次从本地日期和时间重新计算，不用固定 24 小时毫秒数；Once 成功触发或过期后自动停用。Master Switch 只暂停 timer，保留 Reminder 启用值和 Pending Snooze。
+
+Snooze 使用 5、10、30 分钟固定选项，在同一 `reminders.json` 中保存文本与声音快照，不修改原 once / daily schedule。Scheduler 把 Snooze 与普通 Reminder 放入同一个候选集合；触发后删除该 Snooze。Control Center 的 Next Reminder 直接读取 Runtime Bridge 的 Scheduler Snapshot，不另行计算；Pending Snooze 仅按 `triggerAt` 排序展示，取消后经原有跨窗口事件使主 Scheduler 立即重算。
+
+Reminder Feedback 使用唯一 occurrence Behavior source。ALERT 在 5 秒后独立释放，但带“完成 / 稍后提醒”的 Actionable SpeechBubble 持续到用户操作；普通 Dialogue 在此期间不能覆盖它。Dismiss 或 Snooze 都会立即隐藏反馈、release 对应 Behavior 并停止当前声音。声音来自内置跨平台资源，使用全局 Reminder Sound Volume；本阶段不包含 System Notification、Weekly、Monthly、自定义音频或复杂历史。

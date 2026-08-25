@@ -223,6 +223,18 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 
 完成标志：提醒在应用重启和系统睡眠后仍能按既定策略触发，并可被用户完整管理。
 
+### Phase 4-A～4-F 完成记录
+
+- Reminder 数据模型支持 once / daily，以及创建、编辑、启停、删除与 `app_data_dir()/reminders.json` 安全持久化。
+- 主桌宠窗口持有唯一 Scheduler，按本地时区调度，支持 5 分钟 Grace Window、Sleep / Wake 恢复与 occurrence duplicate protection。
+- Reminder Trigger 通过 Behavior Manager 显示约 5 秒 ALERT，并把 Reminder 自定义文本作为 persistent actionable feedback 展示。
+- 内置 default / soft / digital 提醒音支持试听与全局音量；声音失败不阻塞 Behavior、Dialogue 或 Once 自动停用。
+- 支持完成，以及 5 / 10 / 30 分钟持久化 Snooze；Snooze 保存文本与声音快照，不修改原 once / daily 时间。
+- Control Center Reminder 页面统一展示 Master、Scheduler、权威 Next Reminder、Last Trigger、按时间排序的 Pending Snooze 和 Reminder 列表。
+- Pending Snooze 可独立取消，保存后通过现有跨窗口事件让主 Scheduler 立即重算；旧文档缺失 Snooze 或声音字段仍兼容。
+- Actionable Reminder Bubble 不受普通 `bubbleDurationMs` 限制，且不会被普通 Dialogue 覆盖；Dismiss / Snooze 后普通 Dialogue 恢复。
+- Phase 4 当前范围已完成；System Notification、Weekly、Monthly、自定义音频与复杂历史不属于本阶段实现。
+
 ## Phase 5：键盘鼠标监听
 
 目标：在用户明确授权后，以隐私友好的方式感知全局输入活动。

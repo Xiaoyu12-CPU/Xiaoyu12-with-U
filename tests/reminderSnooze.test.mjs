@@ -12,6 +12,7 @@ try {
     createReminderSnoozeInput,
     isSnoozeMinutes,
     SNOOZE_OPTIONS_MINUTES,
+    sortReminderSnoozesByTriggerAt,
   } = await vite.ssrLoadModule("/src/reminder/reminderSnooze.ts");
 
   const now = new Date("2026-08-25T12:00:00.000Z");
@@ -45,6 +46,20 @@ try {
   assert.throws(
     () => createReminderSnoozeInput(payload, 7, now),
     /Unsupported snooze duration/,
+  );
+
+  const unsortedSnoozes = [
+    { id: "late", triggerAt: "2026-08-25T12:30:00.000Z" },
+    { id: "early", triggerAt: "2026-08-25T12:05:00.000Z" },
+    { id: "middle", triggerAt: "2026-08-25T12:10:00.000Z" },
+  ];
+  assert.deepEqual(
+    sortReminderSnoozesByTriggerAt(unsortedSnoozes).map(({ id }) => id),
+    ["early", "middle", "late"],
+  );
+  assert.deepEqual(
+    unsortedSnoozes.map(({ id }) => id),
+    ["late", "early", "middle"],
   );
 
   console.log("Reminder snooze tests passed.");

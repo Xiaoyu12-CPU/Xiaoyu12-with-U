@@ -156,6 +156,18 @@ try {
   assert.equal(snoozeFirst.runtime.nextReminder.occurrenceType, "snooze");
   assert.equal(snoozeFirst.runtime.nextReminder.occurrenceId, "snooze-next");
 
+  snoozeFirst.snoozes.splice(0, 1);
+  await snoozeFirst.scheduler.refresh();
+  assert.equal(snoozeFirst.runtime.nextReminder.occurrenceType, "reminder");
+  assert.equal(snoozeFirst.runtime.nextReminder.id, "daily-source");
+  assert.equal(snoozeFirst.reminders[0].time, "12:00");
+
+  snoozeFirst.snoozes.push(snooze({
+    id: "snooze-next",
+    reminderId: "daily-source",
+    triggerAt: new Date(2026, 7, 25, 10, 5).toISOString(),
+  }));
+
   snoozeFirst.currentTime = new Date(2026, 7, 25, 10, 5);
   await snoozeFirst.scheduler.refresh();
   assert.equal(snoozeFirst.triggers.length, 1);
@@ -190,6 +202,13 @@ try {
   snoozeMasterOff.masterEnabled = false;
   await snoozeMasterOff.scheduler.refresh();
   assert.equal(snoozeMasterOff.triggers.length, 0);
+  assert.equal(snoozeMasterOff.snoozes.length, 1);
+  snoozeMasterOff.masterEnabled = true;
+  snoozeMasterOff.currentTime = new Date(2026, 7, 25, 11, 55);
+  snoozeMasterOff.snoozes[0].triggerAt = new Date(2026, 7, 25, 12, 0).toISOString();
+  await snoozeMasterOff.scheduler.refresh();
+  assert.equal(snoozeMasterOff.runtime.status, "enabled");
+  assert.equal(snoozeMasterOff.runtime.nextReminder.occurrenceType, "snooze");
   assert.equal(snoozeMasterOff.snoozes.length, 1);
 
   const snoozeDuplicate = createHarness({

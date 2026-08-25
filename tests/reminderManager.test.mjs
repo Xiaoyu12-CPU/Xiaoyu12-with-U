@@ -12,6 +12,7 @@ try {
     "/src/reminder/reminderManager.ts",
   );
   let storedDocument;
+  const broadcasts = [];
   const storage = {
     async load() {
       return storedDocument ? structuredClone(storedDocument) : undefined;
@@ -19,7 +20,9 @@ try {
     async save(document) {
       storedDocument = structuredClone(document);
     },
-    async broadcast() {},
+    async broadcast(document) {
+      broadcasts.push(structuredClone(document));
+    },
     async subscribe() {
       return () => {};
     },
@@ -119,6 +122,9 @@ try {
   assert.equal(manager.snoozes.value.length, 1);
   await manager.deleteSnooze(snooze.id);
   assert.deepEqual(manager.snoozes.value, []);
+  assert.equal(manager.reminders.value.some(({ id }) => id === daily.id), true);
+  assert.deepEqual(broadcasts.at(-1).snoozes, []);
+  assert.equal(broadcasts.at(-1).reminders.some(({ id }) => id === daily.id), true);
 
   const legacyManager = createReminderManager({
     storage: {

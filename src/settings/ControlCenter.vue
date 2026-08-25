@@ -89,7 +89,7 @@ function openSystemMonitorSettings(): void {
         </button>
       </nav>
 
-      <p>Phase 4-B</p>
+      <p>Phase 4 Complete</p>
     </aside>
 
     <div ref="contentElement" class="control-center__content">

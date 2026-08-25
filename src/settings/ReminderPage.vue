@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { reminderManager } from "../reminder/reminderManager";
 import { playReminderSound } from "../reminder/reminderSoundPlayer";
+import { sortReminderSnoozesByTriggerAt } from "../reminder/reminderSnooze";
 import {
   DEFAULT_REMINDER_SOUND_ID,
   REMINDER_SOUNDS,
@@ -21,6 +22,7 @@ defineProps<{
 const isEditing = ref(false);
 const editingId = ref<string>();
 const pendingDeleteId = ref<string>();
+const cancelingSnoozeId = ref<string>();
 const formError = ref<string>();
 const form = reactive<ReminderInput>(createEmptyForm());
 const selectedSoundId = computed({
@@ -30,8 +32,7 @@ const selectedSoundId = computed({
   },
 });
 const pendingSnoozes = computed(() =>
-  [...reminderManager.snoozes.value]
-    .sort((left, right) => Date.parse(left.triggerAt) - Date.parse(right.triggerAt)),
+  sortReminderSnoozesByTriggerAt(reminderManager.snoozes.value),
 );
 
 onMounted(() => {
@@ -138,10 +139,13 @@ async function confirmDelete(id: string): Promise<void> {
 }
 
 async function cancelSnooze(id: string): Promise<void> {
+  cancelingSnoozeId.value = id;
   try {
     await reminderManager.deleteSnooze(id);
   } catch (error) {
     formError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    cancelingSnoozeId.value = undefined;
   }
 }
 
@@ -191,9 +195,13 @@ function formatRuntimeDate(value: string): string {
 
     <article class="scheduler-status">
       <div>
-        <p class="eyebrow">Scheduler</p>
+        <p class="eyebrow">Reminder System</p>
+        <strong>{{ settingsManager.settings.value.reminder.enabled ? "Enabled" : "Paused" }}</strong>
+      </div>
+      <div class="runtime-detail">
+        <span>Scheduler</span>
         <strong v-if="runtime">
-          {{ runtime.reminderSchedulerStatus === "enabled" ? "Active" : "Disabled" }}
+          {{ runtime.reminderSchedulerStatus === "enabled" ? "Active" : "Paused" }}
         </strong>
         <strong v-else>连接中…</strong>
       </div>
@@ -201,10 +209,12 @@ function formatRuntimeDate(value: string): string {
         <span>Next Reminder</span>
         <strong v-if="runtime?.nextReminder">{{ runtime.nextReminder.text }}</strong>
         <small v-if="runtime?.nextReminder">
-          {{ runtime.nextReminder.occurrenceType === "snooze" ? "稍后提醒 · " : "" }}
+          {{ runtime.nextReminder.occurrenceType === "snooze"
+            ? "稍后提醒"
+            : runtime.nextReminder.scheduleType === "once" ? "一次" : "每日" }} ·
           {{ formatRuntimeDate(runtime.nextReminder.nextTriggerAt) }}
         </small>
-        <small v-else>无待调度提醒</small>
+        <small v-else>暂无待触发提醒</small>
       </div>
       <div class="runtime-detail">
         <span>Last Trigger</span>
@@ -214,11 +224,11 @@ function formatRuntimeDate(value: string): string {
         <small v-if="runtime?.lastReminderTrigger">
           {{ formatRuntimeDate(runtime.lastReminderTrigger.triggeredAt) }}
         </small>
-        <small v-else>本次运行尚未触发</small>
+        <small v-else>暂无触发记录</small>
       </div>
     </article>
 
-    <section v-if="pendingSnoozes.length" class="pending-snoozes">
+    <section class="pending-snoozes">
       <div class="pending-snoozes__heading">
         <div>
           <p class="eyebrow">Pending Snooze</p>
@@ -235,8 +245,17 @@ function formatRuntimeDate(value: string): string {
           <strong>{{ snooze.text }}</strong>
           <small>{{ formatRuntimeDate(snooze.triggerAt) }}</small>
         </div>
-        <button type="button" @click="cancelSnooze(snooze.id)">取消</button>
+        <button
+          type="button"
+          :disabled="cancelingSnoozeId === snooze.id"
+          @click="cancelSnooze(snooze.id)"
+        >
+          {{ cancelingSnoozeId === snooze.id ? "取消中…" : "取消" }}
+        </button>
       </div>
+      <p v-if="pendingSnoozes.length === 0" class="pending-snoozes__empty">
+        暂无稍后提醒
+      </p>
     </section>
 
     <form v-if="isEditing" class="editor" @submit.prevent="saveReminder">
@@ -382,7 +401,7 @@ button:disabled { cursor: default; opacity: .55; }
 .primary:hover { background: #654db9; }
 .danger { color: #a44050; border-color: #e9cbd0; }
 .editor, .reminder-list article, .empty-state, .scheduler-status, .pending-snoozes { padding: 17px; background: #faf9fd; border: 1px solid #e8e4f0; border-radius: 13px; }
-.scheduler-status { display: grid; grid-template-columns: minmax(100px, .7fr) repeat(2, minmax(150px, 1fr)); gap: 16px; }
+.scheduler-status { display: grid; grid-template-columns: minmax(110px, .7fr) minmax(90px, .6fr) repeat(2, minmax(150px, 1fr)); gap: 16px; }
 .scheduler-status > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
 .scheduler-status strong { overflow: hidden; color: #433750; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .runtime-detail { padding-left: 14px; border-left: 1px solid #e5dfed; }
@@ -394,6 +413,7 @@ button:disabled { cursor: default; opacity: .55; }
 .pending-snoozes__row > div { display: grid; gap: 3px; min-width: 0; }
 .pending-snoozes__row strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .pending-snoozes__row small { color: #8a8094; font-size: 10px; }
+.pending-snoozes__empty { padding: 12px 0 2px; color: #8a8094; font-size: 12px; text-align: center; }
 .editor { display: grid; gap: 15px; }
 .enabled-control { display: flex; align-items: center; gap: 8px; color: #655b70; font-size: 12px; }
 .enabled-control input, fieldset input { accent-color: #745bc9; }
