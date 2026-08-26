@@ -58,7 +58,11 @@ export interface DesktopPetSettings {
     keyDisplayPersistent: boolean;
     keyDisplayPosition: KeyDisplayPosition;
     keyDisplayFlowDirection: KeyDisplayFlowDirection;
-    keyDisplayDistancePx: number;
+    keyDisplayOffsetX: number;
+    keyDisplayOffsetY: number;
+    keyDisplayStartLineGapPx: number;
+    keyDisplayStartLineColor: string;
+    keyDisplayStartLineOpacity: number;
     mouseEnabled: boolean;
   };
   reminder: {

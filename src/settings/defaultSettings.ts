@@ -49,7 +49,11 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     keyDisplayPersistent: false,
     keyDisplayPosition: "bottom",
     keyDisplayFlowDirection: "auto",
-    keyDisplayDistancePx: 12,
+    keyDisplayOffsetX: 0,
+    keyDisplayOffsetY: 0,
+    keyDisplayStartLineGapPx: 8,
+    keyDisplayStartLineColor: "#8B5CF6",
+    keyDisplayStartLineOpacity: 0.5,
     mouseEnabled: false,
   },
   reminder: {

@@ -11,6 +11,7 @@ import type {
   KeyDisplayPosition,
   SettingsSection,
 } from "./settingsTypes";
+import { resetKeyHistoryOffset } from "../input/keyHistoryDrag";
 
 const settings = settingsManager.settings;
 const scalePercent = computed(() =>
@@ -24,6 +25,9 @@ const reminderSoundVolumePercent = computed(() =>
 );
 const keyDisplayDurationSeconds = computed(() =>
   (settings.value.input.keyDisplayDurationMs / 1000).toFixed(1),
+);
+const keyDisplayStartLineOpacityPercent = computed(() =>
+  Math.round(settings.value.input.keyDisplayStartLineOpacity * 100),
 );
 
 onMounted(() => {
@@ -111,6 +115,29 @@ function updateKeyDisplayFlowDirection(event: Event): void {
     "keyDisplayFlowDirection",
     (event.target as HTMLSelectElement).value as KeyDisplayFlowDirection,
   );
+}
+
+function updateKeyDisplayStartLineColor(event: Event): void {
+  update(
+    "input",
+    "keyDisplayStartLineColor",
+    (event.target as HTMLInputElement).value,
+  );
+}
+
+function updateKeyDisplayStartLineOpacity(event: Event): void {
+  const percent = Number((event.target as HTMLInputElement).value);
+  update("input", "keyDisplayStartLineOpacity", percent / 100);
+}
+
+function resetKeyDisplayPosition(): void {
+  const offset = resetKeyHistoryOffset();
+  settingsManager.update({
+    input: {
+      keyDisplayOffsetX: offset.x,
+      keyDisplayOffsetY: offset.y,
+    },
+  });
 }
 
 function updateVisibleItem(itemId: SystemStatusItemId, event: Event): void {
@@ -727,23 +754,60 @@ function getRightSideBubbleOffset(): number {
             <option value="right">Right →</option>
           </select>
         </label>
+        <label class="setting-row">
+          <span>
+            <strong>起始线颜色</strong>
+            <small>起始线标记 Key History 的展开原点。</small>
+          </span>
+          <input
+            type="color"
+            :value="settings.input.keyDisplayStartLineColor"
+            @input="updateKeyDisplayStartLineColor"
+          />
+        </label>
         <label class="setting-row scale-row">
           <span>
-            <strong>距离桌宠</strong>
-            <small>桌宠布局边缘到可见 History Stack 最近边缘的距离。</small>
+            <strong>起始线与键位间距</strong>
+            <small>只调整键位记录相对起始线的展开距离，不移动起始线。</small>
           </span>
           <div class="scale-control">
             <input
               type="range"
               min="0"
-              max="200"
+              max="80"
               step="1"
-              :value="settings.input.keyDisplayDistancePx"
-              @input="updateNumber('input', 'keyDisplayDistancePx', $event)"
+              :value="settings.input.keyDisplayStartLineGapPx"
+              @input="updateNumber('input', 'keyDisplayStartLineGapPx', $event)"
             />
-            <output>{{ settings.input.keyDisplayDistancePx }} px</output>
+            <output>{{ settings.input.keyDisplayStartLineGapPx }} px</output>
           </div>
         </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>起始线透明度</strong>
+            <small>完全透明时拖动区域仍然可用。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              :value="keyDisplayStartLineOpacityPercent"
+              @input="updateKeyDisplayStartLineOpacity"
+            />
+            <output>{{ keyDisplayStartLineOpacityPercent }}%</output>
+          </div>
+        </label>
+        <div class="setting-row">
+          <span>
+            <strong>键位显示位置</strong>
+            <small>清除手动拖动偏移，回到当前 Position 的桌宠边缘锚点。</small>
+          </span>
+          <button type="button" @click="resetKeyDisplayPosition">
+            重置位置
+          </button>
+        </div>
       </article>
 
       <article>

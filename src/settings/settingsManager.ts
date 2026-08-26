@@ -344,11 +344,33 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         input.keyDisplayFlowDirection,
         DEFAULT_SETTINGS.input.keyDisplayFlowDirection,
       ),
-      keyDisplayDistancePx: clampNumber(
-        input.keyDisplayDistancePx,
+      keyDisplayOffsetX: clampNumber(
+        input.keyDisplayOffsetX,
+        -500,
+        500,
+        DEFAULT_SETTINGS.input.keyDisplayOffsetX,
+      ),
+      keyDisplayOffsetY: clampNumber(
+        input.keyDisplayOffsetY,
+        -500,
+        500,
+        DEFAULT_SETTINGS.input.keyDisplayOffsetY,
+      ),
+      keyDisplayStartLineGapPx: clampNumber(
+        input.keyDisplayStartLineGapPx,
         0,
-        200,
-        DEFAULT_SETTINGS.input.keyDisplayDistancePx,
+        80,
+        DEFAULT_SETTINGS.input.keyDisplayStartLineGapPx,
+      ),
+      keyDisplayStartLineColor: hexColorOrDefault(
+        input.keyDisplayStartLineColor,
+        DEFAULT_SETTINGS.input.keyDisplayStartLineColor,
+      ),
+      keyDisplayStartLineOpacity: clampNumber(
+        input.keyDisplayStartLineOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.input.keyDisplayStartLineOpacity,
       ),
       mouseEnabled: booleanOrDefault(
         input.mouseEnabled,

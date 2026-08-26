@@ -4,6 +4,7 @@ import {
   keyHistoryAxis,
   resolveKeyDisplayFlowDirection,
 } from "../input/keyDisplay";
+import { clampKeyDisplayOffset } from "../input/keyHistoryDrag";
 import type {
   DesktopDisplayMode,
   KeyDisplayFlowDirection,
@@ -16,6 +17,10 @@ export const KEY_DISPLAY_ENTRY_WIDTH = 140;
 export const KEY_DISPLAY_ENTRY_HEIGHT = 42;
 export const KEY_DISPLAY_BASE_GAP = 6;
 export const KEY_DISPLAY_HORIZONTAL_MAX_WIDTH = 640;
+export const KEY_HISTORY_HANDLE_WIDTH = 72;
+export const KEY_HISTORY_HANDLE_HEIGHT = 24;
+export const KEY_HISTORY_START_LINE_WIDTH = 56;
+export const KEY_HISTORY_START_LINE_HEIGHT = 2;
 export const STATUS_BUBBLE_OFFSET_LIMIT = 500;
 export const STATUS_BUBBLE_FALLBACK_SIZE = Object.freeze({
   width: 184,
@@ -33,7 +38,9 @@ export interface WindowLayoutInput {
   keyDisplayPosition: KeyDisplayPosition;
   keyDisplayFlowDirection: KeyDisplayFlowDirection;
   keyDisplayMaxItems: number;
-  keyDisplayDistancePx: number;
+  keyDisplayOffsetX: number;
+  keyDisplayOffsetY: number;
+  keyDisplayStartLineGapPx: number;
 }
 
 export interface PetWindowLayout {
@@ -52,6 +59,8 @@ export interface PetWindowLayout {
   keyDisplayHeight: number;
   keyDisplayScale: number;
   keyDisplayEntryWidth: number;
+  keyDisplayOriginX: number;
+  keyDisplayOriginY: number;
 }
 
 interface LayoutRectangle {
@@ -95,13 +104,27 @@ export function calculatePetWindowLayout(
     ? KEY_DISPLAY_VERTICAL_WIDTH
     : (unscaledWidth - unscaledGap * (keyDisplayMaxItems - 1))
       / keyDisplayMaxItems) * keyDisplayScale;
-  const keyDisplayRect = positionKeyHistoryRectangle(
+  const baseOrigin = keyHistoryBaseOrigin(
     input.keyDisplayPosition,
     petSize,
+  );
+  const keyDisplayOrigin = {
+    x: baseOrigin.x + clampKeyDisplayOffset(input.keyDisplayOffsetX),
+    y: baseOrigin.y + clampKeyDisplayOffset(input.keyDisplayOffsetY),
+  };
+  const keyDisplayRect = positionKeyHistoryRectangle(
+    actualFlow,
+    keyDisplayOrigin,
     keyDisplayWidth,
     keyDisplayHeight,
-    Math.min(Math.max(input.keyDisplayDistancePx, 0), 200),
+    Math.min(Math.max(input.keyDisplayStartLineGapPx, 0), 80),
   );
+  const keyDisplayHandleRect: LayoutRectangle = {
+    x: keyDisplayOrigin.x - KEY_HISTORY_HANDLE_WIDTH / 2,
+    y: keyDisplayOrigin.y - KEY_HISTORY_HANDLE_HEIGHT / 2,
+    width: KEY_HISTORY_HANDLE_WIDTH,
+    height: KEY_HISTORY_HANDLE_HEIGHT,
+  };
   const rectangles: LayoutRectangle[] = [];
 
   if (input.displayMode !== "status-only") {
@@ -117,7 +140,7 @@ export function calculatePetWindowLayout(
     rectangles.push(statusRectangle);
   }
   if (input.displayMode !== "status-only" && input.keyDisplayVisible) {
-    rectangles.push(keyDisplayRect);
+    rectangles.push(keyDisplayRect, keyDisplayHandleRect);
   }
 
   const minX = Math.floor(Math.min(...rectangles.map(({ x }) => x)));
@@ -145,25 +168,63 @@ export function calculatePetWindowLayout(
     keyDisplayHeight,
     keyDisplayScale,
     keyDisplayEntryWidth,
+    keyDisplayOriginX: keyDisplayOrigin.x - minX,
+    keyDisplayOriginY: keyDisplayOrigin.y - minY,
   };
 }
 
-function positionKeyHistoryRectangle(
+function keyHistoryBaseOrigin(
   position: KeyDisplayPosition,
   petSize: number,
+): { x: number; y: number } {
+  switch (position) {
+    case "top":
+      return { x: petSize / 2, y: 0 };
+    case "left":
+      return { x: 0, y: petSize / 2 };
+    case "right":
+      return { x: petSize, y: petSize / 2 };
+    default:
+      return { x: petSize / 2, y: petSize };
+  }
+}
+
+function positionKeyHistoryRectangle(
+  flowDirection: Exclude<KeyDisplayFlowDirection, "auto">,
+  origin: { x: number; y: number },
   width: number,
   height: number,
   gap: number,
 ): LayoutRectangle {
-  switch (position) {
-    case "top":
-      return { x: (petSize - width) / 2, y: -height - gap, width, height };
+  switch (flowDirection) {
+    case "up":
+      return {
+        x: origin.x - width / 2,
+        y: origin.y - KEY_HISTORY_START_LINE_HEIGHT / 2 - gap - height,
+        width,
+        height,
+      };
     case "left":
-      return { x: -width - gap, y: (petSize - height) / 2, width, height };
+      return {
+        x: origin.x - KEY_HISTORY_START_LINE_WIDTH / 2 - gap - width,
+        y: origin.y - height / 2,
+        width,
+        height,
+      };
     case "right":
-      return { x: petSize + gap, y: (petSize - height) / 2, width, height };
+      return {
+        x: origin.x + KEY_HISTORY_START_LINE_WIDTH / 2 + gap,
+        y: origin.y - height / 2,
+        width,
+        height,
+      };
     default:
-      return { x: (petSize - width) / 2, y: petSize + gap, width, height };
+      return {
+        x: origin.x - width / 2,
+        y: origin.y + KEY_HISTORY_START_LINE_HEIGHT / 2 + gap,
+        width,
+        height,
+      };
   }
 }
 

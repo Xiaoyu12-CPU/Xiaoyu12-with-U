@@ -615,4 +615,14 @@ History 的内部数组始终保持 `oldest → newest`，Position 与 Flow 完�
 
 主窗口现有 Bounding Layout 根据 Position、实际 Flow、maxItems 与 petScale 预先计算固定最大区域。Entry 新增、过期、内容宽度或当前数量都不参与窗口尺寸输入，因此不会持续 resize 或移动 OS Window；Top / Left 扩展继续复用 content origin 与 position compensation 保持 Pet 屏幕位置。status-only 模式不显示 History，组件使用 `pointer-events: none`，不会触发 Pet Click 或 Drag。
 
-Phase 5-B.2 增加 `keyDisplayDistancePx`（0～200 logical CSS px，默认 12）。Distance 只沿 Position 对应轴定义 Pet layout box 与可见 Stack 最近边缘的间隔，不受 Flow 或 Stack 轴向影响。固定 Reserved Area 仍负责稳定 Window Bounding；可见 Stack 使用独立 Pet-facing alignment 锚在 Reserved Area 靠近 Pet 的边缘，因此 Right + Up、Right + Left 等组合不会因区域尺寸或排列方向漂移到远端。Distance、Position、Flow、maxItems 或 petScale 变化允许触发一次布局重算，Entry 增删仍不会触发 Window resize；SystemStatusBubble 的用户 offset 保持不变。
+Phase 5-B.2 修正固定 Reserved Area 与可见 Stack 的职责：Reserved Area 只负责稳定 Window Bounding，Pet-facing Base Origin 始终锚在 Position 对应的 Pet layout box 边缘，不会因区域尺寸或 Flow 漂移到远端。Entry 增删仍不会触发 Window resize；主窗口继续使用 content origin 与 position compensation 稳定 Pet 屏幕位置，SystemStatusBubble 的用户 offset 保持独立。阶段中曾加入的 `keyDisplayDistancePx` 已在 B.3 最终交互设计中退役；旧 settings.json 的未知字段可安全忽略。
+
+## 23. Phase 5-B.3：Draggable Key History Origin
+
+Key History 的最终位置模型为 `Position Base Origin + manual offsetX / offsetY`。Position 只提供 Top / Bottom / Left / Right 的 Pet 边缘预设锚点，Start Line 标记最终 Origin；Flow 只决定固定 Reserved Area 与 Entries 从该 Origin 向 Up / Down / Left / Right 展开，因此 Flow 切换不会修改或移动 Origin。手动 Offset 限制在 ±500 logical CSS px，拖到 Pet 另一侧也不会反向修改 Position。
+
+`KeyHistoryStartLine.vue` 使用 72×24px 可命中区域包裹约 56×2px 的水平线，只由它接收 Pointer Drag；History Entries 继续 `pointer-events: none`。Pointer Capture 保证移出 Handle 后仍可拖动，move 阶段只更新主窗口 Runtime Offset，up / cancel 才通过 Settings Manager 持久化一次。线条颜色和透明度可配置；Opacity 为 0 时只隐藏视觉线，Hit Area 仍保持 `pointer-events: auto`、grab / grabbing cursor。
+
+`keyDisplayStartLineGapPx`（0～80 logical CSS px，默认 8）只定义可见 56×2px Start Line 与 Newest Entry 最近边缘之间的距离。Up / Down 从水平线的上下可见边缘沿 Y 轴偏移，Left / Right 从线条左右端沿 X 轴偏移；72×24px 隐形 Hit Area 不参与视觉 Gap。Gap 变化只平移固定 History Reserved Rect，不修改 Origin、manual offset、Entry 数据或过期 timer；即使线条 Opacity 为 0，几何 Gap 仍然生效。
+
+固定 History Reserved Rect、Start Line Hit Rect 与 manual offset 一起进入主窗口 Bounding 计算，拖动越过当前边界时不会裁切。既有 Window Position compensation 保持 Pet 屏幕坐标；Key History Offset 与 SystemStatusBubble Offset 分属不同状态，互不覆盖。Control Center 的“重置位置”仅把 manual offset 清零，不修改 Position、Flow、Entry 生命周期或视觉设置。

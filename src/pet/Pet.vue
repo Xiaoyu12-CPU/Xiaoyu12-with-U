@@ -12,6 +12,7 @@ import ReminderFeedbackActions from "../components/ReminderFeedbackActions.vue";
 import SpeechBubble from "../components/SpeechBubble.vue";
 import SystemStatusBubble from "../components/SystemStatusBubble.vue";
 import KeyHistoryStack from "../components/KeyHistoryStack.vue";
+import KeyHistoryStartLine from "../components/KeyHistoryStartLine.vue";
 import { usePetAnimation } from "./animationEngine";
 import {
   initializePetAssets,
@@ -51,6 +52,7 @@ import {
 } from "../reminder/reminderRuntimeConsumer";
 import type { SnoozeMinutes } from "../reminder/reminderSnooze";
 import { useKeyboardMonitor } from "../input/keyboardMonitor";
+import { createKeyHistoryDragController } from "../input/keyHistoryDrag";
 
 const { currentState } = usePetStore();
 const currentAsset = computed(() =>
@@ -101,6 +103,10 @@ const bubbleOffset = reactive({
   x: settingsManager.settings.value.systemStatusBubble.offsetX,
   y: settingsManager.settings.value.systemStatusBubble.offsetY,
 });
+const keyDisplayOffset = reactive({
+  x: settingsManager.settings.value.input.keyDisplayOffsetX,
+  y: settingsManager.settings.value.input.keyDisplayOffsetY,
+});
 const displayMode = computed(
   () => settingsManager.settings.value.systemStatusBubble.displayMode,
 );
@@ -125,7 +131,10 @@ const windowLayout = computed(() =>
     keyDisplayFlowDirection:
       settingsManager.settings.value.input.keyDisplayFlowDirection,
     keyDisplayMaxItems: settingsManager.settings.value.input.keyDisplayMaxItems,
-    keyDisplayDistancePx: settingsManager.settings.value.input.keyDisplayDistancePx,
+    keyDisplayOffsetX: keyDisplayOffset.x,
+    keyDisplayOffsetY: keyDisplayOffset.y,
+    keyDisplayStartLineGapPx:
+      settingsManager.settings.value.input.keyDisplayStartLineGapPx,
   }),
 );
 const petStyle = computed(() => ({
@@ -147,6 +156,10 @@ const keyDisplayStyle = computed(() => ({
   width: `${windowLayout.value.keyDisplayWidth}px`,
   height: `${windowLayout.value.keyDisplayHeight}px`,
 }));
+const keyDisplayStartLineStyle = computed(() => ({
+  left: `${windowLayout.value.keyDisplayOriginX}px`,
+  top: `${windowLayout.value.keyDisplayOriginY}px`,
+}));
 const bubblePreferences = computed(
   () => settingsManager.settings.value.systemStatusBubble,
 );
@@ -161,6 +174,27 @@ interface BubbleDragSession {
 }
 
 const bubbleDragSession = ref<BubbleDragSession>();
+const keyDisplayDragging = ref(false);
+const keyDisplayCapture = ref<{
+  pointerId: number;
+  target?: HTMLElement;
+}>();
+const keyDisplayDragController = createKeyHistoryDragController({
+  onPreview(offset) {
+    keyDisplayOffset.x = offset.x;
+    keyDisplayOffset.y = offset.y;
+  },
+  onCommit(offset) {
+    keyDisplayOffset.x = offset.x;
+    keyDisplayOffset.y = offset.y;
+    settingsManager.update({
+      input: {
+        keyDisplayOffsetX: offset.x,
+        keyDisplayOffsetY: offset.y,
+      },
+    });
+  },
+});
 let previousWindowLayout: PetWindowLayout | undefined;
 let windowApplyQueue = Promise.resolve();
 
@@ -171,6 +205,20 @@ watch(
       animation.resume();
     } else {
       animation.pause();
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [
+    settingsManager.settings.value.input.keyDisplayOffsetX,
+    settingsManager.settings.value.input.keyDisplayOffsetY,
+  ] as const,
+  ([offsetX, offsetY]) => {
+    if (!keyDisplayDragController.isDragging()) {
+      keyDisplayOffset.x = offsetX;
+      keyDisplayOffset.y = offsetY;
     }
   },
   { immediate: true },
@@ -383,6 +431,64 @@ function finishStatusBubbleDrag(): void {
   });
 }
 
+function handleKeyDisplayPointerDown(event: PointerEvent): void {
+  if (event.button !== 0 || keyDisplayDragController.isDragging()) {
+    return;
+  }
+
+  const target = event.currentTarget as HTMLElement | null;
+  if (!keyDisplayDragController.start({
+    pointerId: event.pointerId,
+    screenX: event.screenX,
+    screenY: event.screenY,
+    offset: { x: keyDisplayOffset.x, y: keyDisplayOffset.y },
+  })) {
+    return;
+  }
+
+  keyDisplayDragging.value = true;
+  keyDisplayCapture.value = {
+    pointerId: event.pointerId,
+    target: target ?? undefined,
+  };
+  target?.setPointerCapture?.(event.pointerId);
+  window.addEventListener("pointerup", handleGlobalKeyDisplayPointerUp, true);
+}
+
+function handleKeyDisplayPointerMove(event: PointerEvent): void {
+  keyDisplayDragController.move(event.pointerId, event.screenX, event.screenY);
+}
+
+function handleKeyDisplayPointerUp(event: PointerEvent): void {
+  if (keyDisplayCapture.value?.pointerId === event.pointerId) {
+    finishKeyDisplayDrag(event.pointerId);
+  }
+}
+
+function handleKeyDisplayPointerCancel(event: PointerEvent): void {
+  if (keyDisplayCapture.value?.pointerId === event.pointerId) {
+    finishKeyDisplayDrag(event.pointerId);
+  }
+}
+
+function handleGlobalKeyDisplayPointerUp(event: PointerEvent): void {
+  handleKeyDisplayPointerUp(event);
+}
+
+function finishKeyDisplayDrag(pointerId: number): void {
+  const capture = keyDisplayCapture.value;
+  if (!keyDisplayDragController.finish(pointerId)) {
+    return;
+  }
+
+  keyDisplayDragging.value = false;
+  keyDisplayCapture.value = undefined;
+  window.removeEventListener("pointerup", handleGlobalKeyDisplayPointerUp, true);
+  if (capture?.target?.hasPointerCapture?.(pointerId)) {
+    capture.target.releasePointerCapture(pointerId);
+  }
+}
+
 onMounted(async () => {
   document.addEventListener("pointerdown", closeContextMenu);
   await Promise.all([
@@ -404,6 +510,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   document.removeEventListener("pointerdown", closeContextMenu);
   window.removeEventListener("pointerup", handleGlobalStatusBubblePointerUp, true);
+  window.removeEventListener("pointerup", handleGlobalKeyDisplayPointerUp, true);
+  keyDisplayDragController.abort();
 });
 </script>
 
@@ -457,6 +565,19 @@ onBeforeUnmount(() => {
       :persistent="settingsManager.settings.value.input.keyDisplayPersistent"
       :position="settingsManager.settings.value.input.keyDisplayPosition"
       :flow-direction="settingsManager.settings.value.input.keyDisplayFlowDirection"
+    />
+
+    <KeyHistoryStartLine
+      v-if="reservesKeyDisplay"
+      class="pet__key-history-origin"
+      :style="keyDisplayStartLineStyle"
+      :color="settingsManager.settings.value.input.keyDisplayStartLineColor"
+      :opacity="settingsManager.settings.value.input.keyDisplayStartLineOpacity"
+      :dragging="keyDisplayDragging"
+      @pointer-down="handleKeyDisplayPointerDown"
+      @pointer-move="handleKeyDisplayPointerMove"
+      @pointer-up="handleKeyDisplayPointerUp"
+      @pointer-cancel="handleKeyDisplayPointerCancel"
     />
 
     <SystemStatusBubble
@@ -516,6 +637,11 @@ onBeforeUnmount(() => {
   position: absolute;
   z-index: 2;
   pointer-events: none;
+}
+
+.pet__key-history-origin {
+  position: absolute;
+  z-index: 3;
 }
 
 .pet__speech-bubble {

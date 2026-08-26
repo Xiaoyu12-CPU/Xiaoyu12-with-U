@@ -133,29 +133,16 @@ export function keyHistoryAxis(
 }
 
 export function keyHistoryStackAlignment(
-  position: KeyDisplayPosition,
+  _position: KeyDisplayPosition,
   flowDirection: ResolvedKeyDisplayFlowDirection,
 ): KeyHistoryStackAlignment {
-  const axis = keyHistoryAxis(flowDirection);
-  let justifyContent: KeyHistoryStackAlignment["justifyContent"] =
+  return {
+    justifyContent:
     flowDirection === "up" || flowDirection === "left"
       ? "flex-end"
-      : "flex-start";
-  let alignItems: KeyHistoryStackAlignment["alignItems"] = "center";
-
-  if (axis === "vertical") {
-    if (position === "top") justifyContent = "flex-end";
-    if (position === "bottom") justifyContent = "flex-start";
-    if (position === "left") alignItems = "flex-end";
-    if (position === "right") alignItems = "flex-start";
-  } else {
-    if (position === "left") justifyContent = "flex-end";
-    if (position === "right") justifyContent = "flex-start";
-    if (position === "top") alignItems = "flex-end";
-    if (position === "bottom") alignItems = "flex-start";
-  }
-
-  return { justifyContent, alignItems };
+      : "flex-start",
+    alignItems: "center",
+  };
 }
 
 export function createKeyHistoryController(

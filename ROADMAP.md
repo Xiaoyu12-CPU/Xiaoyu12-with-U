@@ -269,8 +269,11 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - 支持 Top / Bottom / Left / Right 锚点和 Auto / Up / Down / Left / Right Flow；Position 与 Flow 完全独立，Auto 才选择远离 Pet 的方向。
 - Up / Down 为纵向 Stack，Left / Right 为横向 Stack；TransitionGroup 提供 enter、move 与四向离场动画。
 - 主窗口按 Position、Flow、maxItems 与 petScale 使用固定预留区域，Entry 新增、过期和文本宽度不会触发 Window resize；status-only 模式不显示。
-- Phase 5-B.2 增加 0～200px 的 Pet Distance，并把可见 Stack 独立锚定到 Reserved Area 的 Pet-facing edge；Distance 只由 Position 解释，与 Flow 完全独立。
-- Phase 5-B.2 状态：Implemented；Phase 5 仍为 In Progress，尚未接入 WORKING Behavior 或 Mouse Monitor。
+- Phase 5-B.2 保留固定 Reserved Area，并把 History Base Origin 锚定到 Position 对应的 Pet-facing edge；Entry 变化不触发 Window resize，Pet 与 SystemStatusBubble 的屏幕定位补偿保持稳定。
+- Phase 5-B.3 增加始终水平的 Start Line 与 ±500px manual X/Y offset；Pointer Drag 实时移动 History，只在结束时持久化，Position 与 Flow 均不被反向修改。
+- Start Line 支持颜色、透明度和重置位置；Opacity 为 0 时可见线消失但 Drag Hit Area 仍可使用。B.2 的 Distance Slider 已从最终设计移除，旧字段被安全忽略。
+- Start Line 与 Newest Entry 支持 0～80px 独立视觉 Gap；Gap 根据 Flow 作用于 X 或 Y 轴，以 56×2px 可见线而非 72×24px Hit Area 为基准，并纳入固定 Window Bounding。
+- Phase 5-B.3 状态：Implemented；Phase 5 仍为 In Progress，尚未接入 WORKING Behavior 或 Mouse Monitor。
 
 ## Phase 6：自定义皮肤
 
