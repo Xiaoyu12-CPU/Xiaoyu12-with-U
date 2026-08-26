@@ -9,9 +9,11 @@ import type {
   DesktopPetSettings,
   KeyDisplayFlowDirection,
   KeyDisplayPosition,
+  MouseVisualizerPosition,
   SettingsSection,
 } from "./settingsTypes";
 import { resetKeyHistoryOffset } from "../input/keyHistoryDrag";
+import { resetMouseVisualizerOffset } from "../input/mouseVisualizer";
 
 const settings = settingsManager.settings;
 const scalePercent = computed(() =>
@@ -136,6 +138,32 @@ function resetKeyDisplayPosition(): void {
     input: {
       keyDisplayOffsetX: offset.x,
       keyDisplayOffsetY: offset.y,
+    },
+  });
+}
+
+function updateMouseVisualizerPosition(event: Event): void {
+  update(
+    "input",
+    "mouseVisualizerPosition",
+    (event.target as HTMLSelectElement).value as MouseVisualizerPosition,
+  );
+}
+
+function updateMouseVisualizerActiveColor(event: Event): void {
+  update(
+    "input",
+    "mouseVisualizerActiveColor",
+    (event.target as HTMLInputElement).value,
+  );
+}
+
+function resetMouseDisplayPosition(): void {
+  const offset = resetMouseVisualizerOffset();
+  settingsManager.update({
+    input: {
+      mouseVisualizerOffsetX: offset.x,
+      mouseVisualizerOffsetY: offset.y,
     },
   });
 }
@@ -674,6 +702,56 @@ function getRightSideBubbleOffset(): number {
             @change="updateBoolean('input', 'mouseEnabled', $event)"
           />
         </label>
+        <p class="settings-group-heading">Mouse Visualizer</p>
+        <label class="setting-row">
+          <span>
+            <strong>Show Mouse Visualizer</strong>
+            <small>显示当前按住的鼠标按键与最近一次滚轮方向。</small>
+          </span>
+          <input
+            class="toggle"
+            type="checkbox"
+            :checked="settings.input.mouseVisualizerEnabled"
+            @change="updateBoolean('input', 'mouseVisualizerEnabled', $event)"
+          />
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>Mouse Visualizer Position</strong>
+            <small>选择相对桌宠的基础锚点；拖动后的偏移保持独立。</small>
+          </span>
+          <select
+            class="select-control"
+            :value="settings.input.mouseVisualizerPosition"
+            @change="updateMouseVisualizerPosition"
+          >
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>Active Color</strong>
+            <small>按键按住或滚轮 Pulse 时使用的强调色。</small>
+          </span>
+          <input
+            type="color"
+            :value="settings.input.mouseVisualizerActiveColor"
+            @input="updateMouseVisualizerActiveColor"
+          />
+        </label>
+        <div class="setting-row">
+          <span>
+            <strong>鼠标显示位置</strong>
+            <small>清除拖动偏移，回到当前 Position 的桌宠侧边锚点。</small>
+          </span>
+          <button type="button" @click="resetMouseDisplayPosition">
+            重置位置
+          </button>
+        </div>
+        <p class="settings-group-heading">Keyboard History</p>
         <label class="setting-row">
           <span>
             <strong>Show Pressed Keys</strong>

@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "test:reminders": "node tests/reminderManager.test.mjs && node tests/reminderScheduler.test.mjs && node tests/reminderRuntimeConsumer.test.mjs && node tests/reminderSound.test.mjs && node tests/reminderSnooze.test.mjs && node tests/dialogueLifecycle.test.mjs",
-    "test:input": "node tests/keyboardMonitor.test.mjs && node tests/keyDisplay.test.mjs && node tests/keyboardActivityBehavior.test.mjs && node tests/mouseMonitor.test.mjs",
+    "test:input": "node tests/keyboardMonitor.test.mjs && node tests/keyDisplay.test.mjs && node tests/keyboardActivityBehavior.test.mjs && node tests/mouseMonitor.test.mjs && node tests/mouseVisualizer.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

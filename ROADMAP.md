@@ -292,6 +292,17 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - Mouse 模块不接入 Key History，也不接入 Behavior Manager，因此 Button / Scroll 不生成键盘 Entry 且不会触发 WORKING。
 - Windows 当前沿用 platform adapter 边界并返回 Unsupported；Phase 5-D 状态：Implemented，Phase 5 仍为 In Progress，Mouse Visualizer 尚未实现。
 
+### Phase 5-E 实现记录：Mouse Input Visualizer
+
+- 主桌宠窗口新增独立抽象 Mouse Visualizer，只消费 Phase 5-D 的 pressedButtons、lastScrollDirection 与 lastScrollAt，不建立第二 Listener。
+- Left、Right、Middle、Mouse4、Mouse5 可独立且同时高亮；Other 使用安全附加标记。
+- Scroll Up / Down / Left / Right 使用约 600ms 的 Wheel Pulse，新 Scroll 刷新 Pulse；不建立 Mouse/Scroll History。
+- `mouseVisualizerEnabled` 默认 true，但只在 Mouse Monitor Active、mouseEnabled 且 Pet 可见时显示；Keyboard 开关不影响它。
+- Visualizer 支持 Top / Bottom / Left / Right 独立 Position、Active Color，以及 ±500px manual offset；明确 Drag Handle 实时预览、结束时持久化，Reset 只清零 offset。
+- 固定 Visualizer Rect 纳入主 Window Bounding，并复用 position compensation 稳定 Pet；Mouse、Key History、SystemStatus 三套 offset 完全独立。
+- Visualizer 不导入 Key History 或 Behavior Manager，因此 Mouse Input 不产生 Keyboard Entry，也不触发 WORKING。
+- Phase 5-E 状态：Implemented；Phase 5 仍为 In Progress，不包含 Mouse Move、Mouse History、统计或品牌皮肤。
+
 ## Phase 6：自定义皮肤
 
 目标：允许安全地安装、切换和管理桌宠外观。

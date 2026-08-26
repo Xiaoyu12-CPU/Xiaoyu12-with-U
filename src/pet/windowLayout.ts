@@ -5,10 +5,17 @@ import {
   resolveKeyDisplayFlowDirection,
 } from "../input/keyDisplay";
 import { clampKeyDisplayOffset } from "../input/keyHistoryDrag";
+import {
+  clampMouseVisualizerOffset,
+  MOUSE_VISUALIZER_BASE_GAP,
+  MOUSE_VISUALIZER_HEIGHT,
+  MOUSE_VISUALIZER_WIDTH,
+} from "../input/mouseVisualizer";
 import type {
   DesktopDisplayMode,
   KeyDisplayFlowDirection,
   KeyDisplayPosition,
+  MouseVisualizerPosition,
 } from "../settings/settingsTypes";
 
 export const PET_BASE_WINDOW_SIZE = 200;
@@ -41,6 +48,10 @@ export interface WindowLayoutInput {
   keyDisplayOffsetX: number;
   keyDisplayOffsetY: number;
   keyDisplayStartLineGapPx: number;
+  mouseVisualizerVisible: boolean;
+  mouseVisualizerPosition: MouseVisualizerPosition;
+  mouseVisualizerOffsetX: number;
+  mouseVisualizerOffsetY: number;
 }
 
 export interface PetWindowLayout {
@@ -61,6 +72,11 @@ export interface PetWindowLayout {
   keyDisplayEntryWidth: number;
   keyDisplayOriginX: number;
   keyDisplayOriginY: number;
+  mouseVisualizerX: number;
+  mouseVisualizerY: number;
+  mouseVisualizerWidth: number;
+  mouseVisualizerHeight: number;
+  mouseVisualizerScale: number;
 }
 
 interface LayoutRectangle {
@@ -125,6 +141,20 @@ export function calculatePetWindowLayout(
     width: KEY_HISTORY_HANDLE_WIDTH,
     height: KEY_HISTORY_HANDLE_HEIGHT,
   };
+  const mouseVisualizerScale = Math.min(
+    Math.max(input.petScale, 0.75),
+    1.5,
+  );
+  const mouseVisualizerWidth = MOUSE_VISUALIZER_WIDTH * mouseVisualizerScale;
+  const mouseVisualizerHeight = MOUSE_VISUALIZER_HEIGHT * mouseVisualizerScale;
+  const mouseVisualizerRect = positionMouseVisualizerRectangle(
+    input.mouseVisualizerPosition,
+    petSize,
+    mouseVisualizerWidth,
+    mouseVisualizerHeight,
+    clampMouseVisualizerOffset(input.mouseVisualizerOffsetX),
+    clampMouseVisualizerOffset(input.mouseVisualizerOffsetY),
+  );
   const rectangles: LayoutRectangle[] = [];
 
   if (input.displayMode !== "status-only") {
@@ -141,6 +171,9 @@ export function calculatePetWindowLayout(
   }
   if (input.displayMode !== "status-only" && input.keyDisplayVisible) {
     rectangles.push(keyDisplayRect, keyDisplayHandleRect);
+  }
+  if (input.displayMode !== "status-only" && input.mouseVisualizerVisible) {
+    rectangles.push(mouseVisualizerRect);
   }
 
   const minX = Math.floor(Math.min(...rectangles.map(({ x }) => x)));
@@ -170,6 +203,52 @@ export function calculatePetWindowLayout(
     keyDisplayEntryWidth,
     keyDisplayOriginX: keyDisplayOrigin.x - minX,
     keyDisplayOriginY: keyDisplayOrigin.y - minY,
+    mouseVisualizerX: mouseVisualizerRect.x - minX,
+    mouseVisualizerY: mouseVisualizerRect.y - minY,
+    mouseVisualizerWidth,
+    mouseVisualizerHeight,
+    mouseVisualizerScale,
+  };
+}
+
+function positionMouseVisualizerRectangle(
+  position: MouseVisualizerPosition,
+  petSize: number,
+  width: number,
+  height: number,
+  offsetX: number,
+  offsetY: number,
+): LayoutRectangle {
+  const base = (() => {
+    switch (position) {
+      case "top":
+        return {
+          x: (petSize - width) / 2,
+          y: -MOUSE_VISUALIZER_BASE_GAP - height,
+        };
+      case "right":
+        return {
+          x: petSize + MOUSE_VISUALIZER_BASE_GAP,
+          y: (petSize - height) / 2,
+        };
+      case "bottom":
+        return {
+          x: (petSize - width) / 2,
+          y: petSize + MOUSE_VISUALIZER_BASE_GAP,
+        };
+      default:
+        return {
+          x: -MOUSE_VISUALIZER_BASE_GAP - width,
+          y: (petSize - height) / 2,
+        };
+    }
+  })();
+
+  return {
+    x: base.x + offsetX,
+    y: base.y + offsetY,
+    width,
+    height,
   };
 }
 

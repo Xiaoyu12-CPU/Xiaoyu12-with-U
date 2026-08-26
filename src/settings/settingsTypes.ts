@@ -2,6 +2,7 @@ import type { SystemStatusItemId } from "../system/statusItems";
 
 export type DesktopDisplayMode = "pet-only" | "status-only" | "both";
 export type KeyDisplayPosition = "top" | "bottom" | "left" | "right";
+export type MouseVisualizerPosition = "top" | "bottom" | "left" | "right";
 export type KeyDisplayFlowDirection =
   | "auto"
   | "up"
@@ -64,6 +65,11 @@ export interface DesktopPetSettings {
     keyDisplayStartLineColor: string;
     keyDisplayStartLineOpacity: number;
     mouseEnabled: boolean;
+    mouseVisualizerEnabled: boolean;
+    mouseVisualizerPosition: MouseVisualizerPosition;
+    mouseVisualizerOffsetX: number;
+    mouseVisualizerOffsetY: number;
+    mouseVisualizerActiveColor: string;
   };
   reminder: {
     enabled: boolean;

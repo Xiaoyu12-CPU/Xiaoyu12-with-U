@@ -13,6 +13,7 @@ import SpeechBubble from "../components/SpeechBubble.vue";
 import SystemStatusBubble from "../components/SystemStatusBubble.vue";
 import KeyHistoryStack from "../components/KeyHistoryStack.vue";
 import KeyHistoryStartLine from "../components/KeyHistoryStartLine.vue";
+import MouseInputVisualizer from "../components/MouseInputVisualizer.vue";
 import { usePetAnimation } from "./animationEngine";
 import {
   initializePetAssets,
@@ -55,6 +56,7 @@ import { useKeyboardMonitor } from "../input/keyboardMonitor";
 import { useMouseMonitor } from "../input/mouseMonitor";
 import { useKeyboardActivityBehavior } from "../input/keyboardActivityBehavior";
 import { createKeyHistoryDragController } from "../input/keyHistoryDrag";
+import { createMouseVisualizerDragController } from "../input/mouseVisualizer";
 
 const { currentState } = usePetStore();
 const currentAsset = computed(() =>
@@ -111,6 +113,10 @@ const keyDisplayOffset = reactive({
   x: settingsManager.settings.value.input.keyDisplayOffsetX,
   y: settingsManager.settings.value.input.keyDisplayOffsetY,
 });
+const mouseVisualizerOffset = reactive({
+  x: settingsManager.settings.value.input.mouseVisualizerOffsetX,
+  y: settingsManager.settings.value.input.mouseVisualizerOffsetY,
+});
 const displayMode = computed(
   () => settingsManager.settings.value.systemStatusBubble.displayMode,
 );
@@ -121,6 +127,12 @@ const reservesKeyDisplay = computed(
     && settingsManager.settings.value.input.keyboardEnabled
     && settingsManager.settings.value.input.keyDisplayEnabled
     && runtimeSnapshot.value.keyboardStatus === "active",
+);
+const reservesMouseVisualizer = computed(
+  () => showsPet.value
+    && settingsManager.settings.value.input.mouseEnabled
+    && settingsManager.settings.value.input.mouseVisualizerEnabled
+    && runtimeSnapshot.value.mouseStatus === "active",
 );
 const windowLayout = computed(() =>
   calculatePetWindowLayout({
@@ -139,6 +151,11 @@ const windowLayout = computed(() =>
     keyDisplayOffsetY: keyDisplayOffset.y,
     keyDisplayStartLineGapPx:
       settingsManager.settings.value.input.keyDisplayStartLineGapPx,
+    mouseVisualizerVisible: reservesMouseVisualizer.value,
+    mouseVisualizerPosition:
+      settingsManager.settings.value.input.mouseVisualizerPosition,
+    mouseVisualizerOffsetX: mouseVisualizerOffset.x,
+    mouseVisualizerOffsetY: mouseVisualizerOffset.y,
   }),
 );
 const petStyle = computed(() => ({
@@ -163,6 +180,12 @@ const keyDisplayStyle = computed(() => ({
 const keyDisplayStartLineStyle = computed(() => ({
   left: `${windowLayout.value.keyDisplayOriginX}px`,
   top: `${windowLayout.value.keyDisplayOriginY}px`,
+}));
+const mouseVisualizerStyle = computed(() => ({
+  left: `${windowLayout.value.mouseVisualizerX}px`,
+  top: `${windowLayout.value.mouseVisualizerY}px`,
+  width: `${windowLayout.value.mouseVisualizerWidth}px`,
+  height: `${windowLayout.value.mouseVisualizerHeight}px`,
 }));
 const bubblePreferences = computed(
   () => settingsManager.settings.value.systemStatusBubble,
@@ -199,6 +222,27 @@ const keyDisplayDragController = createKeyHistoryDragController({
     });
   },
 });
+const mouseVisualizerDragging = ref(false);
+const mouseVisualizerCapture = ref<{
+  pointerId: number;
+  target?: HTMLElement;
+}>();
+const mouseVisualizerDragController = createMouseVisualizerDragController({
+  onPreview(offset) {
+    mouseVisualizerOffset.x = offset.x;
+    mouseVisualizerOffset.y = offset.y;
+  },
+  onCommit(offset) {
+    mouseVisualizerOffset.x = offset.x;
+    mouseVisualizerOffset.y = offset.y;
+    settingsManager.update({
+      input: {
+        mouseVisualizerOffsetX: offset.x,
+        mouseVisualizerOffsetY: offset.y,
+      },
+    });
+  },
+});
 let previousWindowLayout: PetWindowLayout | undefined;
 let windowApplyQueue = Promise.resolve();
 
@@ -223,6 +267,20 @@ watch(
     if (!keyDisplayDragController.isDragging()) {
       keyDisplayOffset.x = offsetX;
       keyDisplayOffset.y = offsetY;
+    }
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [
+    settingsManager.settings.value.input.mouseVisualizerOffsetX,
+    settingsManager.settings.value.input.mouseVisualizerOffsetY,
+  ] as const,
+  ([offsetX, offsetY]) => {
+    if (!mouseVisualizerDragController.isDragging()) {
+      mouseVisualizerOffset.x = offsetX;
+      mouseVisualizerOffset.y = offsetY;
     }
   },
   { immediate: true },
@@ -493,6 +551,75 @@ function finishKeyDisplayDrag(pointerId: number): void {
   }
 }
 
+function handleMouseVisualizerPointerDown(event: PointerEvent): void {
+  if (event.button !== 0 || mouseVisualizerDragController.isDragging()) {
+    return;
+  }
+
+  const target = event.currentTarget as HTMLElement | null;
+  if (!mouseVisualizerDragController.start({
+    pointerId: event.pointerId,
+    screenX: event.screenX,
+    screenY: event.screenY,
+    offset: {
+      x: mouseVisualizerOffset.x,
+      y: mouseVisualizerOffset.y,
+    },
+  })) {
+    return;
+  }
+
+  mouseVisualizerDragging.value = true;
+  mouseVisualizerCapture.value = {
+    pointerId: event.pointerId,
+    target: target ?? undefined,
+  };
+  target?.setPointerCapture?.(event.pointerId);
+  window.addEventListener("pointerup", handleGlobalMouseVisualizerPointerUp, true);
+}
+
+function handleMouseVisualizerPointerMove(event: PointerEvent): void {
+  mouseVisualizerDragController.move(
+    event.pointerId,
+    event.screenX,
+    event.screenY,
+  );
+}
+
+function handleMouseVisualizerPointerUp(event: PointerEvent): void {
+  if (mouseVisualizerCapture.value?.pointerId === event.pointerId) {
+    finishMouseVisualizerDrag(event.pointerId);
+  }
+}
+
+function handleMouseVisualizerPointerCancel(event: PointerEvent): void {
+  if (mouseVisualizerCapture.value?.pointerId === event.pointerId) {
+    finishMouseVisualizerDrag(event.pointerId);
+  }
+}
+
+function handleGlobalMouseVisualizerPointerUp(event: PointerEvent): void {
+  handleMouseVisualizerPointerUp(event);
+}
+
+function finishMouseVisualizerDrag(pointerId: number): void {
+  const capture = mouseVisualizerCapture.value;
+  if (!mouseVisualizerDragController.finish(pointerId)) {
+    return;
+  }
+
+  mouseVisualizerDragging.value = false;
+  mouseVisualizerCapture.value = undefined;
+  window.removeEventListener(
+    "pointerup",
+    handleGlobalMouseVisualizerPointerUp,
+    true,
+  );
+  if (capture?.target?.hasPointerCapture?.(pointerId)) {
+    capture.target.releasePointerCapture(pointerId);
+  }
+}
+
 onMounted(async () => {
   document.addEventListener("pointerdown", closeContextMenu);
   await Promise.all([
@@ -515,7 +642,13 @@ onBeforeUnmount(() => {
   document.removeEventListener("pointerdown", closeContextMenu);
   window.removeEventListener("pointerup", handleGlobalStatusBubblePointerUp, true);
   window.removeEventListener("pointerup", handleGlobalKeyDisplayPointerUp, true);
+  window.removeEventListener(
+    "pointerup",
+    handleGlobalMouseVisualizerPointerUp,
+    true,
+  );
   keyDisplayDragController.abort();
+  mouseVisualizerDragController.abort();
 });
 </script>
 
@@ -584,6 +717,24 @@ onBeforeUnmount(() => {
       @pointer-cancel="handleKeyDisplayPointerCancel"
     />
 
+    <MouseInputVisualizer
+      v-if="reservesMouseVisualizer"
+      class="pet__mouse-visualizer"
+      :style="mouseVisualizerStyle"
+      :mouse-enabled="settingsManager.settings.value.input.mouseEnabled"
+      :visualizer-enabled="settingsManager.settings.value.input.mouseVisualizerEnabled"
+      :mouse-status="runtimeSnapshot.mouseStatus"
+      :pressed-buttons="runtimeSnapshot.pressedMouseButtons"
+      :last-scroll-direction="runtimeSnapshot.lastScrollDirection"
+      :last-scroll-at="runtimeSnapshot.lastScrollAt"
+      :active-color="settingsManager.settings.value.input.mouseVisualizerActiveColor"
+      :dragging="mouseVisualizerDragging"
+      @pointer-down="handleMouseVisualizerPointerDown"
+      @pointer-move="handleMouseVisualizerPointerMove"
+      @pointer-up="handleMouseVisualizerPointerUp"
+      @pointer-cancel="handleMouseVisualizerPointerCancel"
+    />
+
     <SystemStatusBubble
       v-if="showsStatusBubble"
       class="pet__system-status"
@@ -644,6 +795,11 @@ onBeforeUnmount(() => {
 }
 
 .pet__key-history-origin {
+  position: absolute;
+  z-index: 3;
+}
+
+.pet__mouse-visualizer {
   position: absolute;
   z-index: 3;
 }

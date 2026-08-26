@@ -55,6 +55,11 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     keyDisplayStartLineColor: "#8B5CF6",
     keyDisplayStartLineOpacity: 0.5,
     mouseEnabled: false,
+    mouseVisualizerEnabled: true,
+    mouseVisualizerPosition: "left",
+    mouseVisualizerOffsetX: 0,
+    mouseVisualizerOffsetY: 0,
+    mouseVisualizerActiveColor: "#8B5CF6",
   },
   reminder: {
     enabled: false,

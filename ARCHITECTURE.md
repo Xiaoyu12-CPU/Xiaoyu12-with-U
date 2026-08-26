@@ -642,3 +642,13 @@ Mouse Event schema 只包含 `eventType: down | up | scroll`、稳定的 `left /
 main Pet Window 的独立 Mouse Runtime 只在内存维护 `pressedButtons` Set、lastButton、lastActivityAt、lastScrollDirection 与 lastScrollAt。重复 button down 不产生第二次状态变化，button up 删除当前状态；Scroll 是瞬时状态而非 pressed state。关闭或非 Active 状态会清空 pressedButtons，且不写历史或日志。
 
 `settings.input.mouseEnabled` 默认 false，与 keyboardEnabled 完全独立。Mouse Runtime 不被 KeyHistoryController、KeyHistoryStack 或 keyboardActivityBehavior 导入，因此鼠标按钮与滚轮既不会生成 Keyboard History Entry，也不会请求 WORKING Behavior。Control Center 仅通过既有 Runtime Bridge 展示 Mouse lifecycle、当前按钮和最后事件。macOS 复用 Input Monitoring 权限；非 macOS adapter 当前明确返回 unsupported，Windows Native Hook 留待后续跨平台阶段。
+
+## 26. Phase 5-E：Mouse Input Visualizer
+
+`MouseInputVisualizer.vue` 是主桌宠窗口中的独立轻量 UI，只消费 Phase 5-D 权威 Runtime Snapshot 的 pressedButtons、lastScrollDirection 与 lastScrollAt，不注册 Native/DOM Mouse Listener。Left、Right、Middle、Mouse4、Mouse5 各自映射到抽象俯视鼠标区域，Set 中的多个按钮可以同时高亮；Other 使用安全的附加标记。Scroll 不进入 pressed state，只在最后事件变化时显示约 600ms 的 Up / Down / Left / Right wheel pulse，新事件会刷新 pulse，Middle held 状态在 pulse 结束后继续保持。
+
+`settings.input.mouseVisualizerEnabled` 默认 true，但 Visualizer 只有在 mouseEnabled、Mouse Monitor Active 且 Pet 可见时渲染。用户可选择 Top / Bottom / Left / Right 独立锚点和统一 Active Color。视觉区域无 pointer interaction；只有组件顶部的明确 Drag Handle 可接收 Pointer Events，因此不会成为 Pet click/drag handle。
+
+Position 提供 Pet 侧边的固定 base anchor，manual offsetX / offsetY（±500 logical px）提供持久化微调。拖动过程只预览 Runtime offset，pointer up/cancel 才保存一次；Reset 只清零 Mouse Visualizer offset。Visualizer 使用固定 96×124 基础矩形，并随 petScale 在 0.75～1.5 范围适度缩放。该矩形与 manual offset 纳入既有 Window Bounding；content origin 与 position compensation 保持 Pet 屏幕坐标，而 Key History offset 与 SystemStatusBubble offset 保持独立。
+
+Mouse Visualizer 不保存输入历史、点击次数、坐标、轨迹、应用或窗口信息，也不导入 KeyHistoryController 或 Behavior Manager。Mouse Button / Scroll 因此只改变 Visualizer，不生成 Keyboard History Entry，也不请求 WORKING；Keyboard OFF / Mouse ON 与 Mouse OFF / Keyboard ON 均可独立工作。

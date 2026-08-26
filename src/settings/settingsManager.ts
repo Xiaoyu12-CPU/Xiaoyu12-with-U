@@ -376,6 +376,30 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         input.mouseEnabled,
         DEFAULT_SETTINGS.input.mouseEnabled,
       ),
+      mouseVisualizerEnabled: booleanOrDefault(
+        input.mouseVisualizerEnabled,
+        DEFAULT_SETTINGS.input.mouseVisualizerEnabled,
+      ),
+      mouseVisualizerPosition: keyDisplayPositionOrDefault(
+        input.mouseVisualizerPosition,
+        DEFAULT_SETTINGS.input.mouseVisualizerPosition,
+      ),
+      mouseVisualizerOffsetX: clampNumber(
+        input.mouseVisualizerOffsetX,
+        -500,
+        500,
+        DEFAULT_SETTINGS.input.mouseVisualizerOffsetX,
+      ),
+      mouseVisualizerOffsetY: clampNumber(
+        input.mouseVisualizerOffsetY,
+        -500,
+        500,
+        DEFAULT_SETTINGS.input.mouseVisualizerOffsetY,
+      ),
+      mouseVisualizerActiveColor: hexColorOrDefault(
+        input.mouseVisualizerActiveColor,
+        DEFAULT_SETTINGS.input.mouseVisualizerActiveColor,
+      ),
     },
     reminder: {
       enabled: booleanOrDefault(
