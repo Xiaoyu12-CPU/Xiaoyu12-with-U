@@ -414,6 +414,12 @@ function execute(type: PetControlActionType): void {
           <span>Last Activity</span>
           <strong>{{ lastKeyboardActivity }}</strong>
         </article>
+        <article>
+          <span>Activity State</span>
+          <strong>
+            {{ snapshot?.keyboardActivityStatus === "active" ? "Active" : "Idle" }}
+          </strong>
+        </article>
       </div>
     </section>
 

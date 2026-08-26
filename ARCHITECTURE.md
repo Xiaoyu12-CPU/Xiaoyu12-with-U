@@ -626,3 +626,9 @@ Key History 的最终位置模型为 `Position Base Origin + manual offsetX / of
 `keyDisplayStartLineGapPx`（0～80 logical CSS px，默认 8）只定义可见 56×2px Start Line 与 Newest Entry 最近边缘之间的距离。Up / Down 从水平线的上下可见边缘沿 Y 轴偏移，Left / Right 从线条左右端沿 X 轴偏移；72×24px 隐形 Hit Area 不参与视觉 Gap。Gap 变化只平移固定 History Reserved Rect，不修改 Origin、manual offset、Entry 数据或过期 timer；即使线条 Opacity 为 0，几何 Gap 仍然生效。
 
 固定 History Reserved Rect、Start Line Hit Rect 与 manual offset 一起进入主窗口 Bounding 计算，拖动越过当前边界时不会裁切。既有 Window Position compensation 保持 Pet 屏幕坐标；Key History Offset 与 SystemStatusBubble Offset 分属不同状态，互不覆盖。Control Center 的“重置位置”仅把 manual offset 清零，不修改 Position、Flow、Entry 生命周期或视觉设置。
+
+## 24. Phase 5-C：Keyboard Activity Behavior
+
+`keyboardActivityBehavior.ts` 只消费 main Runtime Snapshot 已有的 `lastKeyboardActivityAt`、`pressedKeys` 和 Keyboard Monitor Status，不注册新 Listener，也不修改 Native CGEventTap。首次有效活动通过 Behavior Manager 创建唯一 held request：`input.keyboard → working`，优先级直接复用 `DEFAULT_BEHAVIOR_PRIORITIES.working`。持续输入只更新同一 Controller 的空闲计时，不重复 request / release。
+
+最后一次有效活动约 2000ms 后，在 pressedKeys 为空时 release `input.keyboard`；如果仍有按键被物理按住，timeout 不会结束 working，直到 keyup 产生新活动并再次完成空闲期。Keyboard Monitoring 关闭、状态离开 Active 或组件销毁都会立即清理 timer 并 release。Behavior 优先级保持 dragging > alert > happy > working > tired，高优先级释放后仍活跃的 Keyboard request 会自然恢复 working。Runtime Status 只发布当前 Activity Active / Idle，不保存活动历史。

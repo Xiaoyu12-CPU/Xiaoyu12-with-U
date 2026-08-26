@@ -273,7 +273,14 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - Phase 5-B.3 增加始终水平的 Start Line 与 ±500px manual X/Y offset；Pointer Drag 实时移动 History，只在结束时持久化，Position 与 Flow 均不被反向修改。
 - Start Line 支持颜色、透明度和重置位置；Opacity 为 0 时可见线消失但 Drag Hit Area 仍可使用。B.2 的 Distance Slider 已从最终设计移除，旧字段被安全忽略。
 - Start Line 与 Newest Entry 支持 0～80px 独立视觉 Gap；Gap 根据 Flow 作用于 X 或 Y 轴，以 56×2px 可见线而非 72×24px Hit Area 为基准，并纳入固定 Window Bounding。
-- Phase 5-B.3 状态：Implemented；Phase 5 仍为 In Progress，尚未接入 WORKING Behavior 或 Mouse Monitor。
+- Phase 5-B.3 状态：Implemented；Phase 5 仍为 In Progress。
+
+### Phase 5-C 实现记录：Keyboard Activity → WORKING Behavior
+
+- main Pet Window 只消费既有 lastActivityAt、pressedKeys 与 Keyboard Monitor Status，通过 Behavior Manager 请求 `input.keyboard / working`，不修改 Native Hook 或 Key History。
+- 首次活动创建唯一 request；持续输入只重置约 2000ms idle timer，不反复 request / release。长按期间 pressedKeys 非空时不会退出 working。
+- Keyboard Monitor 关闭或非 Active 会立即 release；dragging、alert、happy 按既有优先级覆盖 working，结束后自动恢复 working 或下一有效状态。
+- Runtime Status 增加当前 Keyboard Activity Active / Idle，不保存历史。Phase 5-C 状态：Implemented；Phase 5 仍为 In Progress，Mouse Monitor 尚未实现。
 
 ## Phase 6：自定义皮肤
 

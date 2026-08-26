@@ -18,6 +18,7 @@ export const DEFAULT_BEHAVIOR_PRIORITIES: Readonly<
 export const BEHAVIOR_SOURCES = {
   INTERACTION_CLICK: "interaction.click",
   INTERACTION_DRAG: "interaction.drag",
+  INPUT_KEYBOARD: "input.keyboard",
   SYSTEM_CPU: "system.cpu",
   SYSTEM_MEMORY: "system.memory",
   DEVELOPMENT_TIRED: "development.test.tired",

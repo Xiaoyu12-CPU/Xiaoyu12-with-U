@@ -25,6 +25,7 @@ export type BatteryState =
   | "unavailable"
   | "error";
 export type ReminderSchedulerStatus = "enabled" | "disabled";
+export type KeyboardActivityStatus = "active" | "idle";
 
 export interface PetRuntimeSnapshot {
   state: PetState;
@@ -64,6 +65,7 @@ export interface PetRuntimeSnapshot {
   lastKey?: string;
   lastKeyboardActivityAt?: number;
   keyboardMessage?: string;
+  keyboardActivityStatus: KeyboardActivityStatus;
   animationStatus: PetAnimationStatus;
   currentFrame: string;
   currentFrameIndex: number;
@@ -109,6 +111,7 @@ const pressedKeys = ref<readonly string[]>([]);
 const lastKey = ref<string>();
 const lastKeyboardActivityAt = ref<number>();
 const keyboardMessage = ref<string>();
+const keyboardActivityStatus = ref<KeyboardActivityStatus>("idle");
 const animationStatus = ref<PetAnimationStatus>("playing");
 const currentFrame = ref("");
 const currentFrameIndex = ref(0);
@@ -154,6 +157,7 @@ const snapshot = computed<PetRuntimeSnapshot>(() => ({
   lastKey: lastKey.value,
   lastKeyboardActivityAt: lastKeyboardActivityAt.value,
   keyboardMessage: keyboardMessage.value,
+  keyboardActivityStatus: keyboardActivityStatus.value,
   animationStatus: animationStatus.value,
   currentFrame: currentFrame.value,
   currentFrameIndex: currentFrameIndex.value,
@@ -254,6 +258,16 @@ export function updateKeyboardRuntime(input: KeyboardRuntimeSnapshot): void {
   lastKey.value = input.lastKey;
   lastKeyboardActivityAt.value = input.lastActivityAt;
   keyboardMessage.value = input.message;
+  touch();
+}
+
+export function updateKeyboardActivityRuntime(
+  status: KeyboardActivityStatus,
+): void {
+  if (keyboardActivityStatus.value === status) {
+    return;
+  }
+  keyboardActivityStatus.value = status;
   touch();
 }
 
