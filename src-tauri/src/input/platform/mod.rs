@@ -2,7 +2,7 @@
 mod macos;
 
 #[cfg(target_os = "macos")]
-pub use macos::{permission_state, request_permission, start, PlatformKeyboardMonitor};
+pub use macos::{permission_state, request_permission, start, PlatformInputMonitor};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(dead_code)] // Every variant is used across supported target builds.
@@ -13,10 +13,10 @@ pub enum PermissionState {
 }
 
 #[cfg(not(target_os = "macos"))]
-pub struct PlatformKeyboardMonitor;
+pub struct PlatformInputMonitor;
 
 #[cfg(not(target_os = "macos"))]
-impl PlatformKeyboardMonitor {
+impl PlatformInputMonitor {
     pub fn stop(&mut self) {}
 }
 
@@ -30,7 +30,7 @@ pub fn request_permission() {}
 
 #[cfg(not(target_os = "macos"))]
 pub fn start(
-    _on_event: impl Fn(super::super::keyboard::KeyboardInputEvent) + Send + Sync + 'static,
-) -> Result<PlatformKeyboardMonitor, String> {
-    Err("Global keyboard monitoring is not implemented on this platform yet.".to_string())
+    _on_event: impl Fn(super::monitor::NativeInputEvent) + Send + Sync + 'static,
+) -> Result<PlatformInputMonitor, String> {
+    Err("Global input monitoring is not implemented on this platform yet.".to_string())
 }

@@ -646,7 +646,7 @@ function getRightSideBubbleOffset(): number {
         <div class="section-heading">
           <div>
             <h3>Input Monitor</h3>
-            <p>全局键盘监听默认关闭；只维护当前按键状态，不保存输入历史或文本。</p>
+            <p>全局输入监听默认关闭；只维护当前按键或鼠标状态，不保存输入内容、坐标或历史。</p>
           </div>
         </div>
 
@@ -660,6 +660,18 @@ function getRightSideBubbleOffset(): number {
             type="checkbox"
             :checked="settings.input.keyboardEnabled"
             @change="updateBoolean('input', 'keyboardEnabled', $event)"
+          />
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>Mouse Monitoring</strong>
+            <small>监听全局鼠标按键与滚轮；不监听移动、坐标或轨迹。</small>
+          </span>
+          <input
+            class="toggle"
+            type="checkbox"
+            :checked="settings.input.mouseEnabled"
+            @change="updateBoolean('input', 'mouseEnabled', $event)"
           />
         </label>
         <label class="setting-row">

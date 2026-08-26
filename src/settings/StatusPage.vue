@@ -138,6 +138,59 @@ const lastKeyboardActivity = computed(() => {
   return new Intl.DateTimeFormat(undefined, { timeStyle: "medium" })
     .format(new Date(timestamp));
 });
+const mouseLifecycleStatus = computed(() => {
+  const labels: Record<NonNullable<PetRuntimeSnapshot["mouseStatus"]>, string> = {
+    disabled: "Disabled",
+    starting: "Starting",
+    "permission-required": "Permission Required",
+    active: "Active",
+    error: "Error",
+    unsupported: "Unsupported",
+  };
+  return labels[props.snapshot?.mouseStatus ?? "disabled"];
+});
+const pressedMouseButtonsText = computed(() =>
+  props.snapshot?.pressedMouseButtons.length
+    ? props.snapshot.pressedMouseButtons.map(formatMouseButton).join(" + ")
+    : "—",
+);
+const lastMouseInput = computed(() => {
+  if (
+    props.snapshot?.lastScrollAt !== undefined
+    && props.snapshot.lastScrollAt === props.snapshot.lastMouseActivityAt
+  ) {
+    return props.snapshot.lastScrollDirection
+      ? `Scroll ${capitalize(props.snapshot.lastScrollDirection)}`
+      : "Scroll";
+  }
+  return props.snapshot?.lastMouseButton
+    ? formatMouseButton(props.snapshot.lastMouseButton)
+    : "—";
+});
+const lastMouseActivity = computed(() => {
+  const timestamp = props.snapshot?.lastMouseActivityAt;
+  if (timestamp === undefined) {
+    return "—";
+  }
+  return new Intl.DateTimeFormat(undefined, { timeStyle: "medium" })
+    .format(new Date(timestamp));
+});
+
+function capitalize(value: string): string {
+  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
+}
+
+function formatMouseButton(button: string): string {
+  const labels: Record<string, string> = {
+    left: "Left",
+    right: "Right",
+    middle: "Middle",
+    mouse4: "Mouse4",
+    mouse5: "Mouse5",
+    other: "Other",
+  };
+  return labels[button] ?? button;
+}
 
 function execute(type: PetControlActionType): void {
   emit("action", { type });
@@ -419,6 +472,43 @@ function execute(type: PetControlActionType): void {
           <strong>
             {{ snapshot?.keyboardActivityStatus === "active" ? "Active" : "Idle" }}
           </strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="keyboard-panel monitor-panel">
+      <div class="monitor-panel__heading">
+        <div>
+          <p class="eyebrow">Input Monitor / Mouse</p>
+          <h3>全局鼠标监听</h3>
+        </div>
+        <strong>{{ mouseLifecycleStatus }}</strong>
+      </div>
+      <p
+        v-if="snapshot?.mouseStatus === 'permission-required'"
+        class="permission-note"
+      >
+        需要在 macOS 系统设置 → 隐私与安全性 → 输入监听中允许 DesktopPet。
+      </p>
+      <p v-else-if="snapshot?.mouseMessage" class="permission-note">
+        {{ snapshot.mouseMessage }}
+      </p>
+      <div class="keyboard-grid">
+        <article>
+          <span>Pressed Buttons</span>
+          <strong>{{ pressedMouseButtonsText }}</strong>
+        </article>
+        <article>
+          <span>Last Mouse Input</span>
+          <strong>{{ lastMouseInput }}</strong>
+        </article>
+        <article>
+          <span>Last Activity</span>
+          <strong>{{ lastMouseActivity }}</strong>
+        </article>
+        <article>
+          <span>Tracking</span>
+          <strong>Buttons + Scroll Only</strong>
         </article>
       </div>
     </section>

@@ -52,6 +52,7 @@ import {
 } from "../reminder/reminderRuntimeConsumer";
 import type { SnoozeMinutes } from "../reminder/reminderSnooze";
 import { useKeyboardMonitor } from "../input/keyboardMonitor";
+import { useMouseMonitor } from "../input/mouseMonitor";
 import { useKeyboardActivityBehavior } from "../input/keyboardActivityBehavior";
 import { createKeyHistoryDragController } from "../input/keyHistoryDrag";
 
@@ -74,6 +75,7 @@ useBatteryMonitor();
 useReminderRuntimeConsumer();
 useReminderScheduler();
 useKeyboardMonitor();
+useMouseMonitor();
 useKeyboardActivityBehavior();
 const { snapshot: runtimeSnapshot } = usePetRuntimeStatus();
 const {

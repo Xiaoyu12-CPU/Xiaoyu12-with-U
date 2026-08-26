@@ -5,6 +5,10 @@ import type { PetState } from "./types";
 import type {
   KeyboardMonitorStatus,
   KeyboardRuntimeSnapshot,
+  MouseButton,
+  MouseMonitorStatus,
+  MouseRuntimeSnapshot,
+  MouseScrollDirection,
 } from "../input/types";
 import type {
   NextReminderRuntime,
@@ -66,6 +70,13 @@ export interface PetRuntimeSnapshot {
   lastKeyboardActivityAt?: number;
   keyboardMessage?: string;
   keyboardActivityStatus: KeyboardActivityStatus;
+  mouseStatus: MouseMonitorStatus;
+  pressedMouseButtons: readonly MouseButton[];
+  lastMouseButton?: MouseButton;
+  lastMouseActivityAt?: number;
+  lastScrollDirection?: MouseScrollDirection;
+  lastScrollAt?: number;
+  mouseMessage?: string;
   animationStatus: PetAnimationStatus;
   currentFrame: string;
   currentFrameIndex: number;
@@ -112,6 +123,13 @@ const lastKey = ref<string>();
 const lastKeyboardActivityAt = ref<number>();
 const keyboardMessage = ref<string>();
 const keyboardActivityStatus = ref<KeyboardActivityStatus>("idle");
+const mouseStatus = ref<MouseMonitorStatus>("disabled");
+const pressedMouseButtons = ref<readonly MouseButton[]>([]);
+const lastMouseButton = ref<MouseButton>();
+const lastMouseActivityAt = ref<number>();
+const lastScrollDirection = ref<MouseScrollDirection>();
+const lastScrollAt = ref<number>();
+const mouseMessage = ref<string>();
 const animationStatus = ref<PetAnimationStatus>("playing");
 const currentFrame = ref("");
 const currentFrameIndex = ref(0);
@@ -158,6 +176,13 @@ const snapshot = computed<PetRuntimeSnapshot>(() => ({
   lastKeyboardActivityAt: lastKeyboardActivityAt.value,
   keyboardMessage: keyboardMessage.value,
   keyboardActivityStatus: keyboardActivityStatus.value,
+  mouseStatus: mouseStatus.value,
+  pressedMouseButtons: pressedMouseButtons.value,
+  lastMouseButton: lastMouseButton.value,
+  lastMouseActivityAt: lastMouseActivityAt.value,
+  lastScrollDirection: lastScrollDirection.value,
+  lastScrollAt: lastScrollAt.value,
+  mouseMessage: mouseMessage.value,
   animationStatus: animationStatus.value,
   currentFrame: currentFrame.value,
   currentFrameIndex: currentFrameIndex.value,
@@ -268,6 +293,17 @@ export function updateKeyboardActivityRuntime(
     return;
   }
   keyboardActivityStatus.value = status;
+  touch();
+}
+
+export function updateMouseRuntime(input: MouseRuntimeSnapshot): void {
+  mouseStatus.value = input.status;
+  pressedMouseButtons.value = [...input.pressedButtons];
+  lastMouseButton.value = input.lastButton;
+  lastMouseActivityAt.value = input.lastActivityAt;
+  lastScrollDirection.value = input.lastScrollDirection;
+  lastScrollAt.value = input.lastScrollAt;
+  mouseMessage.value = input.message;
   touch();
 }
 

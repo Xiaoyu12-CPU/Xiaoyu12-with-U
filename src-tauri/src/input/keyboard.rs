@@ -1,11 +1,9 @@
 use serde::Serialize;
-use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, State};
 
-use super::platform::{self, PermissionState, PlatformKeyboardMonitor};
+use super::monitor::InputMonitor;
 
-const MAIN_WINDOW_LABEL: &str = "main";
 pub const KEYBOARD_INPUT_EVENT: &str = "desktop-pet://keyboard-input";
 pub const KEYBOARD_STATUS_EVENT: &str = "desktop-pet://keyboard-status";
 
@@ -37,17 +35,10 @@ pub struct KeyboardInputEvent {
 
 impl KeyboardInputEvent {
     pub(crate) fn new(event_type: KeyboardEventType, key: String) -> Self {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis()
-            .try_into()
-            .unwrap_or(u64::MAX);
-
         Self {
             event_type,
             key,
-            timestamp,
+            timestamp: current_timestamp(),
         }
     }
 }
@@ -59,154 +50,29 @@ pub struct KeyboardMonitorSnapshot {
     pub message: Option<String>,
 }
 
-struct KeyboardMonitorInner {
-    listener: Option<PlatformKeyboardMonitor>,
-    status: KeyboardMonitorStatus,
-    message: Option<String>,
-    permission_requested: bool,
-}
-
-impl Default for KeyboardMonitorInner {
-    fn default() -> Self {
-        Self {
-            listener: None,
-            status: KeyboardMonitorStatus::Disabled,
-            message: None,
-            permission_requested: false,
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct KeyboardMonitor {
-    inner: Mutex<KeyboardMonitorInner>,
-}
-
-impl KeyboardMonitor {
-    fn start(&self, app: &AppHandle) -> KeyboardMonitorSnapshot {
-        let mut inner = self.inner.lock().unwrap_or_else(|error| error.into_inner());
-        if inner.listener.is_some() {
-            return snapshot(&inner);
-        }
-
-        inner.status = KeyboardMonitorStatus::Starting;
-        inner.message = None;
-        emit_status(app, &snapshot(&inner));
-
-        match platform::permission_state() {
-            PermissionState::Unsupported => {
-                inner.status = KeyboardMonitorStatus::Unsupported;
-                inner.message = Some(
-                    "Global keyboard monitoring is not implemented on this platform yet."
-                        .to_string(),
-                );
-            }
-            PermissionState::Required => {
-                if !inner.permission_requested {
-                    inner.permission_requested = true;
-                    platform::request_permission();
-                }
-
-                if platform::permission_state() != PermissionState::Granted {
-                    inner.status = KeyboardMonitorStatus::PermissionRequired;
-                    inner.message = Some(
-                        "Allow DesktopPet in System Settings > Privacy & Security > Input Monitoring."
-                            .to_string(),
-                    );
-                } else {
-                    start_platform_listener(app, &mut inner);
-                }
-            }
-            PermissionState::Granted => start_platform_listener(app, &mut inner),
-        }
-
-        let result = snapshot(&inner);
-        emit_status(app, &result);
-        result
-    }
-
-    fn stop(&self, app: &AppHandle) -> KeyboardMonitorSnapshot {
-        let listener = {
-            let mut inner = self.inner.lock().unwrap_or_else(|error| error.into_inner());
-            let listener = inner.listener.take();
-            inner.status = KeyboardMonitorStatus::Disabled;
-            inner.message = None;
-            listener
-        };
-
-        if let Some(mut listener) = listener {
-            listener.stop();
-        }
-
-        let result = KeyboardMonitorSnapshot {
-            status: KeyboardMonitorStatus::Disabled,
-            message: None,
-        };
-        emit_status(app, &result);
-        result
-    }
-}
-
-impl Drop for KeyboardMonitor {
-    fn drop(&mut self) {
-        if let Ok(inner) = self.inner.get_mut() {
-            if let Some(mut listener) = inner.listener.take() {
-                listener.stop();
-            }
-        }
-    }
-}
-
-fn start_platform_listener(app: &AppHandle, inner: &mut KeyboardMonitorInner) {
-    let event_app = app.clone();
-    match platform::start(move |event| {
-        if let Some(window) = event_app.get_webview_window(MAIN_WINDOW_LABEL) {
-            let _ = window.emit(KEYBOARD_INPUT_EVENT, event);
-        }
-    }) {
-        Ok(listener) => {
-            inner.listener = Some(listener);
-            inner.status = KeyboardMonitorStatus::Active;
-            inner.message = None;
-        }
-        Err(error) => {
-            inner.status = if platform::permission_state() == PermissionState::Required {
-                KeyboardMonitorStatus::PermissionRequired
-            } else {
-                KeyboardMonitorStatus::Error
-            };
-            inner.message = Some(error);
-        }
-    }
-}
-
-fn snapshot(inner: &KeyboardMonitorInner) -> KeyboardMonitorSnapshot {
-    KeyboardMonitorSnapshot {
-        status: inner.status,
-        message: inner.message.clone(),
-    }
-}
-
-fn emit_status(app: &AppHandle, status: &KeyboardMonitorSnapshot) {
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-        let _ = window.emit(KEYBOARD_STATUS_EVENT, status);
-    }
-}
-
 #[tauri::command]
 pub fn start_keyboard_monitor(
     app: AppHandle,
-    monitor: State<'_, KeyboardMonitor>,
+    monitor: State<'_, InputMonitor>,
 ) -> KeyboardMonitorSnapshot {
-    monitor.start(&app)
+    monitor.start_keyboard(&app)
 }
 
 #[tauri::command]
 pub fn stop_keyboard_monitor(
     app: AppHandle,
-    monitor: State<'_, KeyboardMonitor>,
+    monitor: State<'_, InputMonitor>,
 ) -> KeyboardMonitorSnapshot {
-    monitor.stop(&app)
+    monitor.stop_keyboard(&app)
+}
+
+pub(crate) fn current_timestamp() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX)
 }
 
 #[cfg(test)]

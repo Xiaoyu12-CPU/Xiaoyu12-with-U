@@ -632,3 +632,13 @@ Key History 的最终位置模型为 `Position Base Origin + manual offsetX / of
 `keyboardActivityBehavior.ts` 只消费 main Runtime Snapshot 已有的 `lastKeyboardActivityAt`、`pressedKeys` 和 Keyboard Monitor Status，不注册新 Listener，也不修改 Native CGEventTap。首次有效活动通过 Behavior Manager 创建唯一 held request：`input.keyboard → working`，优先级直接复用 `DEFAULT_BEHAVIOR_PRIORITIES.working`。持续输入只更新同一 Controller 的空闲计时，不重复 request / release。
 
 最后一次有效活动约 2000ms 后，在 pressedKeys 为空时 release `input.keyboard`；如果仍有按键被物理按住，timeout 不会结束 working，直到 keyup 产生新活动并再次完成空闲期。Keyboard Monitoring 关闭、状态离开 Active 或组件销毁都会立即清理 timer 并 release。Behavior 优先级保持 dragging > alert > happy > working > tired，高优先级释放后仍活跃的 Keyboard request 会自然恢复 working。Runtime Status 只发布当前 Activity Active / Idle，不保存活动历史。
+
+## 25. Phase 5-D：Global Mouse Monitor Foundation
+
+macOS 输入 adapter 将既有 Session 级 ListenOnly CGEventTap 扩展为唯一共享 Native Input Monitor；同一个 tap 监听 Keyboard，以及 Left / Right / Other Mouse Down/Up 与 ScrollWheel，不注册第二套 Native Hook，也不监听 Mouse Move。Rust 在事件路由边界把 Keyboard 与 Mouse 分流到独立 Tauri event，两个 Settings 开关各自控制投递；只有 Keyboard 和 Mouse 都关闭时才停止共享 tap。
+
+Mouse Event schema 只包含 `eventType: down | up | scroll`、稳定的 `left / right / middle / mouse4 / mouse5 / other` button、可选 `up / down / left / right` scrollDirection 和 timestamp。macOS 原始 button number 在 Native adapter 内归一化；事件不包含 cursor 坐标、窗口、应用或 UI element。
+
+main Pet Window 的独立 Mouse Runtime 只在内存维护 `pressedButtons` Set、lastButton、lastActivityAt、lastScrollDirection 与 lastScrollAt。重复 button down 不产生第二次状态变化，button up 删除当前状态；Scroll 是瞬时状态而非 pressed state。关闭或非 Active 状态会清空 pressedButtons，且不写历史或日志。
+
+`settings.input.mouseEnabled` 默认 false，与 keyboardEnabled 完全独立。Mouse Runtime 不被 KeyHistoryController、KeyHistoryStack 或 keyboardActivityBehavior 导入，因此鼠标按钮与滚轮既不会生成 Keyboard History Entry，也不会请求 WORKING Behavior。Control Center 仅通过既有 Runtime Bridge 展示 Mouse lifecycle、当前按钮和最后事件。macOS 复用 Input Monitoring 权限；非 macOS adapter 当前明确返回 unsupported，Windows Native Hook 留待后续跨平台阶段。

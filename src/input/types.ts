@@ -24,3 +24,37 @@ export interface KeyboardRuntimeSnapshot extends NativeKeyboardMonitorSnapshot {
   lastKey?: string;
   lastActivityAt?: number;
 }
+
+export type MouseInputEventType = "down" | "up" | "scroll";
+
+export type MouseButton =
+  | "left"
+  | "right"
+  | "middle"
+  | "mouse4"
+  | "mouse5"
+  | "other";
+
+export type MouseScrollDirection = "up" | "down" | "left" | "right";
+
+export type MouseMonitorStatus = KeyboardMonitorStatus;
+
+export interface MouseInputEvent {
+  eventType: MouseInputEventType;
+  button?: MouseButton;
+  scrollDirection?: MouseScrollDirection;
+  timestamp: number;
+}
+
+export interface NativeMouseMonitorSnapshot {
+  status: MouseMonitorStatus;
+  message?: string;
+}
+
+export interface MouseRuntimeSnapshot extends NativeMouseMonitorSnapshot {
+  pressedButtons: MouseButton[];
+  lastButton?: MouseButton;
+  lastActivityAt?: number;
+  lastScrollDirection?: MouseScrollDirection;
+  lastScrollAt?: number;
+}

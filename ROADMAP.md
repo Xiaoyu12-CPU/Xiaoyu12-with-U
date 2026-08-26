@@ -280,7 +280,17 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - main Pet Window 只消费既有 lastActivityAt、pressedKeys 与 Keyboard Monitor Status，通过 Behavior Manager 请求 `input.keyboard / working`，不修改 Native Hook 或 Key History。
 - 首次活动创建唯一 request；持续输入只重置约 2000ms idle timer，不反复 request / release。长按期间 pressedKeys 非空时不会退出 working。
 - Keyboard Monitor 关闭或非 Active 会立即 release；dragging、alert、happy 按既有优先级覆盖 working，结束后自动恢复 working 或下一有效状态。
-- Runtime Status 增加当前 Keyboard Activity Active / Idle，不保存历史。Phase 5-C 状态：Implemented；Phase 5 仍为 In Progress，Mouse Monitor 尚未实现。
+- Runtime Status 增加当前 Keyboard Activity Active / Idle，不保存历史。Phase 5-C 状态：Implemented；Phase 5 仍为 In Progress。
+
+### Phase 5-D 实现记录：Global Mouse Monitor Foundation
+
+- macOS 复用并扩展 Phase 5-A 的单一 ListenOnly CGEventTap，监听 Left / Right / Middle / Mouse4 / Mouse5 / Other Down/Up 和 Scroll，不监听 Mouse Move。
+- Native Input Monitor 是唯一 Hook owner；Keyboard 与 Mouse 在 Rust 事件路由和 Frontend Runtime 保持独立，两个开关互不重置。
+- Mouse Event 只传稳定 button、scroll direction 与 timestamp，不传坐标、窗口、应用或原始 button number。
+- main Mouse Runtime 仅维护当前 pressedButtons 与最近一次 Button / Scroll；重复 down 被 Set 过滤，关闭时清空，不保存点击或移动历史。
+- `settings.input.mouseEnabled` 默认关闭，Control Center 增加独立开关和轻量 Runtime 状态；macOS 复用 Input Monitoring 权限。
+- Mouse 模块不接入 Key History，也不接入 Behavior Manager，因此 Button / Scroll 不生成键盘 Entry 且不会触发 WORKING。
+- Windows 当前沿用 platform adapter 边界并返回 Unsupported；Phase 5-D 状态：Implemented，Phase 5 仍为 In Progress，Mouse Visualizer 尚未实现。
 
 ## Phase 6：自定义皮肤
 
