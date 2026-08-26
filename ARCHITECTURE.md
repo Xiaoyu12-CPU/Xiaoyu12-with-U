@@ -604,3 +604,11 @@ Control Center debug status
 主窗口只在内存维护当前 `pressedKeys`、`lastKey` 和 `lastActivityAt`。重复 keydown 在 Native autorepeat 与 Runtime Set 两层过滤；keyup 删除对应键。关闭或非 Active 状态会清空 pressedKeys，不写磁盘、不保存历史、不上传数据。Keyboard Monitor 错误只更新自身的 disabled / starting / permission-required / active / error / unsupported 状态，不影响 Pet、Reminder 或 System Monitor。
 
 `settings.input.keyboardEnabled` 正式启用但默认仍为 false。macOS 启动前使用 `CGPreflightListenEventAccess` 检查 Input Monitoring 权限，首次开启至多调用一次系统标准请求；未授权时安全进入 permission-required。Windows 本阶段复用同一前端 schema 和 Rust platform adapter 边界，但 Native Hook 尚未实现，明确返回 unsupported。
+
+## 22. Phase 5-B：Keyboard Key Display
+
+Key Display 是主桌宠窗口中的独立轻量组件，只消费 Phase 5-A 权威 Runtime Snapshot 的 `pressedKeys`，不注册第二个 Native 或 DOM Keyboard Listener。显示层按固定顺序格式化 Control、Option、Shift、Command 与普通键，最多显示五个 keycap；它只在内存中保留刚松开的最后一组键 800ms，不保存或拼接输入历史。
+
+`settings.input.keyDisplayEnabled` 默认开启，但只有 Keyboard Monitoring 已开启、Monitor 状态为 Active 且 Pet 可见时才渲染。关闭 Key Display 不会停止 Native Monitor；关闭 Keyboard Monitoring、权限缺失或错误状态会立即隐藏。
+
+Key Display 使用主窗口现有 Bounding Layout，在 Pet 下方预留固定最大宽度区域。区域只随监听状态、显示设置和 petScale 改变，不随具体按键文本宽度变化，因此连续输入不会持续 resize 或移动 OS Window；status-only 模式不显示 Key Display。组件无交互并使用 `pointer-events: none`，不会触发 Pet Click 或 Drag。

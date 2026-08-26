@@ -614,6 +614,18 @@ function getRightSideBubbleOffset(): number {
             @change="updateBoolean('input', 'keyboardEnabled', $event)"
           />
         </label>
+        <label class="setting-row">
+          <span>
+            <strong>Show Pressed Keys</strong>
+            <small>只在桌宠旁短暂显示当前按键，不保存输入历史。</small>
+          </span>
+          <input
+            class="toggle"
+            type="checkbox"
+            :checked="settings.input.keyDisplayEnabled"
+            @change="updateBoolean('input', 'keyDisplayEnabled', $event)"
+          />
+        </label>
       </article>
 
       <article>

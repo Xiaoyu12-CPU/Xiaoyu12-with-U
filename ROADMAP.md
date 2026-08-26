@@ -261,6 +261,15 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - Windows 当前保留 platform adapter 和统一 schema，Native Hook 尚未实现并明确返回 Unsupported。
 - Phase 5-A 状态：Implemented；Phase 5 仍为 In Progress，尚未实现 Key Bubble、WORKING Behavior、鼠标监听、历史或统计。
 
+### Phase 5-B 实现记录：Keyboard Key Display
+
+- 主桌宠窗口新增轻量 Key Display，直接消费 Phase 5-A 的权威 pressedKeys，不创建第二监听器。
+- 支持字母数字、方向键和常见功能键，并以固定 `⌃ ⌥ ⇧ ⌘` 顺序显示 Modifier；最多五个 keycap，超出时显示数量摘要。
+- 按键按下立即显示，全部松开后保留最后一组约 800ms；不拼接文字、不保存历史、不写磁盘。
+- `settings.input.keyDisplayEnabled` 默认开启，只控制显示，不停止 Native Keyboard Monitor。
+- Key Display 在 Pet 下方使用稳定预留区域参与主窗口 Bounding Layout，不随按键内容宽度反复调整窗口；status-only 模式不显示。
+- Phase 5-B 状态：Implemented；Phase 5 仍为 In Progress，尚未接入 WORKING Behavior 或 Mouse Monitor。
+
 ## Phase 6：自定义皮肤
 
 目标：允许安全地安装、切换和管理桌宠外观。

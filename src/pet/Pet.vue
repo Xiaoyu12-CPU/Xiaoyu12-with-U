@@ -11,6 +11,7 @@ import PetContextMenu from "../components/PetContextMenu.vue";
 import ReminderFeedbackActions from "../components/ReminderFeedbackActions.vue";
 import SpeechBubble from "../components/SpeechBubble.vue";
 import SystemStatusBubble from "../components/SystemStatusBubble.vue";
+import KeyDisplayBubble from "../components/KeyDisplayBubble.vue";
 import { usePetAnimation } from "./animationEngine";
 import {
   initializePetAssets,
@@ -105,6 +106,12 @@ const displayMode = computed(
 );
 const showsPet = computed(() => displayMode.value !== "status-only");
 const showsStatusBubble = computed(() => displayMode.value !== "pet-only");
+const reservesKeyDisplay = computed(
+  () => showsPet.value
+    && settingsManager.settings.value.input.keyboardEnabled
+    && settingsManager.settings.value.input.keyDisplayEnabled
+    && runtimeSnapshot.value.keyboardStatus === "active",
+);
 const windowLayout = computed(() =>
   calculatePetWindowLayout({
     displayMode: displayMode.value,
@@ -113,6 +120,7 @@ const windowLayout = computed(() =>
     bubbleHeight: bubbleSize.height,
     offsetX: bubbleOffset.x,
     offsetY: bubbleOffset.y,
+    keyDisplayVisible: reservesKeyDisplay.value,
   }),
 );
 const petStyle = computed(() => ({
@@ -125,6 +133,13 @@ const petStyle = computed(() => ({
 const statusBubbleStyle = computed(() => ({
   left: `${windowLayout.value.bubbleX}px`,
   top: `${windowLayout.value.bubbleY}px`,
+}));
+const keyDisplayStyle = computed(() => ({
+  "--key-display-scale": String(windowLayout.value.keyDisplayScale),
+  left: `${windowLayout.value.keyDisplayX}px`,
+  top: `${windowLayout.value.keyDisplayY}px`,
+  width: `${windowLayout.value.keyDisplayWidth}px`,
+  height: `${windowLayout.value.keyDisplayHeight}px`,
 }));
 const bubblePreferences = computed(
   () => settingsManager.settings.value.systemStatusBubble,
@@ -423,6 +438,16 @@ onBeforeUnmount(() => {
       />
     </div>
 
+    <KeyDisplayBubble
+      v-if="reservesKeyDisplay"
+      class="pet__key-display"
+      :style="keyDisplayStyle"
+      :pressed-keys="runtimeSnapshot.pressedKeys"
+      :keyboard-enabled="settingsManager.settings.value.input.keyboardEnabled"
+      :key-display-enabled="settingsManager.settings.value.input.keyDisplayEnabled"
+      :keyboard-status="runtimeSnapshot.keyboardStatus"
+    />
+
     <SystemStatusBubble
       v-if="showsStatusBubble"
       class="pet__system-status"
@@ -475,6 +500,12 @@ onBeforeUnmount(() => {
 }
 
 .pet__system-status { position: absolute; }
+
+.pet__key-display {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
 
 .pet__speech-bubble {
   position: absolute;

@@ -45,6 +45,7 @@ export interface DesktopPetSettings {
   };
   input: {
     keyboardEnabled: boolean;
+    keyDisplayEnabled: boolean;
     mouseEnabled: boolean;
   };
   reminder: {

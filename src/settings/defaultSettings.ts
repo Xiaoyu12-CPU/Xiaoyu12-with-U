@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
   },
   input: {
     keyboardEnabled: false,
+    keyDisplayEnabled: true,
     mouseEnabled: false,
   },
   reminder: {

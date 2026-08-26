@@ -1,6 +1,9 @@
 import type { DesktopDisplayMode } from "../settings/settingsTypes";
 
 export const PET_BASE_WINDOW_SIZE = 200;
+export const KEY_DISPLAY_BASE_WIDTH = 180;
+export const KEY_DISPLAY_BASE_HEIGHT = 42;
+export const KEY_DISPLAY_BASE_GAP = 6;
 export const STATUS_BUBBLE_OFFSET_LIMIT = 500;
 export const STATUS_BUBBLE_FALLBACK_SIZE = Object.freeze({
   width: 184,
@@ -14,6 +17,7 @@ export interface WindowLayoutInput {
   bubbleHeight: number;
   offsetX: number;
   offsetY: number;
+  keyDisplayVisible: boolean;
 }
 
 export interface PetWindowLayout {
@@ -26,6 +30,11 @@ export interface PetWindowLayout {
   petSize: number;
   bubbleX: number;
   bubbleY: number;
+  keyDisplayX: number;
+  keyDisplayY: number;
+  keyDisplayWidth: number;
+  keyDisplayHeight: number;
+  keyDisplayScale: number;
 }
 
 interface LayoutRectangle {
@@ -39,6 +48,11 @@ export function calculatePetWindowLayout(
   input: WindowLayoutInput,
 ): PetWindowLayout {
   const petSize = PET_BASE_WINDOW_SIZE * Math.max(1, input.petScale);
+  const keyDisplayScale = Math.max(0.5, input.petScale);
+  const keyDisplayWidth = KEY_DISPLAY_BASE_WIDTH * keyDisplayScale;
+  const keyDisplayHeight = KEY_DISPLAY_BASE_HEIGHT * keyDisplayScale;
+  const keyDisplayX = (petSize - keyDisplayWidth) / 2;
+  const keyDisplayY = petSize + KEY_DISPLAY_BASE_GAP * keyDisplayScale;
   const rectangles: LayoutRectangle[] = [];
 
   if (input.displayMode !== "status-only") {
@@ -50,6 +64,14 @@ export function calculatePetWindowLayout(
       y: input.offsetY,
       width: Math.max(1, input.bubbleWidth),
       height: Math.max(1, input.bubbleHeight),
+    });
+  }
+  if (input.displayMode !== "status-only" && input.keyDisplayVisible) {
+    rectangles.push({
+      x: keyDisplayX,
+      y: keyDisplayY,
+      width: keyDisplayWidth,
+      height: keyDisplayHeight,
     });
   }
 
@@ -72,6 +94,11 @@ export function calculatePetWindowLayout(
     petSize,
     bubbleX: input.offsetX - minX,
     bubbleY: input.offsetY - minY,
+    keyDisplayX: keyDisplayX - minX,
+    keyDisplayY: keyDisplayY - minY,
+    keyDisplayWidth,
+    keyDisplayHeight,
+    keyDisplayScale,
   };
 }
 

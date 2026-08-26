@@ -312,6 +312,10 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         input.keyboardEnabled,
         DEFAULT_SETTINGS.input.keyboardEnabled,
       ),
+      keyDisplayEnabled: booleanOrDefault(
+        input.keyDisplayEnabled,
+        DEFAULT_SETTINGS.input.keyDisplayEnabled,
+      ),
       mouseEnabled: booleanOrDefault(
         input.mouseEnabled,
         DEFAULT_SETTINGS.input.mouseEnabled,
