@@ -78,6 +78,8 @@ export function createMouseInputRuntime(
     message = snapshot.message;
     if (status !== "active") {
       pressedButtons.clear();
+      lastScrollDirection = undefined;
+      lastScrollAt = undefined;
     }
     publish();
   }
@@ -86,6 +88,8 @@ export function createMouseInputRuntime(
     status = "disabled";
     message = undefined;
     pressedButtons.clear();
+    lastScrollDirection = undefined;
+    lastScrollAt = undefined;
     publish();
   }
 

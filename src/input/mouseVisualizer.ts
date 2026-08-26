@@ -25,6 +25,26 @@ export interface MouseVisualizerSnapshot {
   scrollDirection?: MouseScrollDirection;
 }
 
+export interface MouseVisualizerVisualSettings {
+  bodyColor: string;
+  bodyOpacity: number;
+  buttonColor: string;
+  buttonOpacity: number;
+  outlineColor: string;
+  outlineOpacity: number;
+  outlineWidth: number;
+  activeColor: string;
+  activeOpacity: number;
+}
+
+export interface MouseVisualizerVisualStyle {
+  bodyFill: string;
+  buttonFill: string;
+  outline: string;
+  outlineWidth: string;
+  activeFill: string;
+}
+
 export interface MouseVisualizerController {
   update: (input: MouseVisualizerInput) => void;
   getSnapshot: () => MouseVisualizerSnapshot;
@@ -169,6 +189,18 @@ export function scrollDirectionSymbol(
   return direction ? symbols[direction] ?? "" : "";
 }
 
+export function mouseVisualizerVisualStyle(
+  settings: MouseVisualizerVisualSettings,
+): MouseVisualizerVisualStyle {
+  return {
+    bodyFill: hexToRgba(settings.bodyColor, settings.bodyOpacity),
+    buttonFill: hexToRgba(settings.buttonColor, settings.buttonOpacity),
+    outline: hexToRgba(settings.outlineColor, settings.outlineOpacity),
+    outlineWidth: `${clamp(settings.outlineWidth, 0, 4)}px`,
+    activeFill: hexToRgba(settings.activeColor, settings.activeOpacity),
+  };
+}
+
 export function clampMouseVisualizerOffset(value: number): number {
   const finiteValue = Number.isFinite(value) ? value : 0;
   return Math.min(
@@ -251,4 +283,17 @@ function normalizeOffset(offset: MouseVisualizerOffset): MouseVisualizerOffset {
     x: clampMouseVisualizerOffset(offset.x),
     y: clampMouseVisualizerOffset(offset.y),
   };
+}
+
+function hexToRgba(color: string, opacity: number): string {
+  const normalized = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : "#000000";
+  const red = Number.parseInt(normalized.slice(1, 3), 16);
+  const green = Number.parseInt(normalized.slice(3, 5), 16);
+  const blue = Number.parseInt(normalized.slice(5, 7), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${clamp(opacity, 0, 1)})`;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  const finiteValue = Number.isFinite(value) ? value : minimum;
+  return Math.min(Math.max(finiteValue, minimum), maximum);
 }

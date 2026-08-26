@@ -4,6 +4,7 @@ import {
   createMouseVisualizerController,
   isMouseButtonActive,
   mouseVisualizerPointerPresentation,
+  mouseVisualizerVisualStyle,
   scrollDirectionSymbol,
   type MouseVisualizerSnapshot,
 } from "../input/mouseVisualizer";
@@ -20,7 +21,15 @@ const props = defineProps<{
   pressedButtons: readonly MouseButton[];
   lastScrollDirection?: MouseScrollDirection;
   lastScrollAt?: number;
+  bodyColor: string;
+  bodyOpacity: number;
+  buttonColor: string;
+  buttonOpacity: number;
+  outlineColor: string;
+  outlineOpacity: number;
+  outlineWidth: number;
   activeColor: string;
+  activeOpacity: number;
   dragging: boolean;
 }>();
 
@@ -49,10 +58,27 @@ const wheelActive = computed(() =>
 const wheelSymbol = computed(() =>
   scrollDirectionSymbol(snapshot.value.scrollDirection),
 );
-const visualizerStyle = computed(() => ({
-  "--mouse-active-color": props.activeColor,
-  pointerEvents: presentation.rootPointerEvents,
-}));
+const visualizerStyle = computed(() => {
+  const visual = mouseVisualizerVisualStyle({
+    bodyColor: props.bodyColor,
+    bodyOpacity: props.bodyOpacity,
+    buttonColor: props.buttonColor,
+    buttonOpacity: props.buttonOpacity,
+    outlineColor: props.outlineColor,
+    outlineOpacity: props.outlineOpacity,
+    outlineWidth: props.outlineWidth,
+    activeColor: props.activeColor,
+    activeOpacity: props.activeOpacity,
+  });
+  return {
+    "--mouse-body-fill": visual.bodyFill,
+    "--mouse-button-fill": visual.buttonFill,
+    "--mouse-outline": visual.outline,
+    "--mouse-outline-width": visual.outlineWidth,
+    "--mouse-active-fill": visual.activeFill,
+    pointerEvents: presentation.rootPointerEvents,
+  };
+});
 
 function active(button: MouseButton): boolean {
   return isMouseButtonActive(activeButtons.value, button);
@@ -112,36 +138,105 @@ onBeforeUnmount(() => controller.dispose());
       <span></span><span></span><span></span>
     </button>
 
-    <div
+    <svg
       class="mouse-visualizer__body"
       :style="{ pointerEvents: presentation.visualPointerEvents }"
-      aria-hidden="true"
+      viewBox="0 0 80 100"
+      role="img"
+      aria-label="Mouse buttons"
     >
-      <span
-        class="mouse-visualizer__button mouse-visualizer__button--left"
+      <path
+        class="mouse-visualizer__body-fill"
+        d="M40 3C21 3 10 15 10 37V60C10 84 21 97 40 97C59 97 70 84 70 60V37C70 15 59 3 40 3Z"
+      />
+      <path
+        class="mouse-visualizer__button-fill"
         :class="{ 'is-active': active('left') }"
-      >L</span>
-      <span
-        class="mouse-visualizer__button mouse-visualizer__button--right"
+        d="M40 3C21 3 10 15 10 37V42H40V3Z"
+      />
+      <path
+        class="mouse-visualizer__button-fill"
         :class="{ 'is-active': active('right') }"
-      >R</span>
-      <span
-        class="mouse-visualizer__wheel"
+        d="M40 3C59 3 70 15 70 37V42H40V3Z"
+      />
+      <path class="mouse-visualizer__outline-line" d="M10 42H70M40 3V42" />
+      <path
+        class="mouse-visualizer__outline-line"
+        d="M40 3C21 3 10 15 10 37V60C10 84 21 97 40 97C59 97 70 84 70 60V37C70 15 59 3 40 3Z"
+      />
+      <text
+        class="mouse-visualizer__label"
+        :class="{ 'is-active': active('left') }"
+        x="25"
+        y="32"
+      >L</text>
+      <text
+        class="mouse-visualizer__label"
+        :class="{ 'is-active': active('right') }"
+        x="55"
+        y="32"
+      >R</text>
+      <rect
+        class="mouse-visualizer__wheel mouse-visualizer__outline"
         :class="{ 'is-active': wheelActive }"
-      >{{ wheelSymbol || "•" }}</span>
-      <span
-        class="mouse-visualizer__side mouse-visualizer__side--four"
+        x="34"
+        y="13"
+        width="12"
+        height="25"
+        rx="6"
+      />
+      <text
+        class="mouse-visualizer__wheel-label"
+        :class="{ 'is-active': wheelActive }"
+        x="40"
+        y="29"
+      >
+        {{ wheelSymbol || "•" }}
+      </text>
+      <rect
+        class="mouse-visualizer__side mouse-visualizer__outline"
         :class="{ 'is-active': active('mouse4') }"
-      >M4</span>
-      <span
-        class="mouse-visualizer__side mouse-visualizer__side--five"
+        x="3"
+        y="54"
+        width="20"
+        height="11"
+        rx="4"
+      />
+      <rect
+        class="mouse-visualizer__side mouse-visualizer__outline"
         :class="{ 'is-active': active('mouse5') }"
-      >M5</span>
-      <span
+        x="3"
+        y="69"
+        width="20"
+        height="11"
+        rx="4"
+      />
+      <text
+        class="mouse-visualizer__side-label"
+        :class="{ 'is-active': active('mouse4') }"
+        x="13"
+        y="62"
+      >M4</text>
+      <text
+        class="mouse-visualizer__side-label"
+        :class="{ 'is-active': active('mouse5') }"
+        x="13"
+        y="77"
+      >M5</text>
+      <circle
         v-if="active('other')"
-        class="mouse-visualizer__other is-active"
-      >+</span>
-    </div>
+        class="mouse-visualizer__other mouse-visualizer__outline is-active"
+        cx="58"
+        cy="72"
+        r="7"
+      />
+      <text
+        v-if="active('other')"
+        class="mouse-visualizer__other-label"
+        x="58"
+        y="75"
+      >+</text>
+    </svg>
   </div>
 </template>
 
@@ -168,9 +263,8 @@ onBeforeUnmount(() => controller.dispose());
   justify-content: center;
   gap: 4px;
   padding: 0;
-  background: rgba(255, 255, 255, .82);
-  border: 1px solid rgba(111, 91, 160, .22);
-  border-radius: 999px;
+  background: transparent;
+  border: 0;
   transform: translateX(-50%);
   cursor: grab;
   touch-action: none;
@@ -179,101 +273,66 @@ onBeforeUnmount(() => controller.dispose());
 .mouse-visualizer__drag-handle--dragging { cursor: grabbing; }
 
 .mouse-visualizer__drag-handle span {
-  width: 3px;
-  height: 3px;
-  background: #8f80ad;
-  border-radius: 50%;
+  width: 7px;
+  height: max(1px, var(--mouse-outline-width));
+  background: var(--mouse-outline);
+  border-radius: 999px;
   pointer-events: none;
 }
 
 .mouse-visualizer__body {
-  box-sizing: border-box;
   position: absolute;
   top: 17%;
-  left: 10%;
-  width: 80%;
+  left: 7%;
+  width: 86%;
   height: 80%;
   overflow: visible;
-  background: rgba(250, 248, 255, .88);
-  border: 1px solid rgba(108, 92, 139, .3);
-  border-radius: 46% 46% 42% 42% / 33% 33% 48% 48%;
-  box-shadow: 0 3px 10px rgba(62, 45, 91, .12);
 }
 
-.mouse-visualizer__button,
+.mouse-visualizer__body-fill { fill: var(--mouse-body-fill); }
+
+.mouse-visualizer__button-fill,
 .mouse-visualizer__wheel,
 .mouse-visualizer__side,
 .mouse-visualizer__other {
-  box-sizing: border-box;
-  display: grid;
-  place-items: center;
-  color: #7f728f;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1;
-  transition: background-color 90ms ease, color 90ms ease, box-shadow 90ms ease;
+  fill: var(--mouse-button-fill);
+  transition: fill 90ms ease;
 }
 
-.mouse-visualizer__button {
-  position: absolute;
-  top: 0;
-  width: 50%;
-  height: 42%;
-  background: rgba(235, 231, 244, .75);
-  border-bottom: 1px solid rgba(108, 92, 139, .22);
+.mouse-visualizer__outline,
+.mouse-visualizer__outline-line {
+  stroke: var(--mouse-outline);
+  stroke-width: var(--mouse-outline-width);
+  vector-effect: non-scaling-stroke;
 }
 
-.mouse-visualizer__button--left {
-  left: 0;
-  border-right: 1px solid rgba(108, 92, 139, .2);
-  border-radius: 80% 0 8px 0;
+.mouse-visualizer__outline { stroke-linejoin: round; }
+
+.mouse-visualizer__outline-line {
+  fill: none;
+  stroke-linecap: round;
 }
 
-.mouse-visualizer__button--right {
-  right: 0;
-  border-radius: 0 80% 0 8px;
-}
-
-.mouse-visualizer__wheel {
-  position: absolute;
-  top: 12%;
-  left: 50%;
-  z-index: 1;
-  width: 24%;
-  height: 31%;
-  color: #6c5e80;
-  background: #fdfcff;
-  border: 1px solid rgba(108, 92, 139, .34);
-  border-radius: 999px;
-  transform: translateX(-50%);
-}
-
-.mouse-visualizer__side {
-  position: absolute;
-  left: -10%;
-  width: 28%;
-  height: 16%;
-  background: #f6f2fb;
-  border: 1px solid rgba(108, 92, 139, .3);
-  border-radius: 5px;
+.mouse-visualizer__label,
+.mouse-visualizer__wheel-label,
+.mouse-visualizer__side-label,
+.mouse-visualizer__other-label {
+  fill: #645a70;
   font-size: 8px;
+  font-weight: 700;
+  text-anchor: middle;
+  pointer-events: none;
 }
 
-.mouse-visualizer__side--four { top: 54%; }
-.mouse-visualizer__side--five { top: 73%; }
+.mouse-visualizer__wheel-label { font-size: 10px; }
 
-.mouse-visualizer__other {
-  position: absolute;
-  right: 8%;
-  bottom: 9%;
-  width: 20%;
-  aspect-ratio: 1;
-  border-radius: 50%;
-}
+.mouse-visualizer__side-label,
+.mouse-visualizer__other-label { font-size: 6px; }
 
-.is-active {
-  color: #fff;
-  background: var(--mouse-active-color, #8b5cf6);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--mouse-active-color, #8b5cf6) 22%, transparent);
-}
+.is-active { fill: var(--mouse-active-fill); }
+
+.mouse-visualizer__label.is-active,
+.mouse-visualizer__wheel-label.is-active,
+.mouse-visualizer__side-label.is-active,
+.mouse-visualizer__other-label { fill: #fff; }
 </style>

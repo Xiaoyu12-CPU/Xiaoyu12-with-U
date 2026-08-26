@@ -298,10 +298,23 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - Left、Right、Middle、Mouse4、Mouse5 可独立且同时高亮；Other 使用安全附加标记。
 - Scroll Up / Down / Left / Right 使用约 600ms 的 Wheel Pulse，新 Scroll 刷新 Pulse；不建立 Mouse/Scroll History。
 - `mouseVisualizerEnabled` 默认 true，但只在 Mouse Monitor Active、mouseEnabled 且 Pet 可见时显示；Keyboard 开关不影响它。
-- Visualizer 支持 Top / Bottom / Left / Right 独立 Position、Active Color，以及 ±500px manual offset；明确 Drag Handle 实时预览、结束时持久化，Reset 只清零 offset。
+- Visualizer 使用简洁 SVG 鼠标线稿，Body、Button、Outline 与 Active 的颜色/透明度分层独立，Outline Width 统一控制线稿粗细；样式变化不进入 Window Layout。
+- Visualizer 支持 Top / Bottom / Left / Right 独立 Position，以及 ±500px manual offset；明确 Drag Handle 实时预览、结束时持久化，Reset 只清零 offset。
 - 固定 Visualizer Rect 纳入主 Window Bounding，并复用 position compensation 稳定 Pet；Mouse、Key History、SystemStatus 三套 offset 完全独立。
 - Visualizer 不导入 Key History 或 Behavior Manager，因此 Mouse Input 不产生 Keyboard Entry，也不触发 WORKING。
 - Phase 5-E 状态：Implemented；Phase 5 仍为 In Progress，不包含 Mouse Move、Mouse History、统计或品牌皮肤。
+
+### Phase 5-F 完成记录：Input Awareness Integration & Cleanup
+
+- Keyboard 与 Mouse 复用唯一 Rust Native Input Monitor；任一 channel 开启即保留 listener，两者均关闭才停止，不重复创建 CGEventTap。
+- Keyboard Disable 会清空 pressedKeys、History entries/timers、Activity idle timer，并 release `input.keyboard`；Mouse Runtime 不受影响。
+- Mouse Disable 会清空 pressedButtons、Scroll transient state 与 Visualizer pulse timer；Keyboard History / WORKING 不受影响。
+- Show Keyboard History 与 Show Mouse Visualizer 只控制 UI visibility，不改变对应 Native Monitor 或 Runtime 生命周期。
+- Mouse Input 继续不进入 Keyboard History、不请求 WORKING；WORKING 的唯一输入 source 是 `input.keyboard`，既有 Behavior priority 保持不变。
+- Pet、SystemStatusBubble、Keyboard History、Mouse Visualizer 共同进入固定 Window Bounding，三套 offset 独立；按键、按钮、Scroll Pulse 与样式变化不会持续 resize OS Window。
+- Input Runtime 只存在于内存，不持久化文本、raw key stream、History、Mouse 坐标、轨迹、点击记录、应用或窗口信息。
+- macOS Input Monitoring 完整实现；Windows Native Hook 保持 Unsupported，留待 Phase 9。
+- Phase 5 Input Awareness 状态：Completed。
 
 ## Phase 6：自定义皮肤
 

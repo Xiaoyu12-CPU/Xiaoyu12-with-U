@@ -4,7 +4,7 @@
 
 DesktopPet 是一个以 macOS 为首要平台、后续支持 Windows 的像素桌宠应用。项目采用 Tauri 2 作为桌面运行时，Vue 3 + TypeScript 构建界面与交互，Rust 负责桌面窗口、系统能力和平台相关逻辑。
 
-当前仓库已完成透明桌宠窗口、PetState、资源加载、逐帧动画、交互、Dialogue、拖动、控制中心、Phase 2-C6 State & Animation Editor、Phase 2-E Behavior Manager、Phase 3-A CPU / Phase 3-B Memory 真实系统监控，以及 Phase 3-C System Status Bubble。电池、Network / Storage 真实采样、提醒、全局输入、自定义皮肤和 AI 仍按路线图留待后续阶段。
+当前仓库已完成透明桌宠窗口、PetState、资源加载、逐帧动画、交互、Dialogue、拖动、控制中心、State & Animation Editor、Behavior Manager、CPU / Memory / Network / Storage / Battery 系统监控、Reminder & Alarm，以及 Phase 5 Input Awareness。自定义皮肤和 AI 仍按路线图留待后续阶段。
 
 Phase 2-D Application Settings System 也已完成：全局用户偏好通过统一 Settings Manager 管理，保存到 Tauri 应用数据目录，并在桌宠窗口和控制中心之间实时同步。
 
@@ -647,8 +647,18 @@ main Pet Window 的独立 Mouse Runtime 只在内存维护 `pressedButtons` Set�
 
 `MouseInputVisualizer.vue` 是主桌宠窗口中的独立轻量 UI，只消费 Phase 5-D 权威 Runtime Snapshot 的 pressedButtons、lastScrollDirection 与 lastScrollAt，不注册 Native/DOM Mouse Listener。Left、Right、Middle、Mouse4、Mouse5 各自映射到抽象俯视鼠标区域，Set 中的多个按钮可以同时高亮；Other 使用安全的附加标记。Scroll 不进入 pressed state，只在最后事件变化时显示约 600ms 的 Up / Down / Left / Right wheel pulse，新事件会刷新 pulse，Middle held 状态在 pulse 结束后继续保持。
 
-`settings.input.mouseVisualizerEnabled` 默认 true，但 Visualizer 只有在 mouseEnabled、Mouse Monitor Active 且 Pet 可见时渲染。用户可选择 Top / Bottom / Left / Right 独立锚点和统一 Active Color。视觉区域无 pointer interaction；只有组件顶部的明确 Drag Handle 可接收 Pointer Events，因此不会成为 Pet click/drag handle。
+`settings.input.mouseVisualizerEnabled` 默认 true，但 Visualizer 只有在 mouseEnabled、Mouse Monitor Active 且 Pet 可见时渲染。用户可选择 Top / Bottom / Left / Right 独立锚点。组件使用简洁的 SVG 鼠标俯视线稿，Body、Inactive Button、Outline 与 Active 各自拥有独立颜色/透明度，Outline Width 统一控制外框与分隔线；这些纯样式字段不进入 Window Layout 输入。视觉区域无 pointer interaction；只有组件顶部的明确 Drag Handle 可接收 Pointer Events，因此不会成为 Pet click/drag handle。
 
 Position 提供 Pet 侧边的固定 base anchor，manual offsetX / offsetY（±500 logical px）提供持久化微调。拖动过程只预览 Runtime offset，pointer up/cancel 才保存一次；Reset 只清零 Mouse Visualizer offset。Visualizer 使用固定 96×124 基础矩形，并随 petScale 在 0.75～1.5 范围适度缩放。该矩形与 manual offset 纳入既有 Window Bounding；content origin 与 position compensation 保持 Pet 屏幕坐标，而 Key History offset 与 SystemStatusBubble offset 保持独立。
 
 Mouse Visualizer 不保存输入历史、点击次数、坐标、轨迹、应用或窗口信息，也不导入 KeyHistoryController 或 Behavior Manager。Mouse Button / Scroll 因此只改变 Visualizer，不生成 Keyboard History Entry，也不请求 WORKING；Keyboard OFF / Mouse ON 与 Mouse OFF / Keyboard ON 均可独立工作。
+
+## 27. Phase 5-F：Input Awareness Integration & Cleanup
+
+Rust Native Input Monitor 是 Keyboard 与 Mouse 共享的唯一 CGEventTap owner。任一 channel 开启时 listener 都保持运行，两者同时开启也不会重复创建；只有 Keyboard 与 Mouse 都关闭后才停止共享 listener。两个 channel 在 Native event 路由、Frontend Runtime、Settings 与 UI consumer 层保持独立，Permission Required、Error 与 Unsupported 只清理对应 Runtime，不影响 Reminder、System Monitor、Animation 或 Pet Interaction。
+
+Keyboard 关闭或离开 Active 会清空 pressedKeys；KeyHistoryController 同时清空 runtime-only entries 与 expiration timers，Keyboard Activity Controller 清理 idle timer 并 release 唯一 `input.keyboard` request。History visibility 只控制 UI，不阻止 Keyboard Activity 驱动 WORKING。Mouse 关闭或离开 Active 会清空 pressedButtons、lastScrollDirection 与 lastScrollAt；Mouse Visualizer 清理 scroll pulse timer 并隐藏。Visualizer visibility 只控制 UI，不停止 Mouse Runtime。
+
+主窗口的 Pet、SystemStatusBubble、Keyboard History 与 Mouse Visualizer 共享既有固定 Bounding Layout。只有 Position、manual Offset、petScale 与 Show/Hide 等真实布局输入触发重新计算；Keyboard Entry、Button pressed state、Scroll Pulse 和视觉颜色/透明度不会触发 OS Window resize。SystemStatus、Keyboard History、Mouse Visualizer 三套 offset 独立，Window position compensation 在边界扩大或移动时保持 Pet 的桌面视觉坐标。
+
+Phase 5 只持久化用户 Settings。pressedKeys、Key History entries、Keyboard Activity、pressedButtons、Scroll transient state、坐标、轨迹、输入文本、应用/窗口信息均不进入 settings.json 或其他存储，应用重启后为空。macOS 已实现 Input Monitoring；Windows 继续通过统一 platform adapter 明确返回 Unsupported，Native Hook 留待 Phase 9。Phase 5 Input Awareness 状态：Completed。

@@ -99,6 +99,16 @@ function testScrollState(createRuntime) {
   assert.equal(runtime.getSnapshot().lastScrollDirection, "down");
   assert.equal(runtime.getSnapshot().lastActivityAt, 12);
   assert.deepEqual(runtime.getSnapshot().pressedButtons, []);
+
+  runtime.applyStatus({ status: "permission-required" });
+  assert.equal(runtime.getSnapshot().lastScrollDirection, undefined);
+  assert.equal(runtime.getSnapshot().lastScrollAt, undefined);
+
+  runtime.applyStatus({ status: "active" });
+  runtime.applyEvent(scrollEvent("left", 13));
+  runtime.disable();
+  assert.equal(runtime.getSnapshot().lastScrollDirection, undefined);
+  assert.equal(runtime.getSnapshot().lastScrollAt, undefined);
 }
 
 async function testMonitorLifecycle(createRuntime, createController) {

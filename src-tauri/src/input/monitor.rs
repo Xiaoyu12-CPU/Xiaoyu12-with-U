@@ -179,9 +179,10 @@ impl InputMonitor {
     }
 
     fn stop_if_unused(&self) {
-        if self.keyboard_enabled.load(Ordering::Acquire)
-            || self.mouse_enabled.load(Ordering::Acquire)
-        {
+        if shared_listener_required(
+            self.keyboard_enabled.load(Ordering::Acquire),
+            self.mouse_enabled.load(Ordering::Acquire),
+        ) {
             return;
         }
 
@@ -206,6 +207,10 @@ impl InputMonitor {
         let inner = self.inner.lock().unwrap_or_else(|error| error.into_inner());
         mouse_snapshot(&inner)
     }
+}
+
+fn shared_listener_required(keyboard_enabled: bool, mouse_enabled: bool) -> bool {
+    keyboard_enabled || mouse_enabled
 }
 
 impl Drop for InputMonitor {
@@ -285,5 +290,13 @@ mod tests {
             mouse_snapshot(&inner).status,
             MouseMonitorStatus::PermissionRequired
         );
+    }
+
+    #[test]
+    fn shared_listener_stops_only_when_both_channels_are_disabled() {
+        assert!(shared_listener_required(true, false));
+        assert!(shared_listener_required(false, true));
+        assert!(shared_listener_required(true, true));
+        assert!(!shared_listener_required(false, false));
     }
 }

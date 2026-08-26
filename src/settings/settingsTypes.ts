@@ -69,7 +69,15 @@ export interface DesktopPetSettings {
     mouseVisualizerPosition: MouseVisualizerPosition;
     mouseVisualizerOffsetX: number;
     mouseVisualizerOffsetY: number;
+    mouseVisualizerBodyColor: string;
+    mouseVisualizerBodyOpacity: number;
+    mouseVisualizerButtonColor: string;
+    mouseVisualizerButtonOpacity: number;
+    mouseVisualizerOutlineColor: string;
+    mouseVisualizerOutlineOpacity: number;
+    mouseVisualizerOutlineWidth: number;
     mouseVisualizerActiveColor: string;
+    mouseVisualizerActiveOpacity: number;
   };
   reminder: {
     enabled: boolean;

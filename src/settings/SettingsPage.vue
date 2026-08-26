@@ -31,6 +31,18 @@ const keyDisplayDurationSeconds = computed(() =>
 const keyDisplayStartLineOpacityPercent = computed(() =>
   Math.round(settings.value.input.keyDisplayStartLineOpacity * 100),
 );
+const mouseBodyOpacityPercent = computed(() =>
+  Math.round(settings.value.input.mouseVisualizerBodyOpacity * 100),
+);
+const mouseButtonOpacityPercent = computed(() =>
+  Math.round(settings.value.input.mouseVisualizerButtonOpacity * 100),
+);
+const mouseOutlineOpacityPercent = computed(() =>
+  Math.round(settings.value.input.mouseVisualizerOutlineOpacity * 100),
+);
+const mouseActiveOpacityPercent = computed(() =>
+  Math.round(settings.value.input.mouseVisualizerActiveOpacity * 100),
+);
 
 onMounted(() => {
   void settingsManager.initialize();
@@ -150,11 +162,33 @@ function updateMouseVisualizerPosition(event: Event): void {
   );
 }
 
-function updateMouseVisualizerActiveColor(event: Event): void {
+function updateMouseVisualizerColor(
+  key:
+    | "mouseVisualizerBodyColor"
+    | "mouseVisualizerButtonColor"
+    | "mouseVisualizerOutlineColor"
+    | "mouseVisualizerActiveColor",
+  event: Event,
+): void {
   update(
     "input",
-    "mouseVisualizerActiveColor",
+    key,
     (event.target as HTMLInputElement).value,
+  );
+}
+
+function updateMouseVisualizerOpacity(
+  key:
+    | "mouseVisualizerBodyOpacity"
+    | "mouseVisualizerButtonOpacity"
+    | "mouseVisualizerOutlineOpacity"
+    | "mouseVisualizerActiveOpacity",
+  event: Event,
+): void {
+  update(
+    "input",
+    key,
+    Number((event.target as HTMLInputElement).value) / 100,
   );
 }
 
@@ -678,7 +712,8 @@ function getRightSideBubbleOffset(): number {
           </div>
         </div>
 
-        <label class="setting-row">
+        <p class="settings-group-heading input-keyboard-section">Keyboard</p>
+        <label class="setting-row input-keyboard-section">
           <span>
             <strong>Keyboard Monitoring</strong>
             <small>macOS 可能要求在隐私与安全性中授予输入监听权限。</small>
@@ -690,6 +725,8 @@ function getRightSideBubbleOffset(): number {
             @change="updateBoolean('input', 'keyboardEnabled', $event)"
           />
         </label>
+        <div class="input-settings-group input-mouse-section">
+        <p class="settings-group-heading">Mouse</p>
         <label class="setting-row">
           <span>
             <strong>Mouse Monitoring</strong>
@@ -733,14 +770,132 @@ function getRightSideBubbleOffset(): number {
         </label>
         <label class="setting-row">
           <span>
+            <strong>Body Color</strong>
+            <small>鼠标轮廓内部的基础填充颜色。</small>
+          </span>
+          <input
+            type="color"
+            :value="settings.input.mouseVisualizerBodyColor"
+            @input="updateMouseVisualizerColor('mouseVisualizerBodyColor', $event)"
+          />
+        </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>Body Opacity</strong>
+            <small>只影响Body填充，不影响按钮或线稿。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              :value="mouseBodyOpacityPercent"
+              @input="updateMouseVisualizerOpacity('mouseVisualizerBodyOpacity', $event)"
+            />
+            <output>{{ mouseBodyOpacityPercent }}%</output>
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>Button Color</strong>
+            <small>Left、Right、Wheel、M4与M5的未按下填充。</small>
+          </span>
+          <input
+            type="color"
+            :value="settings.input.mouseVisualizerButtonColor"
+            @input="updateMouseVisualizerColor('mouseVisualizerButtonColor', $event)"
+          />
+        </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>Button Opacity</strong>
+            <small>只影响未按下按钮；Pressed仍使用Active样式。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              :value="mouseButtonOpacityPercent"
+              @input="updateMouseVisualizerOpacity('mouseVisualizerButtonOpacity', $event)"
+            />
+            <output>{{ mouseButtonOpacityPercent }}%</output>
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>Outline Color</strong>
+            <small>统一控制Body、分隔线、Wheel与侧键边线。</small>
+          </span>
+          <input
+            type="color"
+            :value="settings.input.mouseVisualizerOutlineColor"
+            @input="updateMouseVisualizerColor('mouseVisualizerOutlineColor', $event)"
+          />
+        </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>Outline Opacity</strong>
+            <small>设为0时只隐藏线稿，不影响填充层。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              :value="mouseOutlineOpacityPercent"
+              @input="updateMouseVisualizerOpacity('mouseVisualizerOutlineOpacity', $event)"
+            />
+            <output>{{ mouseOutlineOpacityPercent }}%</output>
+          </div>
+        </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>Outline Thickness</strong>
+            <small>统一线稿粗细；0px允许完全无边线。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="0"
+              max="4"
+              step="0.25"
+              :value="settings.input.mouseVisualizerOutlineWidth"
+              @input="updateNumber('input', 'mouseVisualizerOutlineWidth', $event)"
+            />
+            <output>{{ settings.input.mouseVisualizerOutlineWidth }} px</output>
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>
             <strong>Active Color</strong>
-            <small>按键按住或滚轮 Pulse 时使用的强调色。</small>
+            <small>Pressed Button与Scroll Pulse共用的强调色。</small>
           </span>
           <input
             type="color"
             :value="settings.input.mouseVisualizerActiveColor"
-            @input="updateMouseVisualizerActiveColor"
+            @input="updateMouseVisualizerColor('mouseVisualizerActiveColor', $event)"
           />
+        </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>Active Opacity</strong>
+            <small>只影响Pressed与Scroll Pulse高亮。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              :value="mouseActiveOpacityPercent"
+              @input="updateMouseVisualizerOpacity('mouseVisualizerActiveOpacity', $event)"
+            />
+            <output>{{ mouseActiveOpacityPercent }}%</output>
+          </div>
         </label>
         <div class="setting-row">
           <span>
@@ -751,6 +906,8 @@ function getRightSideBubbleOffset(): number {
             重置位置
           </button>
         </div>
+        </div>
+        <div class="input-settings-group input-keyboard-section">
         <p class="settings-group-heading">Keyboard History</p>
         <label class="setting-row">
           <span>
@@ -898,6 +1055,7 @@ function getRightSideBubbleOffset(): number {
             重置位置
           </button>
         </div>
+        </div>
       </article>
 
       <article>
@@ -964,6 +1122,9 @@ article { display: grid; gap: 4px; padding: 17px; background: #faf9fd; border: 1
 .section-heading h3 { color: #2d253a; font-size: 16px; }
 .section-heading p, footer p { margin-top: 3px; color: #857c91; font-size: 11px; }
 .settings-group-heading { margin: 12px 0 0; color: #756a82; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
+.input-keyboard-section { order: 1; }
+.input-mouse-section { order: 2; }
+.input-settings-group { display: grid; gap: 4px; }
 .setting-row { min-height: 42px; padding: 9px 0; border-top: 1px solid #ede9f2; }
 .setting-row > span { display: grid; gap: 3px; }
 .setting-row strong { color: #403649; font-size: 13px; }

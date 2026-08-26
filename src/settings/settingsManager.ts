@@ -396,9 +396,51 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         500,
         DEFAULT_SETTINGS.input.mouseVisualizerOffsetY,
       ),
+      mouseVisualizerBodyColor: hexColorOrDefault(
+        input.mouseVisualizerBodyColor,
+        DEFAULT_SETTINGS.input.mouseVisualizerBodyColor,
+      ),
+      mouseVisualizerBodyOpacity: clampNumber(
+        input.mouseVisualizerBodyOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.input.mouseVisualizerBodyOpacity,
+      ),
+      mouseVisualizerButtonColor: hexColorOrDefault(
+        input.mouseVisualizerButtonColor,
+        DEFAULT_SETTINGS.input.mouseVisualizerButtonColor,
+      ),
+      mouseVisualizerButtonOpacity: clampNumber(
+        input.mouseVisualizerButtonOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.input.mouseVisualizerButtonOpacity,
+      ),
+      mouseVisualizerOutlineColor: hexColorOrDefault(
+        input.mouseVisualizerOutlineColor,
+        DEFAULT_SETTINGS.input.mouseVisualizerOutlineColor,
+      ),
+      mouseVisualizerOutlineOpacity: clampNumber(
+        input.mouseVisualizerOutlineOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.input.mouseVisualizerOutlineOpacity,
+      ),
+      mouseVisualizerOutlineWidth: clampNumber(
+        input.mouseVisualizerOutlineWidth,
+        0,
+        4,
+        DEFAULT_SETTINGS.input.mouseVisualizerOutlineWidth,
+      ),
       mouseVisualizerActiveColor: hexColorOrDefault(
         input.mouseVisualizerActiveColor,
         DEFAULT_SETTINGS.input.mouseVisualizerActiveColor,
+      ),
+      mouseVisualizerActiveOpacity: clampNumber(
+        input.mouseVisualizerActiveOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.input.mouseVisualizerActiveOpacity,
       ),
     },
     reminder: {

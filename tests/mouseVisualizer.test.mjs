@@ -27,6 +27,7 @@ try {
 
   testButtonPresentation(mouseVisualizer);
   testScrollPulse(mouseVisualizer);
+  testVisualLayers(mouseVisualizer);
   testVisibilityIsolation(mouseVisualizer, createMouseInputRuntime);
   testSettings(normalizeSettings);
   testPositionAndBounding(mouseVisualizer, calculatePetWindowLayout);
@@ -166,24 +167,113 @@ function testSettings(normalizeSettings) {
   assert.equal(defaults.mouseVisualizerPosition, "left");
   assert.equal(defaults.mouseVisualizerOffsetX, 0);
   assert.equal(defaults.mouseVisualizerOffsetY, 0);
+  assert.equal(defaults.mouseVisualizerBodyColor, "#F4F0FA");
+  assert.equal(defaults.mouseVisualizerBodyOpacity, 0.3);
+  assert.equal(defaults.mouseVisualizerButtonColor, "#FFFFFF");
+  assert.equal(defaults.mouseVisualizerButtonOpacity, 0.42);
+  assert.equal(defaults.mouseVisualizerOutlineColor, "#745BC9");
+  assert.equal(defaults.mouseVisualizerOutlineOpacity, 0.7);
+  assert.equal(defaults.mouseVisualizerOutlineWidth, 1.25);
   assert.equal(defaults.mouseVisualizerActiveColor, "#8B5CF6");
+  assert.equal(defaults.mouseVisualizerActiveOpacity, 0.88);
 
   const normalized = normalizeSettings({
     input: {
       mouseVisualizerPosition: "center",
       mouseVisualizerOffsetX: -900,
       mouseVisualizerOffsetY: 900,
+      mouseVisualizerBodyColor: "body",
+      mouseVisualizerBodyOpacity: -1,
+      mouseVisualizerButtonColor: "button",
+      mouseVisualizerButtonOpacity: 2,
+      mouseVisualizerOutlineColor: "outline",
+      mouseVisualizerOutlineOpacity: -2,
+      mouseVisualizerOutlineWidth: 12,
       mouseVisualizerActiveColor: "purple",
+      mouseVisualizerActiveOpacity: 5,
     },
   }).input;
   assert.equal(normalized.mouseVisualizerPosition, "left");
   assert.equal(normalized.mouseVisualizerOffsetX, -500);
   assert.equal(normalized.mouseVisualizerOffsetY, 500);
+  assert.equal(normalized.mouseVisualizerBodyColor, "#F4F0FA");
+  assert.equal(normalized.mouseVisualizerBodyOpacity, 0);
+  assert.equal(normalized.mouseVisualizerButtonColor, "#FFFFFF");
+  assert.equal(normalized.mouseVisualizerButtonOpacity, 1);
+  assert.equal(normalized.mouseVisualizerOutlineColor, "#745BC9");
+  assert.equal(normalized.mouseVisualizerOutlineOpacity, 0);
+  assert.equal(normalized.mouseVisualizerOutlineWidth, 4);
   assert.equal(normalized.mouseVisualizerActiveColor, "#8B5CF6");
+  assert.equal(normalized.mouseVisualizerActiveOpacity, 1);
   assert.equal(
     normalizeSettings({ input: { mouseVisualizerOffsetX: Number.NaN } })
       .input.mouseVisualizerOffsetX,
     0,
+  );
+  assert.equal(
+    normalizeSettings({ input: { mouseVisualizerBodyOpacity: Number.NaN } })
+      .input.mouseVisualizerBodyOpacity,
+    0.3,
+  );
+  assert.equal(
+    normalizeSettings({ input: { mouseVisualizerOutlineWidth: -1 } })
+      .input.mouseVisualizerOutlineWidth,
+    0,
+  );
+}
+
+function testVisualLayers(module) {
+  const base = {
+    bodyColor: "#112233",
+    bodyOpacity: 0.3,
+    buttonColor: "#445566",
+    buttonOpacity: 0.4,
+    outlineColor: "#778899",
+    outlineOpacity: 0.7,
+    outlineWidth: 1.25,
+    activeColor: "#AABBCC",
+    activeOpacity: 0.88,
+  };
+  const style = module.mouseVisualizerVisualStyle(base);
+  assert.deepEqual(style, {
+    bodyFill: "rgba(17, 34, 51, 0.3)",
+    buttonFill: "rgba(68, 85, 102, 0.4)",
+    outline: "rgba(119, 136, 153, 0.7)",
+    outlineWidth: "1.25px",
+    activeFill: "rgba(170, 187, 204, 0.88)",
+  });
+
+  const noBody = module.mouseVisualizerVisualStyle({
+    ...base,
+    bodyOpacity: 0,
+  });
+  assert.equal(noBody.bodyFill, "rgba(17, 34, 51, 0)");
+  assert.equal(noBody.outline, style.outline);
+  assert.equal(noBody.buttonFill, style.buttonFill);
+
+  const noOutline = module.mouseVisualizerVisualStyle({
+    ...base,
+    outlineOpacity: 0,
+  });
+  assert.equal(noOutline.outline, "rgba(119, 136, 153, 0)");
+  assert.equal(noOutline.bodyFill, style.bodyFill);
+  assert.equal(noOutline.buttonFill, style.buttonFill);
+
+  const noInactiveButtons = module.mouseVisualizerVisualStyle({
+    ...base,
+    buttonOpacity: 0,
+  });
+  assert.equal(noInactiveButtons.buttonFill, "rgba(68, 85, 102, 0)");
+  assert.equal(noInactiveButtons.activeFill, style.activeFill);
+  assert.equal(
+    module.mouseVisualizerVisualStyle({ ...base, outlineWidth: -1 })
+      .outlineWidth,
+    "0px",
+  );
+  assert.equal(
+    module.mouseVisualizerVisualStyle({ ...base, outlineWidth: 9 })
+      .outlineWidth,
+    "4px",
   );
 }
 
@@ -209,6 +299,19 @@ function testPositionAndBounding(module, calculateLayout) {
   }
 
   const original = calculateLayout(base);
+  const styleOnly = calculateLayout({
+    ...base,
+    mouseVisualizerBodyColor: "#000000",
+    mouseVisualizerBodyOpacity: 0,
+    mouseVisualizerButtonColor: "#FFFFFF",
+    mouseVisualizerButtonOpacity: 1,
+    mouseVisualizerOutlineColor: "#FF0000",
+    mouseVisualizerOutlineOpacity: 0,
+    mouseVisualizerOutlineWidth: 4,
+    mouseVisualizerActiveColor: "#00FF00",
+    mouseVisualizerActiveOpacity: 0.2,
+  });
+  assert.deepEqual(styleOnly, original);
   const moved = calculateLayout({
     ...base,
     mouseVisualizerOffsetX: 40,
