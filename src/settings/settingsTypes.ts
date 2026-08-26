@@ -58,6 +58,7 @@ export interface DesktopPetSettings {
     keyDisplayPersistent: boolean;
     keyDisplayPosition: KeyDisplayPosition;
     keyDisplayFlowDirection: KeyDisplayFlowDirection;
+    keyDisplayDistancePx: number;
     mouseEnabled: boolean;
   };
   reminder: {

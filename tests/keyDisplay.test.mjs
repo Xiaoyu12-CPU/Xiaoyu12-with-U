@@ -20,17 +20,27 @@ try {
     createKeyHistoryController,
     formatDisplayKey,
     keyHistoryAxis,
+    keyHistoryStackAlignment,
     resolveKeyDisplayFlowDirection,
   } = keyDisplay;
 
   testFormatting(formatDisplayKey, buildKeyDisplayModel);
   testSettingsCompatibility(normalizeSettings);
-  testFlowResolution(resolveKeyDisplayFlowDirection, keyHistoryAxis);
+  testFlowResolution(
+    resolveKeyDisplayFlowDirection,
+    keyHistoryAxis,
+    keyHistoryStackAlignment,
+  );
   testChordAggregation(createKeyHistoryController);
   testHistoryLimits(createKeyHistoryController);
   testExpirationAndPersistent(createKeyHistoryController);
   testRuntimeClearing(createKeyHistoryController);
   testLayout(calculatePetWindowLayout);
+  testDistanceLayout(
+    calculatePetWindowLayout,
+    keyHistoryStackAlignment,
+    createKeyHistoryController,
+  );
 
   console.log("Directional key history tests passed.");
 } finally {
@@ -77,6 +87,7 @@ function testSettingsCompatibility(normalizeSettings) {
   assert.equal(oldSettings.keyDisplayPersistent, false);
   assert.equal(oldSettings.keyDisplayPosition, "bottom");
   assert.equal(oldSettings.keyDisplayFlowDirection, "auto");
+  assert.equal(oldSettings.keyDisplayDistancePx, 12);
 
   const invalid = normalizeSettings({
     input: {
@@ -90,10 +101,15 @@ function testSettingsCompatibility(normalizeSettings) {
   assert.equal(invalid.keyDisplayDurationMs, 500);
   assert.equal(invalid.keyDisplayPosition, "bottom");
   assert.equal(invalid.keyDisplayFlowDirection, "auto");
+  assert.equal(invalid.keyDisplayDistancePx, 12);
   assert.equal(normalizeSettings({ input: { keyDisplayMaxItems: 4.6 } }).input.keyDisplayMaxItems, 5);
+  assert.equal(normalizeSettings({ input: { keyDisplayDistancePx: -10 } }).input.keyDisplayDistancePx, 0);
+  assert.equal(normalizeSettings({ input: { keyDisplayDistancePx: 300 } }).input.keyDisplayDistancePx, 200);
+  assert.equal(normalizeSettings({ input: { keyDisplayDistancePx: Number.NaN } }).input.keyDisplayDistancePx, 12);
+  assert.equal(normalizeSettings({ input: { keyDisplayDistancePx: "far" } }).input.keyDisplayDistancePx, 12);
 }
 
-function testFlowResolution(resolveFlow, axisForFlow) {
+function testFlowResolution(resolveFlow, axisForFlow, stackAlignment) {
   const explicitCases = [
     ["bottom", "down", "down"],
     ["bottom", "up", "up"],
@@ -114,6 +130,26 @@ function testFlowResolution(resolveFlow, axisForFlow) {
   assert.equal(axisForFlow("down"), "vertical");
   assert.equal(axisForFlow("left"), "horizontal");
   assert.equal(axisForFlow("right"), "horizontal");
+  assert.deepEqual(stackAlignment("right", "up"), {
+    justifyContent: "flex-end",
+    alignItems: "flex-start",
+  });
+  assert.deepEqual(stackAlignment("right", "left"), {
+    justifyContent: "flex-start",
+    alignItems: "center",
+  });
+  assert.deepEqual(stackAlignment("bottom", "left"), {
+    justifyContent: "flex-end",
+    alignItems: "flex-start",
+  });
+  assert.deepEqual(stackAlignment("top", "right"), {
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+  });
+  assert.deepEqual(stackAlignment("left", "down"), {
+    justifyContent: "flex-start",
+    alignItems: "flex-end",
+  });
 }
 
 function testChordAggregation(createController) {
@@ -245,6 +281,7 @@ function testLayout(calculateLayout) {
     offsetY: 0,
     keyDisplayVisible: true,
     keyDisplayMaxItems: 4,
+    keyDisplayDistancePx: 12,
   };
   const cases = [
     ["bottom", "down", "below"],
@@ -290,6 +327,126 @@ function testLayout(calculateLayout) {
   });
   assert.equal(statusOnly.width, 184);
   assert.equal(statusOnly.height, 286);
+}
+
+function testDistanceLayout(calculateLayout, stackAlignment, createController) {
+  const base = {
+    displayMode: "pet-only",
+    petScale: 1,
+    bubbleWidth: 184,
+    bubbleHeight: 286,
+    offsetX: 190,
+    offsetY: 0,
+    keyDisplayVisible: true,
+    keyDisplayMaxItems: 4,
+    keyDisplayDistancePx: 12,
+  };
+  const cases = [
+    ["right", "up"],
+    ["right", "left"],
+    ["left", "down"],
+    ["bottom", "left"],
+    ["top", "right"],
+  ];
+  for (const [position, flow] of cases) {
+    const layout = calculateLayout({
+      ...base,
+      keyDisplayPosition: position,
+      keyDisplayFlowDirection: flow,
+    });
+    assert.equal(distanceFromPet(layout, position), 12);
+  }
+
+  const rightNear = calculateLayout({
+    ...base,
+    keyDisplayPosition: "right",
+    keyDisplayFlowDirection: "up",
+    keyDisplayDistancePx: 0,
+  });
+  const rightFar = calculateLayout({
+    ...base,
+    keyDisplayPosition: "right",
+    keyDisplayFlowDirection: "left",
+    keyDisplayDistancePx: 60,
+  });
+  assert.equal(distanceFromPet(rightNear, "right"), 0);
+  assert.equal(distanceFromPet(rightFar, "right"), 60);
+  assert.equal(rightNear.minX + rightNear.petX, 0);
+  assert.equal(rightFar.minX + rightFar.petX, 0);
+  assert.deepEqual(stackAlignment("right", "up").alignItems, "flex-start");
+  assert.deepEqual(stackAlignment("right", "left").justifyContent, "flex-start");
+
+  const maxEight = calculateLayout({
+    ...base,
+    keyDisplayPosition: "bottom",
+    keyDisplayFlowDirection: "left",
+    keyDisplayMaxItems: 8,
+    keyDisplayDistancePx: 35,
+  });
+  assert.equal(distanceFromPet(maxEight, "bottom"), 35);
+
+  const withStatusNear = calculateLayout({
+    ...base,
+    displayMode: "both",
+    keyDisplayPosition: "right",
+    keyDisplayFlowDirection: "up",
+    keyDisplayDistancePx: 12,
+  });
+  const withStatusFar = calculateLayout({
+    ...base,
+    displayMode: "both",
+    keyDisplayPosition: "right",
+    keyDisplayFlowDirection: "up",
+    keyDisplayDistancePx: 60,
+  });
+  assert.equal(withStatusNear.bubbleX + withStatusNear.minX, base.offsetX);
+  assert.equal(withStatusNear.bubbleY + withStatusNear.minY, base.offsetY);
+  assert.equal(withStatusFar.bubbleX + withStatusFar.minX, base.offsetX);
+  assert.equal(withStatusFar.bubbleY + withStatusFar.minY, base.offsetY);
+
+  const history = makeController(createController, { persistent: true });
+  press(history.controller, history.input, "A");
+  calculateLayout({
+    ...base,
+    keyDisplayPosition: "right",
+    keyDisplayFlowDirection: "up",
+    keyDisplayDistancePx: 12,
+  });
+  calculateLayout({
+    ...base,
+    keyDisplayPosition: "right",
+    keyDisplayFlowDirection: "left",
+    keyDisplayDistancePx: 60,
+  });
+  assert.deepEqual(labels(history.controller), ["A"]);
+
+  // Entry count/content is deliberately absent from layout input, so runtime
+  // additions and expirations cannot change the fixed reserved rectangle.
+  assert.deepEqual(
+    calculateLayout({
+      ...base,
+      keyDisplayPosition: "right",
+      keyDisplayFlowDirection: "up",
+    }),
+    calculateLayout({
+      ...base,
+      keyDisplayPosition: "right",
+      keyDisplayFlowDirection: "up",
+    }),
+  );
+}
+
+function distanceFromPet(layout, position) {
+  if (position === "right") {
+    return layout.keyDisplayX - (layout.petX + layout.petSize);
+  }
+  if (position === "left") {
+    return layout.petX - (layout.keyDisplayX + layout.keyDisplayWidth);
+  }
+  if (position === "top") {
+    return layout.petY - (layout.keyDisplayY + layout.keyDisplayHeight);
+  }
+  return layout.keyDisplayY - (layout.petY + layout.petSize);
 }
 
 function makeController(createController, overrides = {}) {

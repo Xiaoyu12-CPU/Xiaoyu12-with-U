@@ -4,6 +4,7 @@ import KeyDisplayBubble from "./KeyDisplayBubble.vue";
 import {
   createKeyHistoryController,
   keyHistoryAxis,
+  keyHistoryStackAlignment,
   resolveKeyDisplayFlowDirection,
   type KeyDisplayEntry,
 } from "../input/keyDisplay";
@@ -35,6 +36,9 @@ const actualFlow = computed(() =>
   resolveKeyDisplayFlowDirection(props.position, props.flowDirection),
 );
 const axis = computed(() => keyHistoryAxis(actualFlow.value));
+const stackAlignment = computed(() =>
+  keyHistoryStackAlignment(props.position, actualFlow.value),
+);
 const renderedEntries = computed(() =>
   actualFlow.value === "down" || actualFlow.value === "right"
     ? [...entries.value].reverse()
@@ -81,6 +85,7 @@ onBeforeUnmount(() => controller.dispose());
     name="key-history-entry"
     tag="div"
     class="key-history"
+    :style="stackAlignment"
     :class="[
       `key-history--${axis}`,
       `key-history--flow-${actualFlow}`,
@@ -108,25 +113,9 @@ onBeforeUnmount(() => controller.dispose());
   pointer-events: none;
 }
 
-.key-history--vertical {
-  flex-direction: column;
-  align-items: center;
-}
+.key-history--vertical { flex-direction: column; }
 
-.key-history--horizontal {
-  flex-direction: row;
-  align-items: center;
-}
-
-.key-history--flow-down,
-.key-history--flow-right {
-  justify-content: flex-start;
-}
-
-.key-history--flow-up,
-.key-history--flow-left {
-  justify-content: flex-end;
-}
+.key-history--horizontal { flex-direction: row; }
 
 .key-history__entry {
   flex: 0 1 auto;

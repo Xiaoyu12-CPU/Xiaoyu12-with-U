@@ -38,6 +38,10 @@ export type ResolvedKeyDisplayFlowDirection = Exclude<
   "auto"
 >;
 export type KeyHistoryAxis = "vertical" | "horizontal";
+export interface KeyHistoryStackAlignment {
+  justifyContent: "flex-start" | "flex-end";
+  alignItems: "flex-start" | "center" | "flex-end";
+}
 
 export interface KeyDisplayModel {
   keycaps: readonly string[];
@@ -126,6 +130,32 @@ export function keyHistoryAxis(
   return flowDirection === "up" || flowDirection === "down"
     ? "vertical"
     : "horizontal";
+}
+
+export function keyHistoryStackAlignment(
+  position: KeyDisplayPosition,
+  flowDirection: ResolvedKeyDisplayFlowDirection,
+): KeyHistoryStackAlignment {
+  const axis = keyHistoryAxis(flowDirection);
+  let justifyContent: KeyHistoryStackAlignment["justifyContent"] =
+    flowDirection === "up" || flowDirection === "left"
+      ? "flex-end"
+      : "flex-start";
+  let alignItems: KeyHistoryStackAlignment["alignItems"] = "center";
+
+  if (axis === "vertical") {
+    if (position === "top") justifyContent = "flex-end";
+    if (position === "bottom") justifyContent = "flex-start";
+    if (position === "left") alignItems = "flex-end";
+    if (position === "right") alignItems = "flex-start";
+  } else {
+    if (position === "left") justifyContent = "flex-end";
+    if (position === "right") justifyContent = "flex-start";
+    if (position === "top") alignItems = "flex-end";
+    if (position === "bottom") alignItems = "flex-start";
+  }
+
+  return { justifyContent, alignItems };
 }
 
 export function createKeyHistoryController(

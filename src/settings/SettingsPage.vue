@@ -727,6 +727,23 @@ function getRightSideBubbleOffset(): number {
             <option value="right">Right →</option>
           </select>
         </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>距离桌宠</strong>
+            <small>桌宠布局边缘到可见 History Stack 最近边缘的距离。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="0"
+              max="200"
+              step="1"
+              :value="settings.input.keyDisplayDistancePx"
+              @input="updateNumber('input', 'keyDisplayDistancePx', $event)"
+            />
+            <output>{{ settings.input.keyDisplayDistancePx }} px</output>
+          </div>
+        </label>
       </article>
 
       <article>

@@ -344,6 +344,12 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         input.keyDisplayFlowDirection,
         DEFAULT_SETTINGS.input.keyDisplayFlowDirection,
       ),
+      keyDisplayDistancePx: clampNumber(
+        input.keyDisplayDistancePx,
+        0,
+        200,
+        DEFAULT_SETTINGS.input.keyDisplayDistancePx,
+      ),
       mouseEnabled: booleanOrDefault(
         input.mouseEnabled,
         DEFAULT_SETTINGS.input.mouseEnabled,

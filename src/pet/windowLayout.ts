@@ -33,6 +33,7 @@ export interface WindowLayoutInput {
   keyDisplayPosition: KeyDisplayPosition;
   keyDisplayFlowDirection: KeyDisplayFlowDirection;
   keyDisplayMaxItems: number;
+  keyDisplayDistancePx: number;
 }
 
 export interface PetWindowLayout {
@@ -99,7 +100,7 @@ export function calculatePetWindowLayout(
     petSize,
     keyDisplayWidth,
     keyDisplayHeight,
-    KEY_DISPLAY_BASE_GAP * keyDisplayScale,
+    Math.min(Math.max(input.keyDisplayDistancePx, 0), 200),
   );
   const rectangles: LayoutRectangle[] = [];
 
@@ -114,18 +115,6 @@ export function calculatePetWindowLayout(
       height: Math.max(1, input.bubbleHeight),
     };
     rectangles.push(statusRectangle);
-    if (
-      input.displayMode !== "status-only"
-      && input.keyDisplayVisible
-      && rectanglesOverlap(keyDisplayRect, statusRectangle)
-    ) {
-      moveHistoryPastRectangle(
-        keyDisplayRect,
-        statusRectangle,
-        input.keyDisplayPosition,
-        KEY_DISPLAY_BASE_GAP * keyDisplayScale,
-      );
-    }
   }
   if (input.displayMode !== "status-only" && input.keyDisplayVisible) {
     rectangles.push(keyDisplayRect);
@@ -175,34 +164,6 @@ function positionKeyHistoryRectangle(
       return { x: petSize + gap, y: (petSize - height) / 2, width, height };
     default:
       return { x: (petSize - width) / 2, y: petSize + gap, width, height };
-  }
-}
-
-function rectanglesOverlap(left: LayoutRectangle, right: LayoutRectangle): boolean {
-  return left.x < right.x + right.width
-    && left.x + left.width > right.x
-    && left.y < right.y + right.height
-    && left.y + left.height > right.y;
-}
-
-function moveHistoryPastRectangle(
-  history: LayoutRectangle,
-  obstacle: LayoutRectangle,
-  position: KeyDisplayPosition,
-  gap: number,
-): void {
-  switch (position) {
-    case "top":
-      history.y = obstacle.y - history.height - gap;
-      break;
-    case "left":
-      history.x = obstacle.x - history.width - gap;
-      break;
-    case "right":
-      history.x = obstacle.x + obstacle.width + gap;
-      break;
-    default:
-      history.y = obstacle.y + obstacle.height + gap;
   }
 }
 

@@ -125,6 +125,7 @@ const windowLayout = computed(() =>
     keyDisplayFlowDirection:
       settingsManager.settings.value.input.keyDisplayFlowDirection,
     keyDisplayMaxItems: settingsManager.settings.value.input.keyDisplayMaxItems,
+    keyDisplayDistancePx: settingsManager.settings.value.input.keyDisplayDistancePx,
   }),
 );
 const petStyle = computed(() => ({

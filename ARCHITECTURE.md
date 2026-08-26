@@ -614,3 +614,5 @@ Directional Key History Stack 是主桌宠窗口中的独立轻量组件，只�
 History 的内部数组始终保持 `oldest → newest`，Position 与 Flow 完全独立：Position 只选择 Top / Bottom / Left / Right Pet 锚点；Flow 选择 Auto / Up / Down / Left / Right，Auto 才解析为远离 Pet 的方向。Up / Down 使用纵向 Stack，Left / Right 使用横向 Stack；Vue TransitionGroup 负责 enter、move 和四方向 leave 动画。
 
 主窗口现有 Bounding Layout 根据 Position、实际 Flow、maxItems 与 petScale 预先计算固定最大区域。Entry 新增、过期、内容宽度或当前数量都不参与窗口尺寸输入，因此不会持续 resize 或移动 OS Window；Top / Left 扩展继续复用 content origin 与 position compensation 保持 Pet 屏幕位置。status-only 模式不显示 History，组件使用 `pointer-events: none`，不会触发 Pet Click 或 Drag。
+
+Phase 5-B.2 增加 `keyDisplayDistancePx`（0～200 logical CSS px，默认 12）。Distance 只沿 Position 对应轴定义 Pet layout box 与可见 Stack 最近边缘的间隔，不受 Flow 或 Stack 轴向影响。固定 Reserved Area 仍负责稳定 Window Bounding；可见 Stack 使用独立 Pet-facing alignment 锚在 Reserved Area 靠近 Pet 的边缘，因此 Right + Up、Right + Left 等组合不会因区域尺寸或排列方向漂移到远端。Distance、Position、Flow、maxItems 或 petScale 变化允许触发一次布局重算，Entry 增删仍不会触发 Window resize；SystemStatusBubble 的用户 offset 保持不变。

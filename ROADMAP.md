@@ -269,7 +269,8 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - 支持 Top / Bottom / Left / Right 锚点和 Auto / Up / Down / Left / Right Flow；Position 与 Flow 完全独立，Auto 才选择远离 Pet 的方向。
 - Up / Down 为纵向 Stack，Left / Right 为横向 Stack；TransitionGroup 提供 enter、move 与四向离场动画。
 - 主窗口按 Position、Flow、maxItems 与 petScale 使用固定预留区域，Entry 新增、过期和文本宽度不会触发 Window resize；status-only 模式不显示。
-- Phase 5-B.1 状态：Implemented；Phase 5 仍为 In Progress，尚未接入 WORKING Behavior 或 Mouse Monitor。
+- Phase 5-B.2 增加 0～200px 的 Pet Distance，并把可见 Stack 独立锚定到 Reserved Area 的 Pet-facing edge；Distance 只由 Position 解释，与 Flow 完全独立。
+- Phase 5-B.2 状态：Implemented；Phase 5 仍为 In Progress，尚未接入 WORKING Behavior 或 Mouse Monitor。
 
 ## Phase 6：自定义皮肤
 
