@@ -449,7 +449,7 @@ function execute(type: PetControlActionType): void {
         v-if="snapshot?.keyboardStatus === 'permission-required'"
         class="permission-note"
       >
-        需要在 macOS 系统设置 → 隐私与安全性 → 输入监听中允许 DesktopPet。
+        需要在 macOS 系统设置 → 隐私与安全性 → 输入监听中允许 withXiaoyu12。
       </p>
       <p v-else-if="snapshot?.keyboardMessage" class="permission-note">
         {{ snapshot.keyboardMessage }}
@@ -488,7 +488,7 @@ function execute(type: PetControlActionType): void {
         v-if="snapshot?.mouseStatus === 'permission-required'"
         class="permission-note"
       >
-        需要在 macOS 系统设置 → 隐私与安全性 → 输入监听中允许 DesktopPet。
+        需要在 macOS 系统设置 → 隐私与安全性 → 输入监听中允许 withXiaoyu12。
       </p>
       <p v-else-if="snapshot?.mouseMessage" class="permission-note">
         {{ snapshot.mouseMessage }}

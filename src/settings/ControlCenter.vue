@@ -46,7 +46,7 @@ function openSystemMonitorSettings(): void {
       <div class="brand">
         <span class="brand__mark">DP</span>
         <div>
-          <strong>DesktopPet</strong>
+          <strong>withXiaoyu12</strong>
           <small>控制中心</small>
         </div>
       </div>

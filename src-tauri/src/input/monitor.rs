@@ -131,7 +131,7 @@ impl InputMonitor {
                 if platform::permission_state() != PermissionState::Granted {
                     inner.status = SharedMonitorStatus::PermissionRequired;
                     inner.message = Some(
-                        "Allow DesktopPet in System Settings > Privacy & Security > Input Monitoring."
+                        "Allow withXiaoyu12 in System Settings > Privacy & Security > Input Monitoring."
                             .to_string(),
                     );
                 } else {

@@ -316,6 +316,20 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - macOS Input Monitoring 完整实现；Windows Native Hook 保持 Unsupported，留待 Phase 9。
 - Phase 5 Input Awareness 状态：Completed。
 
+## Platform Adaptation / Release Polish
+
+Phase 1～5 Feature Development 已完成，项目进入 Feature Freeze。当前阶段只处理平台兼容、产品命名、图标、打包与发布质量；不新增产品功能，最终 PetState 美术由用户后续通过现有 Asset System 补齐。
+
+### Phase 6-A：macOS Intel Compatibility & Build
+
+- 正式 Product Name：`withXiaoyu12`；最终 macOS App：`withXiaoyu12.app`。
+- Bundle Identifier 固定为 `com.Xiaoyu12.desktoppet`，保持现有 Settings、Reminder、User Assets 与 app_data_dir 连续性。
+- macOS 分别发行 Apple Silicon 与 Intel 包，不制作 Universal Binary。
+- 最终 DMG 命名锁定为 `withXiaoyu12-macOS-arm64.dmg` 与 `withXiaoyu12-macOS-x64.dmg`。
+- App Icon 使用 default Pet idle 首帧，保持原比例放置到 1024×1024 透明安全画布，再生成 macOS `.icns`。
+- 当前以 `x86_64-apple-darwin` cross-build 和 Bundle 静态验证为目标；Intel Runtime Verified 必须等待 Intel Mac 实机验收。
+- x86_64 Cargo check、纯 Intel Release `.app` / `.dmg` 构建与 DMG 只读挂载验证已完成；测试包未签名、未公证，Intel 实机运行状态仍为待验收。
+
 ## Phase 6：自定义皮肤
 
 目标：允许安全地安装、切换和管理桌宠外观。

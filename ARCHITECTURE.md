@@ -662,3 +662,15 @@ Keyboard 关闭或离开 Active 会清空 pressedKeys；KeyHistoryController 同
 主窗口的 Pet、SystemStatusBubble、Keyboard History 与 Mouse Visualizer 共享既有固定 Bounding Layout。只有 Position、manual Offset、petScale 与 Show/Hide 等真实布局输入触发重新计算；Keyboard Entry、Button pressed state、Scroll Pulse 和视觉颜色/透明度不会触发 OS Window resize。SystemStatus、Keyboard History、Mouse Visualizer 三套 offset 独立，Window position compensation 在边界扩大或移动时保持 Pet 的桌面视觉坐标。
 
 Phase 5 只持久化用户 Settings。pressedKeys、Key History entries、Keyboard Activity、pressedButtons、Scroll transient state、坐标、轨迹、输入文本、应用/窗口信息均不进入 settings.json 或其他存储，应用重启后为空。macOS 已实现 Input Monitoring；Windows 继续通过统一 platform adapter 明确返回 Unsupported，Native Hook 留待 Phase 9。Phase 5 Input Awareness 状态：Completed。
+
+## 28. Platform Adaptation / Release Polish
+
+Phase 1～5 功能开发已经完成，项目进入 Feature Freeze。当前阶段只处理平台兼容、产品品牌、图标、打包和发布质量，不新增产品功能；尚未完成的 PetState 正式美术资源由用户后续通过既有 Asset System 补齐。
+
+正式对外 Product Name 锁定为 `withXiaoyu12`，macOS Bundle 显示名称与 `.app` 名称均使用该值。源码目录、Rust crate、Vue/TypeScript 内部类型可以继续保留 DesktopPet / desktoppet 命名，避免无价值的大规模重命名。Bundle Identifier 必须继续保持 `com.Xiaoyu12.desktoppet`，从而复用现有 app_data_dir、Settings、Reminder 与用户资源数据。
+
+macOS 最终采用两个独立架构安装包，不制作 Universal Binary：Apple Silicon 使用 `aarch64-apple-darwin`，最终文件名为 `withXiaoyu12-macOS-arm64.dmg`；Intel 使用 `x86_64-apple-darwin`，最终文件名为 `withXiaoyu12-macOS-x64.dmg`。Intel 构建可在 Apple Silicon 开发机交叉编译和静态验证，但只有朋友的 Intel Mac 实机验收后才能标记 Intel Runtime Verified。
+
+Phase 6-A 已完成 x86_64 Rust check、纯 Intel Release App 构建与 DMG 静态挂载验证；Mach-O 为 non-fat x86_64，Bundle Name / Display Name 为 `withXiaoyu12`，Identifier 仍为 `com.Xiaoyu12.desktoppet`。当前测试包未签名、未公证，Intel Runtime Verified 仍待朋友的 Intel Mac 实机验收。
+
+macOS App Icon 的唯一源图为默认 Pet manifest 中 idle 的首帧 `src/assets/pets/default/idle/normal-001.png`。正式 `src-tauri/icons/app-icon.png` 使用 1024×1024 透明画布，将角色保持原比例缩放并居中留出安全边距；Tauri CLI 由该源图生成 `.icns` 与 macOS bundling 所需 PNG。Windows `.ico` 留待 Windows 平台适配阶段。
