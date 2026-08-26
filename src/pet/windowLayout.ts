@@ -1,9 +1,21 @@
-import type { DesktopDisplayMode } from "../settings/settingsTypes";
+import {
+  KEY_DISPLAY_MAX_ITEMS,
+  KEY_DISPLAY_MIN_ITEMS,
+  keyHistoryAxis,
+  resolveKeyDisplayFlowDirection,
+} from "../input/keyDisplay";
+import type {
+  DesktopDisplayMode,
+  KeyDisplayFlowDirection,
+  KeyDisplayPosition,
+} from "../settings/settingsTypes";
 
 export const PET_BASE_WINDOW_SIZE = 200;
-export const KEY_DISPLAY_BASE_WIDTH = 180;
-export const KEY_DISPLAY_BASE_HEIGHT = 42;
+export const KEY_DISPLAY_VERTICAL_WIDTH = 180;
+export const KEY_DISPLAY_ENTRY_WIDTH = 140;
+export const KEY_DISPLAY_ENTRY_HEIGHT = 42;
 export const KEY_DISPLAY_BASE_GAP = 6;
+export const KEY_DISPLAY_HORIZONTAL_MAX_WIDTH = 640;
 export const STATUS_BUBBLE_OFFSET_LIMIT = 500;
 export const STATUS_BUBBLE_FALLBACK_SIZE = Object.freeze({
   width: 184,
@@ -18,6 +30,9 @@ export interface WindowLayoutInput {
   offsetX: number;
   offsetY: number;
   keyDisplayVisible: boolean;
+  keyDisplayPosition: KeyDisplayPosition;
+  keyDisplayFlowDirection: KeyDisplayFlowDirection;
+  keyDisplayMaxItems: number;
 }
 
 export interface PetWindowLayout {
@@ -35,6 +50,7 @@ export interface PetWindowLayout {
   keyDisplayWidth: number;
   keyDisplayHeight: number;
   keyDisplayScale: number;
+  keyDisplayEntryWidth: number;
 }
 
 interface LayoutRectangle {
@@ -49,30 +65,70 @@ export function calculatePetWindowLayout(
 ): PetWindowLayout {
   const petSize = PET_BASE_WINDOW_SIZE * Math.max(1, input.petScale);
   const keyDisplayScale = Math.max(0.5, input.petScale);
-  const keyDisplayWidth = KEY_DISPLAY_BASE_WIDTH * keyDisplayScale;
-  const keyDisplayHeight = KEY_DISPLAY_BASE_HEIGHT * keyDisplayScale;
-  const keyDisplayX = (petSize - keyDisplayWidth) / 2;
-  const keyDisplayY = petSize + KEY_DISPLAY_BASE_GAP * keyDisplayScale;
+  const keyDisplayMaxItems = Math.round(
+    Math.min(
+      Math.max(input.keyDisplayMaxItems, KEY_DISPLAY_MIN_ITEMS),
+      KEY_DISPLAY_MAX_ITEMS,
+    ),
+  );
+  const actualFlow = resolveKeyDisplayFlowDirection(
+    input.keyDisplayPosition,
+    input.keyDisplayFlowDirection,
+  );
+  const axis = keyHistoryAxis(actualFlow);
+  const unscaledGap = KEY_DISPLAY_BASE_GAP;
+  const unscaledWidth = axis === "vertical"
+    ? KEY_DISPLAY_VERTICAL_WIDTH
+    : Math.min(
+      KEY_DISPLAY_HORIZONTAL_MAX_WIDTH,
+      KEY_DISPLAY_ENTRY_WIDTH * keyDisplayMaxItems
+        + unscaledGap * (keyDisplayMaxItems - 1),
+    );
+  const unscaledHeight = axis === "vertical"
+    ? KEY_DISPLAY_ENTRY_HEIGHT * keyDisplayMaxItems
+      + unscaledGap * (keyDisplayMaxItems - 1)
+    : KEY_DISPLAY_ENTRY_HEIGHT;
+  const keyDisplayWidth = unscaledWidth * keyDisplayScale;
+  const keyDisplayHeight = unscaledHeight * keyDisplayScale;
+  const keyDisplayEntryWidth = (axis === "vertical"
+    ? KEY_DISPLAY_VERTICAL_WIDTH
+    : (unscaledWidth - unscaledGap * (keyDisplayMaxItems - 1))
+      / keyDisplayMaxItems) * keyDisplayScale;
+  const keyDisplayRect = positionKeyHistoryRectangle(
+    input.keyDisplayPosition,
+    petSize,
+    keyDisplayWidth,
+    keyDisplayHeight,
+    KEY_DISPLAY_BASE_GAP * keyDisplayScale,
+  );
   const rectangles: LayoutRectangle[] = [];
 
   if (input.displayMode !== "status-only") {
     rectangles.push({ x: 0, y: 0, width: petSize, height: petSize });
   }
   if (input.displayMode !== "pet-only") {
-    rectangles.push({
+    const statusRectangle = {
       x: input.offsetX,
       y: input.offsetY,
       width: Math.max(1, input.bubbleWidth),
       height: Math.max(1, input.bubbleHeight),
-    });
+    };
+    rectangles.push(statusRectangle);
+    if (
+      input.displayMode !== "status-only"
+      && input.keyDisplayVisible
+      && rectanglesOverlap(keyDisplayRect, statusRectangle)
+    ) {
+      moveHistoryPastRectangle(
+        keyDisplayRect,
+        statusRectangle,
+        input.keyDisplayPosition,
+        KEY_DISPLAY_BASE_GAP * keyDisplayScale,
+      );
+    }
   }
   if (input.displayMode !== "status-only" && input.keyDisplayVisible) {
-    rectangles.push({
-      x: keyDisplayX,
-      y: keyDisplayY,
-      width: keyDisplayWidth,
-      height: keyDisplayHeight,
-    });
+    rectangles.push(keyDisplayRect);
   }
 
   const minX = Math.floor(Math.min(...rectangles.map(({ x }) => x)));
@@ -94,12 +150,60 @@ export function calculatePetWindowLayout(
     petSize,
     bubbleX: input.offsetX - minX,
     bubbleY: input.offsetY - minY,
-    keyDisplayX: keyDisplayX - minX,
-    keyDisplayY: keyDisplayY - minY,
+    keyDisplayX: keyDisplayRect.x - minX,
+    keyDisplayY: keyDisplayRect.y - minY,
     keyDisplayWidth,
     keyDisplayHeight,
     keyDisplayScale,
+    keyDisplayEntryWidth,
   };
+}
+
+function positionKeyHistoryRectangle(
+  position: KeyDisplayPosition,
+  petSize: number,
+  width: number,
+  height: number,
+  gap: number,
+): LayoutRectangle {
+  switch (position) {
+    case "top":
+      return { x: (petSize - width) / 2, y: -height - gap, width, height };
+    case "left":
+      return { x: -width - gap, y: (petSize - height) / 2, width, height };
+    case "right":
+      return { x: petSize + gap, y: (petSize - height) / 2, width, height };
+    default:
+      return { x: (petSize - width) / 2, y: petSize + gap, width, height };
+  }
+}
+
+function rectanglesOverlap(left: LayoutRectangle, right: LayoutRectangle): boolean {
+  return left.x < right.x + right.width
+    && left.x + left.width > right.x
+    && left.y < right.y + right.height
+    && left.y + left.height > right.y;
+}
+
+function moveHistoryPastRectangle(
+  history: LayoutRectangle,
+  obstacle: LayoutRectangle,
+  position: KeyDisplayPosition,
+  gap: number,
+): void {
+  switch (position) {
+    case "top":
+      history.y = obstacle.y - history.height - gap;
+      break;
+    case "left":
+      history.x = obstacle.x - history.width - gap;
+      break;
+    case "right":
+      history.x = obstacle.x + obstacle.width + gap;
+      break;
+    default:
+      history.y = obstacle.y + obstacle.height + gap;
+  }
 }
 
 export function clampStatusBubbleOffset(value: number): number {

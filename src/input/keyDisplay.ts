@@ -1,7 +1,14 @@
+import type {
+  KeyDisplayFlowDirection,
+  KeyDisplayPosition,
+} from "../settings/settingsTypes";
 import type { KeyboardMonitorStatus } from "./types";
 
-export const KEY_DISPLAY_HIDE_DELAY_MS = 800;
 export const KEY_DISPLAY_MAX_KEYS = 5;
+export const KEY_DISPLAY_MIN_ITEMS = 1;
+export const KEY_DISPLAY_MAX_ITEMS = 8;
+export const KEY_DISPLAY_MIN_DURATION_MS = 500;
+export const KEY_DISPLAY_MAX_DURATION_MS = 10000;
 
 const KEY_LABELS: Readonly<Record<string, string>> = Object.freeze({
   Control: "⌃",
@@ -26,30 +33,48 @@ const MODIFIER_ORDER: Readonly<Record<string, number>> = Object.freeze({
   Command: 3,
 });
 
+export type ResolvedKeyDisplayFlowDirection = Exclude<
+  KeyDisplayFlowDirection,
+  "auto"
+>;
+export type KeyHistoryAxis = "vertical" | "horizontal";
+
 export interface KeyDisplayModel {
   keycaps: readonly string[];
   overflowCount: number;
 }
 
-export interface KeyDisplaySnapshot extends KeyDisplayModel {
-  visible: boolean;
+export interface KeyDisplayEntry {
+  id: string;
+  keys: readonly string[];
+  label: string;
+  createdAt: number;
 }
 
-export interface KeyDisplayInput {
+export interface KeyHistorySnapshot {
+  entries: readonly KeyDisplayEntry[];
+}
+
+export interface KeyHistoryInput {
   pressedKeys: readonly string[];
   keyboardEnabled: boolean;
   keyDisplayEnabled: boolean;
   keyboardStatus: KeyboardMonitorStatus;
+  maxItems: number;
+  durationMs: number;
+  persistent: boolean;
 }
 
-export interface KeyDisplayController {
-  update: (input: KeyDisplayInput) => void;
-  getSnapshot: () => KeyDisplaySnapshot;
+export interface KeyHistoryController {
+  update: (input: KeyHistoryInput) => void;
+  getSnapshot: () => KeyHistorySnapshot;
+  clear: () => void;
   dispose: () => void;
 }
 
-interface KeyDisplayControllerDependencies {
-  onChange?: (snapshot: KeyDisplaySnapshot) => void;
+interface KeyHistoryControllerDependencies {
+  onChange?: (snapshot: KeyHistorySnapshot) => void;
+  now?: () => number;
   setTimer?: (callback: () => void, delayMs: number) => ReturnType<typeof setTimeout>;
   clearTimer?: (timer: ReturnType<typeof setTimeout>) => void;
 }
@@ -62,10 +87,8 @@ export function formatDisplayKey(key: string): string {
   return KEY_LABELS[key] ?? key;
 }
 
-export function buildKeyDisplayModel(
-  pressedKeys: readonly string[],
-): KeyDisplayModel {
-  const sorted = [...new Set(pressedKeys)].sort(compareKeys);
+export function buildKeyDisplayModel(keys: readonly string[]): KeyDisplayModel {
+  const sorted = [...new Set(keys)].sort(compareKeys);
   if (sorted.length <= KEY_DISPLAY_MAX_KEYS) {
     return {
       keycaps: sorted.map(formatDisplayKey),
@@ -84,72 +107,229 @@ export function buildKeyDisplayModel(
   };
 }
 
-export function createKeyDisplayController(
-  dependencies: KeyDisplayControllerDependencies = {},
-): KeyDisplayController {
+export function resolveKeyDisplayFlowDirection(
+  position: KeyDisplayPosition,
+  flowDirection: KeyDisplayFlowDirection,
+): ResolvedKeyDisplayFlowDirection {
+  if (flowDirection !== "auto") {
+    return flowDirection;
+  }
+
+  if (position === "top") return "up";
+  if (position === "bottom") return "down";
+  return position;
+}
+
+export function keyHistoryAxis(
+  flowDirection: ResolvedKeyDisplayFlowDirection,
+): KeyHistoryAxis {
+  return flowDirection === "up" || flowDirection === "down"
+    ? "vertical"
+    : "horizontal";
+}
+
+export function createKeyHistoryController(
+  dependencies: KeyHistoryControllerDependencies = {},
+): KeyHistoryController {
   const onChange = dependencies.onChange ?? (() => {});
+  const now = dependencies.now ?? Date.now;
   const setTimer = dependencies.setTimer ?? setTimeout;
   const clearTimer = dependencies.clearTimer ?? clearTimeout;
-  let snapshot: KeyDisplaySnapshot = {
-    visible: false,
-    keycaps: [],
-    overflowCount: 0,
-  };
-  let hideTimer: ReturnType<typeof setTimeout> | undefined;
+  const expirationTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const modifierParticipation = new Map<string, boolean>();
+  let entries: KeyDisplayEntry[] = [];
+  let previousPressedKeys = new Set<string>();
+  let currentInput: KeyHistoryInput | undefined;
+  let sequence = 0;
+  let disposed = false;
 
-  function publish(next: KeyDisplaySnapshot): void {
-    snapshot = next;
-    onChange({ ...next, keycaps: [...next.keycaps] });
+  function snapshot(): KeyHistorySnapshot {
+    return {
+      entries: entries.map((entry) => ({ ...entry, keys: [...entry.keys] })),
+    };
   }
 
-  function cancelPendingHide(): void {
-    if (hideTimer !== undefined) {
-      clearTimer(hideTimer);
-      hideTimer = undefined;
+  function publish(): void {
+    onChange(snapshot());
+  }
+
+  function cancelExpiration(entryId: string): void {
+    const timer = expirationTimers.get(entryId);
+    if (timer !== undefined) {
+      clearTimer(timer);
+      expirationTimers.delete(entryId);
     }
   }
 
-  function hideImmediately(): void {
-    cancelPendingHide();
-    if (snapshot.visible || snapshot.keycaps.length > 0) {
-      publish({ visible: false, keycaps: [], overflowCount: 0 });
+  function cancelAllExpirations(): void {
+    for (const timer of expirationTimers.values()) {
+      clearTimer(timer);
+    }
+    expirationTimers.clear();
+  }
+
+  function expireEntry(entryId: string): void {
+    expirationTimers.delete(entryId);
+    const nextEntries = entries.filter(({ id }) => id !== entryId);
+    if (nextEntries.length !== entries.length) {
+      entries = nextEntries;
+      publish();
     }
   }
 
-  function update(input: KeyDisplayInput): void {
-    const canDisplay = input.keyboardEnabled
-      && input.keyDisplayEnabled
-      && input.keyboardStatus === "active";
+  function scheduleExpiration(entry: KeyDisplayEntry, durationMs: number): void {
+    cancelExpiration(entry.id);
+    expirationTimers.set(
+      entry.id,
+      setTimer(() => expireEntry(entry.id), durationMs),
+    );
+  }
+
+  function trimToMaxItems(maxItems: number): void {
+    const excess = entries.length - maxItems;
+    if (excess <= 0) return;
+
+    const removed = entries.slice(0, excess);
+    for (const entry of removed) {
+      cancelExpiration(entry.id);
+    }
+    entries = entries.slice(excess);
+  }
+
+  function addEntry(keys: readonly string[]): void {
+    if (!currentInput || disposed) return;
+
+    const normalizedKeys = [...new Set(keys)].sort(compareKeys);
+    const model = buildKeyDisplayModel(normalizedKeys);
+    const createdAt = now();
+    const entry: KeyDisplayEntry = {
+      id: `key-entry-${createdAt}-${++sequence}`,
+      keys: normalizedKeys,
+      label: model.keycaps.join(" "),
+      createdAt,
+    };
+    entries = [...entries, entry];
+    trimToMaxItems(currentInput.maxItems);
+    if (!currentInput.persistent && entries.some(({ id }) => id === entry.id)) {
+      scheduleExpiration(entry, currentInput.durationMs);
+    }
+    publish();
+  }
+
+  function clear(): void {
+    cancelAllExpirations();
+    entries = [];
+    previousPressedKeys.clear();
+    modifierParticipation.clear();
+    publish();
+  }
+
+  function processPressedKeys(nextPressedKeys: readonly string[]): void {
+    const next = new Set(nextPressedKeys);
+    const added = nextPressedKeys.filter((key) => !previousPressedKeys.has(key));
+    const removed = [...previousPressedKeys].filter((key) => !next.has(key));
+
+    for (const key of added) {
+      if (isModifierKey(key)) {
+        modifierParticipation.set(key, false);
+        continue;
+      }
+
+      const modifiers = [...next].filter(isModifierKey).sort(compareKeys);
+      for (const modifier of modifiers) {
+        modifierParticipation.set(modifier, true);
+      }
+      addEntry([...modifiers, key]);
+    }
+
+    for (const key of removed) {
+      if (isModifierKey(key)) {
+        if (modifierParticipation.get(key) === false) {
+          addEntry([key]);
+        }
+        modifierParticipation.delete(key);
+      } else if (key === "CapsLock") {
+        // CGEventTap exposes CapsLock as a toggled flag. Removing that flag is
+        // the next physical CapsLock press, so it is another display entry.
+        addEntry([key]);
+      }
+    }
+
+    previousPressedKeys = next;
+  }
+
+  function update(input: KeyHistoryInput): void {
+    if (disposed) return;
+
+    const normalizedInput: KeyHistoryInput = {
+      ...input,
+      maxItems: clampInteger(
+        input.maxItems,
+        KEY_DISPLAY_MIN_ITEMS,
+        KEY_DISPLAY_MAX_ITEMS,
+      ),
+      durationMs: clampInteger(
+        input.durationMs,
+        KEY_DISPLAY_MIN_DURATION_MS,
+        KEY_DISPLAY_MAX_DURATION_MS,
+      ),
+    };
+    const canDisplay = normalizedInput.keyboardEnabled
+      && normalizedInput.keyDisplayEnabled
+      && normalizedInput.keyboardStatus === "active";
     if (!canDisplay) {
-      hideImmediately();
+      currentInput = normalizedInput;
+      if (
+        entries.length > 0
+        || previousPressedKeys.size > 0
+        || expirationTimers.size > 0
+      ) {
+        clear();
+      }
       return;
     }
 
-    if (input.pressedKeys.length > 0) {
-      cancelPendingHide();
-      publish({ visible: true, ...buildKeyDisplayModel(input.pressedKeys) });
-      return;
+    const previousInput = currentInput;
+    currentInput = normalizedInput;
+    if (previousInput) {
+      if (!previousInput.persistent && normalizedInput.persistent) {
+        cancelAllExpirations();
+      } else if (
+        (previousInput.persistent && !normalizedInput.persistent)
+        || (!normalizedInput.persistent
+          && previousInput.durationMs !== normalizedInput.durationMs)
+      ) {
+        cancelAllExpirations();
+        for (const entry of entries) {
+          scheduleExpiration(entry, normalizedInput.durationMs);
+        }
+      }
     }
 
-    if (!snapshot.visible || snapshot.keycaps.length === 0 || hideTimer !== undefined) {
-      return;
-    }
-
-    hideTimer = setTimer(() => {
-      hideTimer = undefined;
-      publish({ visible: false, keycaps: [], overflowCount: 0 });
-    }, KEY_DISPLAY_HIDE_DELAY_MS);
+    const previousLength = entries.length;
+    trimToMaxItems(normalizedInput.maxItems);
+    if (entries.length !== previousLength) publish();
+    processPressedKeys(normalizedInput.pressedKeys);
   }
 
   function dispose(): void {
-    cancelPendingHide();
+    disposed = true;
+    cancelAllExpirations();
+    entries = [];
+    previousPressedKeys.clear();
+    modifierParticipation.clear();
   }
 
   return {
     update,
-    getSnapshot: () => ({ ...snapshot, keycaps: [...snapshot.keycaps] }),
+    getSnapshot: snapshot,
+    clear,
     dispose,
   };
+}
+
+function isModifierKey(key: string): boolean {
+  return MODIFIER_ORDER[key] !== undefined;
 }
 
 function compareKeys(left: string, right: string): number {
@@ -162,4 +342,8 @@ function compareKeys(left: string, right: string): number {
   }
 
   return left.localeCompare(right, "en", { numeric: true });
+}
+
+function clampInteger(value: number, minimum: number, maximum: number): number {
+  return Math.round(Math.min(Math.max(value, minimum), maximum));
 }

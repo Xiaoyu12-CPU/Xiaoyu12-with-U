@@ -605,10 +605,12 @@ Control Center debug status
 
 `settings.input.keyboardEnabled` 正式启用但默认仍为 false。macOS 启动前使用 `CGPreflightListenEventAccess` 检查 Input Monitoring 权限，首次开启至多调用一次系统标准请求；未授权时安全进入 permission-required。Windows 本阶段复用同一前端 schema 和 Rust platform adapter 边界，但 Native Hook 尚未实现，明确返回 unsupported。
 
-## 22. Phase 5-B：Keyboard Key Display
+## 22. Phase 5-B / 5-B.1：Directional Key History Stack
 
-Key Display 是主桌宠窗口中的独立轻量组件，只消费 Phase 5-A 权威 Runtime Snapshot 的 `pressedKeys`，不注册第二个 Native 或 DOM Keyboard Listener。显示层按固定顺序格式化 Control、Option、Shift、Command 与普通键，最多显示五个 keycap；它只在内存中保留刚松开的最后一组键 800ms，不保存或拼接输入历史。
+Directional Key History Stack 是主桌宠窗口中的独立轻量组件，只消费 Phase 5-A 权威 Runtime Snapshot 的 `pressedKeys` 集合变化，不注册第二个 Native 或 DOM Keyboard Listener。Controller 在内存中把普通按键与当前 Modifier 聚合成独立 Entry，例如 Command 持续按住时依次产生 `⌘ C`、`⌘ V`；参与组合的 Modifier 不会再产生 standalone Entry。Entry 仅包含展示所需的 keys、label、createdAt 与 Runtime id，不保存原始 keyCode、文本、应用名称或历史文件。
 
-`settings.input.keyDisplayEnabled` 默认开启，但只有 Keyboard Monitoring 已开启、Monitor 状态为 Active 且 Pet 可见时才渲染。关闭 Key Display 不会停止 Native Monitor；关闭 Keyboard Monitoring、权限缺失或错误状态会立即隐藏。
+`settings.input.keyDisplayEnabled` 控制整个 Stack；关闭显示、关闭 Keyboard Monitoring、权限缺失或错误状态都会立即清空 Entry 与 timer，但不会改变 Native Monitor 开关。用户可配置 1～8 条最大数量、500～10000ms 独立过期时间，以及仅当前 Runtime Session 有效的 Persistent 模式。Persistent OFF → ON 会取消已有过期 timer；ON → OFF 会从切换时刻为现有 Entry 重新分配完整 duration。
 
-Key Display 使用主窗口现有 Bounding Layout，在 Pet 下方预留固定最大宽度区域。区域只随监听状态、显示设置和 petScale 改变，不随具体按键文本宽度变化，因此连续输入不会持续 resize 或移动 OS Window；status-only 模式不显示 Key Display。组件无交互并使用 `pointer-events: none`，不会触发 Pet Click 或 Drag。
+History 的内部数组始终保持 `oldest → newest`，Position 与 Flow 完全独立：Position 只选择 Top / Bottom / Left / Right Pet 锚点；Flow 选择 Auto / Up / Down / Left / Right，Auto 才解析为远离 Pet 的方向。Up / Down 使用纵向 Stack，Left / Right 使用横向 Stack；Vue TransitionGroup 负责 enter、move 和四方向 leave 动画。
+
+主窗口现有 Bounding Layout 根据 Position、实际 Flow、maxItems 与 petScale 预先计算固定最大区域。Entry 新增、过期、内容宽度或当前数量都不参与窗口尺寸输入，因此不会持续 resize 或移动 OS Window；Top / Left 扩展继续复用 content origin 与 position compensation 保持 Pet 屏幕位置。status-only 模式不显示 History，组件使用 `pointer-events: none`，不会触发 Pet Click 或 Drag。

@@ -316,6 +316,34 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         input.keyDisplayEnabled,
         DEFAULT_SETTINGS.input.keyDisplayEnabled,
       ),
+      keyDisplayMaxItems: Math.round(
+        clampNumber(
+          input.keyDisplayMaxItems,
+          1,
+          8,
+          DEFAULT_SETTINGS.input.keyDisplayMaxItems,
+        ),
+      ),
+      keyDisplayDurationMs: Math.round(
+        clampNumber(
+          input.keyDisplayDurationMs,
+          500,
+          10000,
+          DEFAULT_SETTINGS.input.keyDisplayDurationMs,
+        ),
+      ),
+      keyDisplayPersistent: booleanOrDefault(
+        input.keyDisplayPersistent,
+        DEFAULT_SETTINGS.input.keyDisplayPersistent,
+      ),
+      keyDisplayPosition: keyDisplayPositionOrDefault(
+        input.keyDisplayPosition,
+        DEFAULT_SETTINGS.input.keyDisplayPosition,
+      ),
+      keyDisplayFlowDirection: keyDisplayFlowOrDefault(
+        input.keyDisplayFlowDirection,
+        DEFAULT_SETTINGS.input.keyDisplayFlowDirection,
+      ),
       mouseEnabled: booleanOrDefault(
         input.mouseEnabled,
         DEFAULT_SETTINGS.input.mouseEnabled,
@@ -356,6 +384,28 @@ function displayModeOrDefault(
   fallback: DesktopPetSettings["systemStatusBubble"]["displayMode"],
 ): DesktopPetSettings["systemStatusBubble"]["displayMode"] {
   return value === "pet-only" || value === "status-only" || value === "both"
+    ? value
+    : fallback;
+}
+
+function keyDisplayPositionOrDefault(
+  value: unknown,
+  fallback: DesktopPetSettings["input"]["keyDisplayPosition"],
+): DesktopPetSettings["input"]["keyDisplayPosition"] {
+  return value === "top" || value === "bottom" || value === "left" || value === "right"
+    ? value
+    : fallback;
+}
+
+function keyDisplayFlowOrDefault(
+  value: unknown,
+  fallback: DesktopPetSettings["input"]["keyDisplayFlowDirection"],
+): DesktopPetSettings["input"]["keyDisplayFlowDirection"] {
+  return value === "auto"
+      || value === "up"
+      || value === "down"
+      || value === "left"
+      || value === "right"
     ? value
     : fallback;
 }

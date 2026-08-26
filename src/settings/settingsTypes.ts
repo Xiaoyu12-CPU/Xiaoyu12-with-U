@@ -1,6 +1,13 @@
 import type { SystemStatusItemId } from "../system/statusItems";
 
 export type DesktopDisplayMode = "pet-only" | "status-only" | "both";
+export type KeyDisplayPosition = "top" | "bottom" | "left" | "right";
+export type KeyDisplayFlowDirection =
+  | "auto"
+  | "up"
+  | "down"
+  | "left"
+  | "right";
 
 export interface DesktopPetSettings {
   schemaVersion: 1;
@@ -46,6 +53,11 @@ export interface DesktopPetSettings {
   input: {
     keyboardEnabled: boolean;
     keyDisplayEnabled: boolean;
+    keyDisplayMaxItems: number;
+    keyDisplayDurationMs: number;
+    keyDisplayPersistent: boolean;
+    keyDisplayPosition: KeyDisplayPosition;
+    keyDisplayFlowDirection: KeyDisplayFlowDirection;
     mouseEnabled: boolean;
   };
   reminder: {

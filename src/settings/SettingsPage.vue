@@ -7,6 +7,8 @@ import type { SystemStatusItemId } from "../system/statusItems";
 import type {
   DesktopDisplayMode,
   DesktopPetSettings,
+  KeyDisplayFlowDirection,
+  KeyDisplayPosition,
   SettingsSection,
 } from "./settingsTypes";
 
@@ -19,6 +21,9 @@ const panelScalePercent = computed(() =>
 );
 const reminderSoundVolumePercent = computed(() =>
   Math.round(settings.value.reminder.soundVolume * 100),
+);
+const keyDisplayDurationSeconds = computed(() =>
+  (settings.value.input.keyDisplayDurationMs / 1000).toFixed(1),
 );
 
 onMounted(() => {
@@ -90,6 +95,22 @@ function updatePanelScale(event: Event): void {
 function updateReminderSoundVolume(event: Event): void {
   const percent = Number((event.target as HTMLInputElement).value);
   update("reminder", "soundVolume", percent / 100);
+}
+
+function updateKeyDisplayPosition(event: Event): void {
+  update(
+    "input",
+    "keyDisplayPosition",
+    (event.target as HTMLSelectElement).value as KeyDisplayPosition,
+  );
+}
+
+function updateKeyDisplayFlowDirection(event: Event): void {
+  update(
+    "input",
+    "keyDisplayFlowDirection",
+    (event.target as HTMLSelectElement).value as KeyDisplayFlowDirection,
+  );
 }
 
 function updateVisibleItem(itemId: SystemStatusItemId, event: Event): void {
@@ -626,6 +647,86 @@ function getRightSideBubbleOffset(): number {
             @change="updateBoolean('input', 'keyDisplayEnabled', $event)"
           />
         </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>同时显示数量</strong>
+            <small>保留最新 1～8 条短时按键记录。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="1"
+              max="8"
+              step="1"
+              :value="settings.input.keyDisplayMaxItems"
+              @input="updateNumber('input', 'keyDisplayMaxItems', $event)"
+            />
+            <output>{{ settings.input.keyDisplayMaxItems }}</output>
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>永久显示</strong>
+            <small>只在本次运行期间保留，仍受同时显示数量限制。</small>
+          </span>
+          <input
+            class="toggle"
+            type="checkbox"
+            :checked="settings.input.keyDisplayPersistent"
+            @change="updateBoolean('input', 'keyDisplayPersistent', $event)"
+          />
+        </label>
+        <label class="setting-row scale-row">
+          <span>
+            <strong>自动消失时间</strong>
+            <small>每条记录拥有独立计时；永久显示时暂停计时。</small>
+          </span>
+          <div class="scale-control">
+            <input
+              type="range"
+              min="500"
+              max="10000"
+              step="500"
+              :value="settings.input.keyDisplayDurationMs"
+              :disabled="settings.input.keyDisplayPersistent"
+              @input="updateNumber('input', 'keyDisplayDurationMs', $event)"
+            />
+            <output>{{ keyDisplayDurationSeconds }}s</output>
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>Key History Position</strong>
+            <small>只决定整个 History Stack 位于桌宠哪一侧。</small>
+          </span>
+          <select
+            class="select-control"
+            :value="settings.input.keyDisplayPosition"
+            @change="updateKeyDisplayPosition"
+          >
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>History Flow Direction</strong>
+            <small>独立控制旧记录被新记录推动的方向。</small>
+          </span>
+          <select
+            class="select-control"
+            :value="settings.input.keyDisplayFlowDirection"
+            @change="updateKeyDisplayFlowDirection"
+          >
+            <option value="auto">Auto（远离桌宠）</option>
+            <option value="up">Up ↑</option>
+            <option value="down">Down ↓</option>
+            <option value="left">Left ←</option>
+            <option value="right">Right →</option>
+          </select>
+        </label>
       </article>
 
       <article>
@@ -701,6 +802,7 @@ article { display: grid; gap: 4px; padding: 17px; background: #faf9fd; border: 1
 .scale-control output { width: 56px; color: #604ca5; font-size: 12px; font-weight: 700; text-align: right; }
 .number-control { display: flex; align-items: center; gap: 6px; color: #777080; font-size: 11px; }
 .number-control input { width: 100px; padding: 7px 8px; color: #30283d; font: inherit; font-size: 12px; background: #fff; border: 1px solid #dcd6e7; border-radius: 7px; }
+.select-control { min-width: 170px; padding: 7px 9px; color: #30283d; font: inherit; font-size: 12px; background: #fff; border: 1px solid #dcd6e7; border-radius: 7px; }
 .display-mode-options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .display-mode-options label { display: flex; align-items: center; gap: 5px; padding: 7px 9px; color: #5c5267; font-size: 11px; background: #fff; border: 1px solid #ded8e8; border-radius: 8px; cursor: pointer; }
 .display-mode-options label:has(input:checked) { color: #5d48a6; background: #f3efff; border-color: #b9aae4; }
@@ -713,7 +815,7 @@ article { display: grid; gap: 4px; padding: 17px; background: #faf9fd; border: 1
 .color-control input { width: 36px; height: 28px; padding: 2px; background: #fff; border: 1px solid #dcd6e7; border-radius: 7px; cursor: pointer; }
 .color-control code { color: #706579; font-size: 11px; }
 .toggle { width: 18px; height: 18px; accent-color: #745bc9; cursor: pointer; }
-.toggle:disabled, .number-control input:disabled { cursor: default; opacity: .5; }
+.toggle:disabled, .number-control input:disabled, .scale-control input:disabled { cursor: default; opacity: .5; }
 .error { padding: 10px 12px; color: #9d3f4b; font-size: 12px; background: #fff0f2; border-radius: 9px; }
 footer { align-items: flex-end; padding-top: 2px; }
 footer p { max-width: 430px; }

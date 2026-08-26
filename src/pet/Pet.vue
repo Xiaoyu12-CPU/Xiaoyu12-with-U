@@ -11,7 +11,7 @@ import PetContextMenu from "../components/PetContextMenu.vue";
 import ReminderFeedbackActions from "../components/ReminderFeedbackActions.vue";
 import SpeechBubble from "../components/SpeechBubble.vue";
 import SystemStatusBubble from "../components/SystemStatusBubble.vue";
-import KeyDisplayBubble from "../components/KeyDisplayBubble.vue";
+import KeyHistoryStack from "../components/KeyHistoryStack.vue";
 import { usePetAnimation } from "./animationEngine";
 import {
   initializePetAssets,
@@ -121,6 +121,10 @@ const windowLayout = computed(() =>
     offsetX: bubbleOffset.x,
     offsetY: bubbleOffset.y,
     keyDisplayVisible: reservesKeyDisplay.value,
+    keyDisplayPosition: settingsManager.settings.value.input.keyDisplayPosition,
+    keyDisplayFlowDirection:
+      settingsManager.settings.value.input.keyDisplayFlowDirection,
+    keyDisplayMaxItems: settingsManager.settings.value.input.keyDisplayMaxItems,
   }),
 );
 const petStyle = computed(() => ({
@@ -136,6 +140,7 @@ const statusBubbleStyle = computed(() => ({
 }));
 const keyDisplayStyle = computed(() => ({
   "--key-display-scale": String(windowLayout.value.keyDisplayScale),
+  "--key-history-entry-width": `${windowLayout.value.keyDisplayEntryWidth}px`,
   left: `${windowLayout.value.keyDisplayX}px`,
   top: `${windowLayout.value.keyDisplayY}px`,
   width: `${windowLayout.value.keyDisplayWidth}px`,
@@ -438,7 +443,7 @@ onBeforeUnmount(() => {
       />
     </div>
 
-    <KeyDisplayBubble
+    <KeyHistoryStack
       v-if="reservesKeyDisplay"
       class="pet__key-display"
       :style="keyDisplayStyle"
@@ -446,6 +451,11 @@ onBeforeUnmount(() => {
       :keyboard-enabled="settingsManager.settings.value.input.keyboardEnabled"
       :key-display-enabled="settingsManager.settings.value.input.keyDisplayEnabled"
       :keyboard-status="runtimeSnapshot.keyboardStatus"
+      :max-items="settingsManager.settings.value.input.keyDisplayMaxItems"
+      :duration-ms="settingsManager.settings.value.input.keyDisplayDurationMs"
+      :persistent="settingsManager.settings.value.input.keyDisplayPersistent"
+      :position="settingsManager.settings.value.input.keyDisplayPosition"
+      :flow-direction="settingsManager.settings.value.input.keyDisplayFlowDirection"
     />
 
     <SystemStatusBubble

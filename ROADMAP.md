@@ -261,14 +261,15 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - Windows 当前保留 platform adapter 和统一 schema，Native Hook 尚未实现并明确返回 Unsupported。
 - Phase 5-A 状态：Implemented；Phase 5 仍为 In Progress，尚未实现 Key Bubble、WORKING Behavior、鼠标监听、历史或统计。
 
-### Phase 5-B 实现记录：Keyboard Key Display
+### Phase 5-B / 5-B.1 实现记录：Directional Key History Stack
 
-- 主桌宠窗口新增轻量 Key Display，直接消费 Phase 5-A 的权威 pressedKeys，不创建第二监听器。
-- 支持字母数字、方向键和常见功能键，并以固定 `⌃ ⌥ ⇧ ⌘` 顺序显示 Modifier；最多五个 keycap，超出时显示数量摘要。
-- 按键按下立即显示，全部松开后保留最后一组约 800ms；不拼接文字、不保存历史、不写磁盘。
-- `settings.input.keyDisplayEnabled` 默认开启，只控制显示，不停止 Native Keyboard Monitor。
-- Key Display 在 Pet 下方使用稳定预留区域参与主窗口 Bounding Layout，不随按键内容宽度反复调整窗口；status-only 模式不显示。
-- Phase 5-B 状态：Implemented；Phase 5 仍为 In Progress，尚未接入 WORKING Behavior 或 Mouse Monitor。
+- 主桌宠窗口新增 Directional Key History Stack，直接消费 Phase 5-A 的权威 pressedKeys，不创建第二监听器。
+- 普通键与当前 Modifier 聚合成独立 Chord Entry；Command 持续按住时可依次显示 `⌘ C`、`⌘ V`，不拼接 typed text。
+- Entry 只存在于当前 Runtime 内存；支持 1～8 条最大数量、每条独立过期 duration，以及不跨重启的 Persistent 模式。
+- 支持 Top / Bottom / Left / Right 锚点和 Auto / Up / Down / Left / Right Flow；Position 与 Flow 完全独立，Auto 才选择远离 Pet 的方向。
+- Up / Down 为纵向 Stack，Left / Right 为横向 Stack；TransitionGroup 提供 enter、move 与四向离场动画。
+- 主窗口按 Position、Flow、maxItems 与 petScale 使用固定预留区域，Entry 新增、过期和文本宽度不会触发 Window resize；status-only 模式不显示。
+- Phase 5-B.1 状态：Implemented；Phase 5 仍为 In Progress，尚未接入 WORKING Behavior 或 Mouse Monitor。
 
 ## Phase 6：自定义皮肤
 
