@@ -18,9 +18,17 @@ export interface KeyboardNativeAdapter {
   stop: () => Promise<NativeKeyboardMonitorSnapshot>;
 }
 
+export type TypingActivityListener = (timestamp: number) => void;
+const typingActivityListeners = new Set<TypingActivityListener>();
+
+export interface KeyboardMonitorControllerOptions {
+  onTypingActivity?: TypingActivityListener;
+}
+
 export function createKeyboardMonitorController(
   adapter: KeyboardNativeAdapter,
   runtime = createKeyboardInputRuntime(),
+  options: KeyboardMonitorControllerOptions = {},
 ) {
   let desiredEnabled = false;
   let nativeStarted = false;
@@ -91,13 +99,40 @@ export function createKeyboardMonitorController(
     runtime.applyStatus(snapshot);
   }
 
+  function handleNativeEvent(event: KeyboardInputEvent): boolean {
+    const accepted = runtime.applyEvent(event);
+    if (accepted && isTypingActivityEvent(event)) {
+      options.onTypingActivity?.(event.timestamp);
+    }
+    return accepted;
+  }
+
   return {
     runtime,
     start,
     stop,
     applyNativeStatus,
-    handleNativeEvent: runtime.applyEvent,
+    handleNativeEvent,
   };
+}
+
+export function subscribeToTypingActivity(
+  listener: TypingActivityListener,
+): () => void {
+  typingActivityListeners.add(listener);
+  return () => typingActivityListeners.delete(listener);
+}
+
+export function isTypingActivityEvent(event: KeyboardInputEvent): boolean {
+  return event.eventType === "down" && !MODIFIER_KEYS.has(event.key);
+}
+
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Option", "Command"]);
+
+function publishTypingActivity(timestamp: number): void {
+  for (const listener of typingActivityListeners) {
+    listener(timestamp);
+  }
 }
 
 const tauriKeyboardAdapter: KeyboardNativeAdapter = {
@@ -107,7 +142,11 @@ const tauriKeyboardAdapter: KeyboardNativeAdapter = {
 
 export function useKeyboardMonitor(): void {
   const runtime = createKeyboardInputRuntime(updateKeyboardRuntime);
-  const controller = createKeyboardMonitorController(tauriKeyboardAdapter, runtime);
+  const controller = createKeyboardMonitorController(
+    tauriKeyboardAdapter,
+    runtime,
+    { onTypingActivity: publishTypingActivity },
+  );
   let disposed = false;
   let unlistenInput: UnlistenFn | undefined;
   let unlistenStatus: UnlistenFn | undefined;

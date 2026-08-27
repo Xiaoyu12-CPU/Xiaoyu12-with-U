@@ -372,6 +372,54 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         1,
         DEFAULT_SETTINGS.input.keyDisplayStartLineOpacity,
       ),
+      typingBusyEnabled: booleanOrDefault(
+        input.typingBusyEnabled,
+        DEFAULT_SETTINGS.input.typingBusyEnabled,
+      ),
+      typingBusyWindowSeconds: Math.round(
+        clampNumber(
+          input.typingBusyWindowSeconds,
+          10,
+          600,
+          DEFAULT_SETTINGS.input.typingBusyWindowSeconds,
+        ),
+      ),
+      typingBusyCountThreshold: Math.round(
+        clampNumber(
+          input.typingBusyCountThreshold,
+          10,
+          5000,
+          DEFAULT_SETTINGS.input.typingBusyCountThreshold,
+        ),
+      ),
+      typingBusyText: nonEmptyTextOrDefault(
+        input.typingBusyText,
+        DEFAULT_SETTINGS.input.typingBusyText,
+      ),
+      typingSpeedEnabled: booleanOrDefault(
+        input.typingSpeedEnabled,
+        DEFAULT_SETTINGS.input.typingSpeedEnabled,
+      ),
+      typingSpeedThresholdPerSecond: Math.round(
+        clampNumber(
+          input.typingSpeedThresholdPerSecond,
+          1,
+          30,
+          DEFAULT_SETTINGS.input.typingSpeedThresholdPerSecond,
+        ),
+      ),
+      typingSpeedText: nonEmptyTextOrDefault(
+        input.typingSpeedText,
+        DEFAULT_SETTINGS.input.typingSpeedText,
+      ),
+      typingFeedbackCooldownSeconds: Math.round(
+        clampNumber(
+          input.typingFeedbackCooldownSeconds,
+          1,
+          600,
+          DEFAULT_SETTINGS.input.typingFeedbackCooldownSeconds,
+        ),
+      ),
       mouseEnabled: booleanOrDefault(
         input.mouseEnabled,
         DEFAULT_SETTINGS.input.mouseEnabled,
@@ -471,6 +519,14 @@ function clampNumber(
 
 function booleanOrDefault(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function nonEmptyTextOrDefault(value: unknown, fallback: string): string {
+  if (typeof value !== "string") {
+    return fallback;
+  }
+
+  return value.trim() || fallback;
 }
 
 function displayModeOrDefault(

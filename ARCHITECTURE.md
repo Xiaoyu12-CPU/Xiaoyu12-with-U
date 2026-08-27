@@ -633,6 +633,14 @@ Key History 的最终位置模型为 `Position Base Origin + manual offsetX / of
 
 最后一次有效活动约 2000ms 后，在 pressedKeys 为空时 release `input.keyboard`；如果仍有按键被物理按住，timeout 不会结束 working，直到 keyup 产生新活动并再次完成空闲期。Keyboard Monitoring 关闭、状态离开 Active 或组件销毁都会立即清理 timer 并 release。Behavior 优先级保持 dragging > alert > happy > working > tired，高优先级释放后仍活跃的 Keyboard request 会自然恢复 working。Runtime Status 只发布当前 Activity Active / Idle，不保存活动历史。
 
+### Phase 5-C.1 Feature Freeze Exception：Configurable Typing Feedback
+
+`typingFeedback.ts` 是 Keyboard Runtime 的第三个独立 consumer。Keyboard Monitor 只在 Runtime 已接受非重复 keydown 后，排除 Shift / Control / Option / Command，再把 timestamp 交给 Detector；Metrics API 不接收 key 名。Detector 仅在内存中保存 Rolling Window timestamp，默认检测 120 秒内 200 次 Busy Typing，以及固定 1 秒内 5 次 Fast Typing；两者都使用 threshold-crossing latch，只有 count 降回阈值以下才 rearm。
+
+Busy / Fast 共享可配置的 1～600 秒 cooldown（默认 10 秒）。只有 Low Priority Typing Dialogue 被 Dialogue Controller 真正接受显示时才记录 cooldown；在 cooldown、Normal Dialogue 或 Protected Actionable Reminder 期间的 crossing 直接丢弃，不排队、不延迟补播。Low 不覆盖任何可见 Dialogue，Normal / Protected 可以覆盖已显示的 Low；Actionable Reminder 的 persistent 生命周期不变。
+
+Control Center 可配置 Busy window / count / text、Fast threshold / text 与共享 cooldown。改动统计 window / threshold 会安全清空 metrics 与 latch，只改文本或 cooldown 不清空。Keyboard Monitor 关闭或进入 Permission Required / Error / Unsupported 会重置 timestamp、latch 与 cooldown。本功能不请求 Behavior、不改变 WORKING，不保存 key 名、typed text、统计历史或应用/窗口信息。
+
 ## 25. Phase 5-D：Global Mouse Monitor Foundation
 
 macOS 输入 adapter 将既有 Session 级 ListenOnly CGEventTap 扩展为唯一共享 Native Input Monitor；同一个 tap 监听 Keyboard，以及 Left / Right / Other Mouse Down/Up 与 ScrollWheel，不注册第二套 Native Hook，也不监听 Mouse Move。Rust 在事件路由边界把 Keyboard 与 Mouse 分流到独立 Tauri event，两个 Settings 开关各自控制投递；只有 Keyboard 和 Mouse 都关闭时才停止共享 tap。

@@ -282,6 +282,14 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - Keyboard Monitor 关闭或非 Active 会立即 release；dragging、alert、happy 按既有优先级覆盖 working，结束后自动恢复 working 或下一有效状态。
 - Runtime Status 增加当前 Keyboard Activity Active / Idle，不保存历史。Phase 5-C 状态：Implemented；Phase 5 仍为 In Progress。
 
+### Phase 5-C.1 Feature Freeze Exception：Configurable Typing Feedback
+
+- Keyboard Runtime 增加独立 Typing Feedback Detector consumer；只统计已接受、非重复、非纯 Modifier 的 keydown timestamp，不保存 key 名或 typed content。
+- Busy Typing 默认为 Rolling 120 秒 / 200 次，Fast Typing 默认为 Rolling 1 秒 / 5 次；阈值、Busy window 与两条文本可配置。
+- 两个 Detector 各自使用 threshold-crossing latch，并共享 1～600 秒可配置 cooldown（默认 10 秒）；只有 Dialogue 真正显示才开始 cooldown，被抑制的 trigger 不排队或补播。
+- Typing Feedback 使用 Low Dialogue Priority：不覆盖 Normal Dialogue 或 Protected Actionable Reminder，而 Normal / Reminder 可以覆盖已显示的 Typing Feedback。
+- 所有 metrics 仅在 Runtime 内存中保存 timestamp；Keyboard Monitor 关闭或异常状态会全部重置。这是 Feature Freeze 的受控例外，不重新开放 Phase 5，不包含 WPM、History 或 Analytics。
+
 ### Phase 5-D 实现记录：Global Mouse Monitor Foundation
 
 - macOS 复用并扩展 Phase 5-A 的单一 ListenOnly CGEventTap，监听 Left / Right / Middle / Mouse4 / Mouse5 / Other Down/Up 和 Scroll，不监听 Mouse Move。

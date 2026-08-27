@@ -45,6 +45,12 @@
     "keyboard.activity": [
       "今天输入很多哦",
       "键盘好忙呀"
+    ],
+    "input.keyboard.busy": [
+      "键盘好忙呀"
+    ],
+    "input.keyboard.speed": [
+      "打字速度起飞了！"
     ]
   }
 }

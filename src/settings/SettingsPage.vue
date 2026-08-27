@@ -86,6 +86,27 @@ function updateBoolean<
   );
 }
 
+type TypingNumberSetting =
+  | "typingBusyWindowSeconds"
+  | "typingBusyCountThreshold"
+  | "typingSpeedThresholdPerSecond"
+  | "typingFeedbackCooldownSeconds";
+
+function updateTypingNumber(key: TypingNumberSetting, event: Event): void {
+  update(
+    "input",
+    key,
+    (event.target as HTMLInputElement).valueAsNumber,
+  );
+}
+
+function updateTypingText(
+  key: "typingBusyText" | "typingSpeedText",
+  event: Event,
+): void {
+  update("input", key, (event.target as HTMLInputElement).value);
+}
+
 function updateDisplayMode(displayMode: DesktopDisplayMode): void {
   const bubble = settings.value.systemStatusBubble;
   const usesInitialPosition =
@@ -725,6 +746,130 @@ function getRightSideBubbleOffset(): number {
             @change="updateBoolean('input', 'keyboardEnabled', $event)"
           />
         </label>
+        <div class="input-settings-group input-keyboard-section">
+        <p class="settings-group-heading">Typing Feedback</p>
+        <label class="setting-row">
+          <span>
+            <strong>Busy Typing</strong>
+            <small>Rolling Window达到设定次数时显示低优先级提示。</small>
+          </span>
+          <input
+            class="toggle"
+            type="checkbox"
+            :checked="settings.input.typingBusyEnabled"
+            @change="updateBoolean('input', 'typingBusyEnabled', $event)"
+          />
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>时间窗口</strong>
+            <small>Busy Typing统计最近 10～600 秒的有效键入。</small>
+          </span>
+          <div class="number-control">
+            <input
+              type="number"
+              min="10"
+              max="600"
+              step="1"
+              :value="settings.input.typingBusyWindowSeconds"
+              :disabled="!settings.input.typingBusyEnabled"
+              @change="updateTypingNumber('typingBusyWindowSeconds', $event)"
+            />
+            <span>sec</span>
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>输入次数</strong>
+            <small>只统计非重复、非纯 Modifier 的 keydown。</small>
+          </span>
+          <div class="number-control">
+            <input
+              type="number"
+              min="10"
+              max="5000"
+              step="1"
+              :value="settings.input.typingBusyCountThreshold"
+              :disabled="!settings.input.typingBusyEnabled"
+              @change="updateTypingNumber('typingBusyCountThreshold', $event)"
+            />
+            <span>times</span>
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>提示文本</strong>
+            <small>留空时自动恢复默认 Busy 文本。</small>
+          </span>
+          <input
+            class="text-control"
+            type="text"
+            :value="settings.input.typingBusyText"
+            :disabled="!settings.input.typingBusyEnabled"
+            @change="updateTypingText('typingBusyText', $event)"
+          />
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>Fast Typing</strong>
+            <small>最近固定 1 秒 Rolling Window达到阈值时提示。</small>
+          </span>
+          <input
+            class="toggle"
+            type="checkbox"
+            :checked="settings.input.typingSpeedEnabled"
+            @change="updateBoolean('input', 'typingSpeedEnabled', $event)"
+          />
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>触发速度</strong>
+            <small>每秒 1～30 次有效 keydown。</small>
+          </span>
+          <div class="number-control">
+            <input
+              type="number"
+              min="1"
+              max="30"
+              step="1"
+              :value="settings.input.typingSpeedThresholdPerSecond"
+              :disabled="!settings.input.typingSpeedEnabled"
+              @change="updateTypingNumber('typingSpeedThresholdPerSecond', $event)"
+            />
+            <span>/ sec</span>
+          </div>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>提示文本</strong>
+            <small>留空时自动恢复默认 Fast Typing 文本。</small>
+          </span>
+          <input
+            class="text-control"
+            type="text"
+            :value="settings.input.typingSpeedText"
+            :disabled="!settings.input.typingSpeedEnabled"
+            @change="updateTypingText('typingSpeedText', $event)"
+          />
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>提示间隔</strong>
+            <small>Busy / Fast 共享冷却；只在提示真正显示后计时。</small>
+          </span>
+          <div class="number-control">
+            <input
+              type="number"
+              min="1"
+              max="600"
+              step="1"
+              :value="settings.input.typingFeedbackCooldownSeconds"
+              @change="updateTypingNumber('typingFeedbackCooldownSeconds', $event)"
+            />
+            <span>sec</span>
+          </div>
+        </label>
+        </div>
         <div class="input-settings-group input-mouse-section">
         <p class="settings-group-heading">Mouse</p>
         <label class="setting-row">
@@ -1134,6 +1279,7 @@ article { display: grid; gap: 4px; padding: 17px; background: #faf9fd; border: 1
 .scale-control output { width: 56px; color: #604ca5; font-size: 12px; font-weight: 700; text-align: right; }
 .number-control { display: flex; align-items: center; gap: 6px; color: #777080; font-size: 11px; }
 .number-control input { width: 100px; padding: 7px 8px; color: #30283d; font: inherit; font-size: 12px; background: #fff; border: 1px solid #dcd6e7; border-radius: 7px; }
+.text-control { width: min(250px, 48%); padding: 7px 9px; color: #30283d; font: inherit; font-size: 12px; background: #fff; border: 1px solid #dcd6e7; border-radius: 7px; }
 .select-control { min-width: 170px; padding: 7px 9px; color: #30283d; font: inherit; font-size: 12px; background: #fff; border: 1px solid #dcd6e7; border-radius: 7px; }
 .display-mode-options { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .display-mode-options label { display: flex; align-items: center; gap: 5px; padding: 7px 9px; color: #5c5267; font-size: 11px; background: #fff; border: 1px solid #ded8e8; border-radius: 8px; cursor: pointer; }
@@ -1147,7 +1293,7 @@ article { display: grid; gap: 4px; padding: 17px; background: #faf9fd; border: 1
 .color-control input { width: 36px; height: 28px; padding: 2px; background: #fff; border: 1px solid #dcd6e7; border-radius: 7px; cursor: pointer; }
 .color-control code { color: #706579; font-size: 11px; }
 .toggle { width: 18px; height: 18px; accent-color: #745bc9; cursor: pointer; }
-.toggle:disabled, .number-control input:disabled, .scale-control input:disabled { cursor: default; opacity: .5; }
+.toggle:disabled, .number-control input:disabled, .scale-control input:disabled, .text-control:disabled { cursor: default; opacity: .5; }
 .error { padding: 10px 12px; color: #9d3f4b; font-size: 12px; background: #fff0f2; border-radius: 9px; }
 footer { align-items: flex-end; padding-top: 2px; }
 footer p { max-width: 430px; }

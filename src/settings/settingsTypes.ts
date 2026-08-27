@@ -64,6 +64,14 @@ export interface DesktopPetSettings {
     keyDisplayStartLineGapPx: number;
     keyDisplayStartLineColor: string;
     keyDisplayStartLineOpacity: number;
+    typingBusyEnabled: boolean;
+    typingBusyWindowSeconds: number;
+    typingBusyCountThreshold: number;
+    typingBusyText: string;
+    typingSpeedEnabled: boolean;
+    typingSpeedThresholdPerSecond: number;
+    typingSpeedText: string;
+    typingFeedbackCooldownSeconds: number;
     mouseEnabled: boolean;
     mouseVisualizerEnabled: boolean;
     mouseVisualizerPosition: MouseVisualizerPosition;

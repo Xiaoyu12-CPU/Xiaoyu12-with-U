@@ -19,6 +19,8 @@ export const DIALOGUE_EVENT_TYPES = {
   SYSTEM_MEMORY_NORMAL: "system.memory.normal",
   REMINDER: "reminder",
   KEYBOARD_ACTIVITY: "keyboard.activity",
+  KEYBOARD_BUSY: "input.keyboard.busy",
+  KEYBOARD_SPEED: "input.keyboard.speed",
 } as const;
 
 export type DialogueEventType =
@@ -37,6 +39,8 @@ export const DIALOGUE_EVENT_TYPE_LIST = [
   DIALOGUE_EVENT_TYPES.SYSTEM_MEMORY_NORMAL,
   DIALOGUE_EVENT_TYPES.REMINDER,
   DIALOGUE_EVENT_TYPES.KEYBOARD_ACTIVITY,
+  DIALOGUE_EVENT_TYPES.KEYBOARD_BUSY,
+  DIALOGUE_EVENT_TYPES.KEYBOARD_SPEED,
 ] as const satisfies readonly DialogueEventType[];
 
 export const ACTIVE_DIALOGUE_EVENT_TYPE_LIST = [
@@ -55,12 +59,15 @@ export const ACTIVE_DIALOGUE_EVENT_TYPE_LIST = [
 export type PetInteractionEvent =
   (typeof PET_INTERACTION_EVENT_TYPES)[keyof typeof PET_INTERACTION_EVENT_TYPES];
 
+export type DialoguePriority = "low" | "normal" | "protected";
+
 export interface DialogueEvent {
   type: DialogueEventType;
   context?: Readonly<Record<string, unknown>>;
   candidateIndex?: number;
   textOverride?: string;
   persistent?: boolean;
+  priority?: DialoguePriority;
 }
 
 export interface TriggerDialogueEventOptions {
@@ -68,4 +75,5 @@ export interface TriggerDialogueEventOptions {
   candidateIndex?: number;
   textOverride?: string;
   persistent?: boolean;
+  priority?: DialoguePriority;
 }

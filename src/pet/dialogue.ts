@@ -8,6 +8,7 @@ import type { Ref } from "vue";
 import type {
   DialogueEvent,
   DialogueEventType,
+  DialoguePriority,
   TriggerDialogueEventOptions,
 } from "./dialogueEvents";
 import { dialogueManager } from "./dialogueManager";
@@ -21,6 +22,7 @@ import { settingsManager } from "../settings/settingsManager";
 export type {
   DialogueEvent,
   DialogueEventType,
+  DialoguePriority,
   PetInteractionEvent,
   TriggerDialogueEventOptions,
 } from "./dialogueEvents";
@@ -37,12 +39,13 @@ export interface DialogueController {
   currentText: Readonly<Ref<string>>;
   isVisible: Readonly<Ref<boolean>>;
   isPersistent: Readonly<Ref<boolean>>;
-  notify: (event: DialogueEvent) => void;
+  currentPriority: Readonly<Ref<DialoguePriority | undefined>>;
+  notify: (event: DialogueEvent) => boolean;
   hide: () => void;
   dispose: () => void;
 }
 
-type DialogueEventListener = (event: DialogueEvent) => void;
+type DialogueEventListener = (event: DialogueEvent) => boolean;
 const dialogueEventListeners = new Set<DialogueEventListener>();
 
 export { DEFAULT_DIALOGUE_CATALOG } from "./dialogueManager";
@@ -50,17 +53,17 @@ export { DEFAULT_DIALOGUE_CATALOG } from "./dialogueManager";
 export function triggerDialogueEvent(
   type: DialogueEventType,
   options: TriggerDialogueEventOptions = {},
-): void {
+): boolean {
   const event: DialogueEvent = {
     type,
     ...options,
   };
 
-  recordDialogueEvent(type);
-
+  let shown = false;
   for (const listener of dialogueEventListeners) {
-    listener(event);
+    shown = listener(event) || shown;
   }
+  return shown;
 }
 
 export function useDialogue(
@@ -69,6 +72,7 @@ export function useDialogue(
   const currentText = ref("");
   const isVisible = ref(false);
   const isPersistent = ref(false);
+  const currentPriority = ref<DialoguePriority>();
   void dialogueManager.initialize();
   void settingsManager.initialize();
   const random = options.random ?? Math.random;
@@ -86,15 +90,26 @@ export function useDialogue(
     clearHideTimer();
     isVisible.value = false;
     isPersistent.value = false;
+    currentPriority.value = undefined;
   }
 
-  function notify(event: DialogueEvent): void {
+  function notify(event: DialogueEvent): boolean {
     if (disposed) {
-      return;
+      return false;
     }
 
-    if (isPersistent.value && !event.persistent) {
-      return;
+    const incomingPriority = resolveDialoguePriority(event);
+    if (
+      isVisible.value
+      && (
+        incomingPriority === "low"
+        || (
+          currentPriority.value === "protected"
+          && incomingPriority !== "protected"
+        )
+      )
+    ) {
+      return false;
     }
 
     const text = selectDialogueText(
@@ -106,20 +121,19 @@ export function useDialogue(
       random,
     );
 
-    recordDialogueEvent(event.type);
-
     if (!text) {
-      hide();
-      return;
+      return false;
     }
 
     clearHideTimer();
     currentText.value = text;
     isPersistent.value = event.persistent === true;
+    currentPriority.value = incomingPriority;
+    recordDialogueEvent(event.type);
     recordDialogueText(text);
     isVisible.value = true;
     if (isPersistent.value) {
-      return;
+      return true;
     }
 
     const displayDurationMs = Math.max(
@@ -128,6 +142,7 @@ export function useDialogue(
         settingsManager.settings.value.dialogue.bubbleDurationMs,
     );
     hideTimerId = setTimeout(hide, displayDurationMs);
+    return true;
   }
 
   function dispose(): void {
@@ -151,10 +166,15 @@ export function useDialogue(
     currentText: readonly(currentText),
     isVisible: readonly(isVisible),
     isPersistent: readonly(isPersistent),
+    currentPriority: readonly(currentPriority),
     notify,
     hide,
     dispose,
   };
+}
+
+function resolveDialoguePriority(event: DialogueEvent): DialoguePriority {
+  return event.persistent ? "protected" : event.priority ?? "normal";
 }
 
 export function selectDialogueText(

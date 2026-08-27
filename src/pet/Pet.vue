@@ -55,6 +55,7 @@ import type { SnoozeMinutes } from "../reminder/reminderSnooze";
 import { useKeyboardMonitor } from "../input/keyboardMonitor";
 import { useMouseMonitor } from "../input/mouseMonitor";
 import { useKeyboardActivityBehavior } from "../input/keyboardActivityBehavior";
+import { useTypingFeedback } from "../input/typingFeedbackRuntime";
 import { createKeyHistoryDragController } from "../input/keyHistoryDrag";
 import { createMouseVisualizerDragController } from "../input/mouseVisualizer";
 
@@ -88,6 +89,7 @@ const {
   handlePointerUp,
   handlePointerCancel,
 } = usePetInteraction();
+useTypingFeedback();
 const { currentText: dialogueText, isVisible: isDialogueVisible } = dialogue;
 const showsReminderActions = computed(() => {
   const feedback = activeReminderFeedback.value;

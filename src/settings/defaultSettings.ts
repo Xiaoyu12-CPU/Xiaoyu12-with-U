@@ -1,4 +1,8 @@
 import type { DesktopPetSettings } from "./settingsTypes";
+import {
+  TYPING_BUSY_DEFAULT_TEXT,
+  TYPING_SPEED_DEFAULT_TEXT,
+} from "../input/typingFeedback";
 
 export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
   schemaVersion: 1,
@@ -54,6 +58,14 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     keyDisplayStartLineGapPx: 8,
     keyDisplayStartLineColor: "#8B5CF6",
     keyDisplayStartLineOpacity: 0.5,
+    typingBusyEnabled: true,
+    typingBusyWindowSeconds: 120,
+    typingBusyCountThreshold: 200,
+    typingBusyText: TYPING_BUSY_DEFAULT_TEXT,
+    typingSpeedEnabled: true,
+    typingSpeedThresholdPerSecond: 5,
+    typingSpeedText: TYPING_SPEED_DEFAULT_TEXT,
+    typingFeedbackCooldownSeconds: 10,
     mouseEnabled: false,
     mouseVisualizerEnabled: true,
     mouseVisualizerPosition: "left",
