@@ -40,7 +40,11 @@ pub fn write_diagnostic_line(app: AppHandle, line: String) {
 }
 
 #[tauri::command]
-pub fn open_control_center(app: AppHandle) -> Result<(), String> {
+pub async fn open_control_center(app: AppHandle) -> Result<(), String> {
+    // NOTE: must stay async. On Windows, WebviewWindowBuilder::build()
+    // deadlocks when called from a synchronous command or event handler
+    // (see tauri docs on WebviewWindowBuilder / Webview2 issue); async
+    // commands run outside the main thread, which avoids the deadlock.
     if let Some(window) = app.get_webview_window(CONTROL_CENTER_LABEL) {
         diag_log(&app, "open-control-center: existing window, showing");
         window.show().map_err(|error| error.to_string())?;
