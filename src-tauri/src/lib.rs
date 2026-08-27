@@ -2,11 +2,6 @@
 mod commands;
 mod input;
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -18,11 +13,9 @@ pub fn run() {
         .manage(commands::storage::StorageSampler::default())
         .manage(input::monitor::InputMonitor::default())
         .invoke_handler(tauri::generate_handler![
-            greet,
             commands::app::open_control_center,
             commands::app::exit_app,
             commands::app::apply_pet_window_settings,
-            commands::app::write_diagnostic_line,
             commands::battery::sample_battery_status,
             commands::cpu::sample_cpu_usage,
             commands::control_center_assets::upload_control_center_background,

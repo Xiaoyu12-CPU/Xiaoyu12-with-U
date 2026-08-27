@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { diag } from "./diagnostics";
 import Pet from "./pet/Pet.vue";
 import ControlCenter from "./settings/ControlCenter.vue";
 
 // Route by window label (query strings are unreliable in release builds).
 const isControlCenter = getCurrentWindow().label === "control-center";
-diag(isControlCenter ? "route=control-center" : "route=pet");
 </script>
 
 <template>
