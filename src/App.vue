@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import Pet from "./pet/Pet.vue";
 import ControlCenter from "./settings/ControlCenter.vue";
 
-const isControlCenter = computed(
-  () => new URLSearchParams(window.location.search).get("window") === "control-center",
-);
+// Route by window label (query strings are unreliable in release builds).
+const isControlCenter = getCurrentWindow().label === "control-center";
 </script>
 
 <template>
