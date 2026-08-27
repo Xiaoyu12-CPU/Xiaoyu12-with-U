@@ -42,6 +42,13 @@ export interface ReminderStorageDocument {
   schemaVersion: 1;
   reminders: Reminder[];
   snoozes: ReminderSnooze[];
+  /**
+   * Occurrence keys ("reminderId:scheduledAtIso" / "snooze:id:triggerAt")
+   * already fired by the scheduler. Persisted so a crash or refresh inside
+   * the trigger grace window cannot ring the same occurrence twice.
+   * Populated lazily by the scheduler; treat as advisory on load.
+   */
+  triggeredOccurrences?: string[];
 }
 
 export interface ReminderTriggerPayload {
@@ -63,4 +70,13 @@ export interface NextReminderRuntime {
   text: string;
   scheduleType: ReminderScheduleType;
   nextTriggerAt: string;
+}
+
+/** Surfaced when a scheduled occurrence was missed beyond its grace window. */
+export interface MissedReminderRuntime {
+  id: string;
+  occurrenceType: ReminderOccurrenceType;
+  text: string;
+  /** ISO timestamp of when the reminder was originally scheduled. */
+  scheduledAt: string;
 }

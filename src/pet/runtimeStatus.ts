@@ -11,6 +11,7 @@ import type {
   MouseScrollDirection,
 } from "../input/types";
 import type {
+  MissedReminderRuntime,
   NextReminderRuntime,
   ReminderTriggerPayload,
 } from "../reminder/reminderTypes";
@@ -64,6 +65,7 @@ export interface PetRuntimeSnapshot {
   reminderSchedulerStatus: ReminderSchedulerStatus;
   nextReminder?: NextReminderRuntime;
   lastReminderTrigger?: ReminderTriggerPayload;
+  missedReminders: readonly MissedReminderRuntime[];
   keyboardStatus: KeyboardMonitorStatus;
   pressedKeys: readonly string[];
   lastKey?: string;
@@ -117,6 +119,7 @@ const batteryPresent = ref(false);
 const reminderSchedulerStatus = ref<ReminderSchedulerStatus>("disabled");
 const nextReminder = ref<NextReminderRuntime>();
 const lastReminderTrigger = ref<ReminderTriggerPayload>();
+const missedReminders = ref<readonly MissedReminderRuntime[]>([]);
 const keyboardStatus = ref<KeyboardMonitorStatus>("disabled");
 const pressedKeys = ref<readonly string[]>([]);
 const lastKey = ref<string>();
@@ -170,6 +173,7 @@ const snapshot = computed<PetRuntimeSnapshot>(() => ({
   reminderSchedulerStatus: reminderSchedulerStatus.value,
   nextReminder: nextReminder.value,
   lastReminderTrigger: lastReminderTrigger.value,
+  missedReminders: missedReminders.value,
   keyboardStatus: keyboardStatus.value,
   pressedKeys: pressedKeys.value,
   lastKey: lastKey.value,
@@ -270,10 +274,14 @@ export function updateReminderRuntime(input: {
   status: ReminderSchedulerStatus;
   nextReminder?: NextReminderRuntime;
   lastTrigger?: ReminderTriggerPayload;
+  missed?: MissedReminderRuntime[];
 }): void {
   reminderSchedulerStatus.value = input.status;
   nextReminder.value = input.nextReminder;
   lastReminderTrigger.value = input.lastTrigger;
+  // Sticky until the next clean reconcile: consumers (Control Center) show
+  // "已错过" hints while the array is non-empty.
+  missedReminders.value = input.missed ?? [];
   touch();
 }
 

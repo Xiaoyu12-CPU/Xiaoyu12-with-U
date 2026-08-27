@@ -221,6 +221,55 @@ try {
   await snoozeDuplicate.scheduler.refresh();
   assert.equal(snoozeDuplicate.triggers.length, 1);
 
+  // A persisted triggeredOccurrences list must suppress the same occurrence
+  // after a crash/refresh inside the grace window (regression for High #1).
+  const restoredHarness = createHarness({
+    now: new Date(2026, 7, 25, 14, 2),
+    reminders: [reminder({ id: "crashed-once", date: "2026-08-25", time: "14:00" })],
+  });
+  const firedKey = `crashed-once:${new Date(2026, 7, 25, 14, 0).toISOString()}`;
+  assert.equal(
+    typeof restoredHarness.scheduler.restoreTriggeredOccurrences,
+    "function",
+  );
+  restoredHarness.scheduler.restoreTriggeredOccurrences([firedKey]);
+  await restoredHarness.scheduler.refresh();
+  assert.equal(restoredHarness.triggers.length, 0);
+  assert.equal(restoredHarness.runtime.missed, undefined);
+
+  // Without restore the same occurrence still fires exactly once.
+  const noRestoreHarness = createHarness({
+    now: new Date(2026, 7, 25, 14, 2),
+    reminders: [reminder({ id: "fresh-once", date: "2026-08-25", time: "14:00" })],
+  });
+  await noRestoreHarness.scheduler.refresh();
+  assert.equal(noRestoreHarness.triggers.length, 1);
+  assert.deepEqual(noRestoreHarness.scheduler.getTriggeredOccurrenceKeys(), [
+    `fresh-once:${new Date(2026, 7, 25, 14, 0).toISOString()}`,
+  ]);
+
+  // Occurrences missed beyond the grace window are surfaced, not silent.
+  const onceMissed = createHarness({
+    now: new Date(2026, 7, 25, 15, 6),
+    reminders: [reminder({ id: "missed-once", date: "2026-08-25", time: "14:00" })],
+  });
+  await onceMissed.scheduler.refresh();
+  assert.equal(onceMissed.triggers.length, 0);
+  assert.ok(Array.isArray(onceMissed.runtime.missed));
+  assert.equal(onceMissed.runtime.missed.length, 1);
+  assert.equal(onceMissed.runtime.missed[0].id, "missed-once");
+  assert.equal(onceMissed.reminders[0].enabled, false);
+
+  const snoozeMissed = createHarness({
+    now: new Date(2026, 7, 25, 12, 30),
+    reminders: [],
+    snoozes: [snooze({ id: "missed-snooze", triggerAt: "2026-08-25T12:00:00.000-04:00" })],
+  });
+  await snoozeMissed.scheduler.refresh();
+  assert.equal(snoozeMissed.triggers.length, 0);
+  assert.equal(snoozeMissed.runtime.missed[0].occurrenceType, "snooze");
+  assert.equal(snoozeMissed.snoozes.length, 0);
+
   console.log("Reminder scheduler tests passed.");
 
   function createHarness({ now, reminders, snoozes = [], retainTriggeredSnooze = false }) {

@@ -17,6 +17,8 @@ import {
 export interface ReminderManager {
   reminders: DeepReadonly<Ref<Reminder[]>>;
   snoozes: DeepReadonly<Ref<ReminderSnooze[]>>;
+  /** Occurrence keys already fired, restored from storage on load. */
+  triggeredOccurrences: DeepReadonly<Ref<ReadonlySet<string>>>;
   isLoaded: DeepReadonly<Ref<boolean>>;
   isSaving: DeepReadonly<Ref<boolean>>;
   lastError: DeepReadonly<Ref<string | undefined>>;
@@ -28,6 +30,7 @@ export interface ReminderManager {
   setEnabled: (id: string, enabled: boolean) => Promise<Reminder>;
   createSnooze: (input: ReminderSnoozeInput) => Promise<ReminderSnooze>;
   deleteSnooze: (id: string) => Promise<void>;
+  markTriggeredOccurrences: (keys: readonly string[]) => Promise<void>;
   save: () => Promise<void>;
 }
 
@@ -45,6 +48,7 @@ export function createReminderManager(
   const createId = dependencies.createId ?? createReminderId;
   const reminders = ref<Reminder[]>([]);
   const snoozes = ref<ReminderSnooze[]>([]);
+  const triggeredOccurrenceKeys = ref<ReadonlySet<string>>(new Set());
   const isLoaded = ref(false);
   const isSaving = ref(false);
   const lastError = ref<string>();
@@ -58,10 +62,12 @@ export function createReminderManager(
         : normalizeDocument(storedDocument);
       reminders.value = document.reminders;
       snoozes.value = document.snoozes;
+      triggeredOccurrenceKeys.value = new Set(document.triggeredOccurrences ?? []);
       lastError.value = undefined;
     } catch (error) {
       reminders.value = [];
       snoozes.value = [];
+      triggeredOccurrenceKeys.value = new Set();
       lastError.value = toErrorMessage(error);
       console.error("Failed to load reminders; using an empty list.", error);
     } finally {
@@ -79,6 +85,9 @@ export function createReminderManager(
               const document = normalizeDocument(value);
               reminders.value = document.reminders;
               snoozes.value = document.snoozes;
+              triggeredOccurrenceKeys.value = new Set(
+                document.triggeredOccurrences ?? [],
+              );
               lastError.value = undefined;
             } catch (error) {
               console.error("Ignored invalid reminders update.", error);
@@ -101,6 +110,7 @@ export function createReminderManager(
   async function persist(
     nextReminders: Reminder[],
     nextSnoozes: ReminderSnooze[] = [...snoozes.value],
+    nextTriggeredOccurrences: ReadonlySet<string> = triggeredOccurrenceKeys.value,
   ): Promise<void> {
     isSaving.value = true;
     lastError.value = undefined;
@@ -110,12 +120,14 @@ export function createReminderManager(
       schemaVersion: 1,
       reminders: persistedReminders,
       snoozes: persistedSnoozes,
+      triggeredOccurrences: [...nextTriggeredOccurrences].sort(),
     };
 
     try {
       await storage.save(document);
       reminders.value = persistedReminders;
       snoozes.value = persistedSnoozes;
+      triggeredOccurrenceKeys.value = new Set(nextTriggeredOccurrences);
       try {
         await storage.broadcast(document);
       } catch (error) {
@@ -191,6 +203,27 @@ export function createReminderManager(
     await persist([...reminders.value], nextSnoozes);
   }
 
+  /**
+   * Records occurrence keys as fired so a crash or refresh inside the trigger
+   * grace window cannot ring the same occurrence twice. Failures surface via
+   * lastError without interrupting the trigger that is already in flight.
+   */
+  async function markTriggeredOccurrences(keys: readonly string[]): Promise<void> {
+    if (keys.length === 0) {
+      return;
+    }
+    const merged = new Set(triggeredOccurrenceKeys.value);
+    for (const key of keys) {
+      merged.add(key);
+    }
+    try {
+      await persist([...reminders.value], [...snoozes.value], merged);
+    } catch (error) {
+      lastError.value = `提醒已触发，但标记写入失败：${toErrorMessage(error)}`;
+      console.error("Failed to persist triggered reminder occurrences.", error);
+    }
+  }
+
   async function save(): Promise<void> {
     await persist([...reminders.value]);
   }
@@ -198,6 +231,7 @@ export function createReminderManager(
   return {
     reminders: readonly(reminders),
     snoozes: readonly(snoozes),
+    triggeredOccurrences: readonly(triggeredOccurrenceKeys),
     isLoaded: readonly(isLoaded),
     isSaving: readonly(isSaving),
     lastError: readonly(lastError),
@@ -209,6 +243,7 @@ export function createReminderManager(
     setEnabled,
     createSnooze,
     deleteSnooze,
+    markTriggeredOccurrences,
     save,
   };
 }
@@ -236,7 +271,22 @@ function normalizeDocument(value: unknown): ReminderStorageDocument {
     throw new Error("Reminder snooze IDs must be unique.");
   }
 
-  return { schemaVersion: 1, reminders, snoozes };
+  const rawTriggeredOccurrences = value.triggeredOccurrences === undefined
+    ? []
+    : value.triggeredOccurrences;
+  if (
+    !Array.isArray(rawTriggeredOccurrences)
+    || rawTriggeredOccurrences.some((key) => typeof key !== "string")
+  ) {
+    throw new Error("Reminder triggered occurrences must be a string array.");
+  }
+
+  return {
+    schemaVersion: 1,
+    reminders,
+    snoozes,
+    triggeredOccurrences: [...new Set(rawTriggeredOccurrences as string[])],
+  };
 }
 
 function normalizeSnooze(value: unknown): ReminderSnooze {

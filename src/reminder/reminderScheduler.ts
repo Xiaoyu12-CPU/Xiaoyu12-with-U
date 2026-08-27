@@ -5,6 +5,7 @@ import { updateReminderRuntime } from "../pet/runtimeStatus";
 import { settingsManager } from "../settings/settingsManager";
 import { reminderManager } from "./reminderManager";
 import type {
+  MissedReminderRuntime,
   NextReminderRuntime,
   Reminder,
   ReminderSnooze,
@@ -14,6 +15,8 @@ import type {
 export const REMINDER_TRIGGERED_EVENT = "desktop-pet://reminder-triggered";
 export const REMINDER_GRACE_WINDOW_MS = 5 * 60 * 1_000;
 export const REMINDER_MAX_TIMER_DELAY_MS = 60 * 60 * 1_000;
+/** Fired occurrence keys older than this are pruned from memory and storage. */
+export const REMINDER_TRIGGERED_RETENTION_MS = 24 * 60 * 60 * 1_000;
 
 type ReminderOccurrenceStatus = "future" | "due" | "expired";
 
@@ -33,7 +36,16 @@ interface ReminderSchedulerDependencies {
     status: "enabled" | "disabled";
     nextReminder?: NextReminderRuntime;
     lastTrigger?: ReminderTriggerPayload;
+    missed?: MissedReminderRuntime[];
   }) => void;
+  /**
+   * Persists fired occurrence keys so a crash or refresh inside the trigger
+   * grace window cannot ring the same occurrence twice. When omitted, the
+   * in-memory set still guards within a single session.
+   */
+  markTriggered?: (keys: readonly string[]) => Promise<unknown>;
+  /** Restores previously persisted occurrence keys before first reconcile. */
+  getTriggeredOccurrences?: () => readonly string[];
   now?: () => Date;
   setTimer?: (callback: () => void, delayMs: number) => unknown;
   clearTimer?: (timer: unknown) => void;
@@ -42,6 +54,10 @@ interface ReminderSchedulerDependencies {
 export interface ReminderSchedulerController {
   refresh: () => Promise<void>;
   dispose: () => void;
+  /** Seeds previously persisted occurrence keys (call once after storage load). */
+  restoreTriggeredOccurrences: (keys: readonly string[]) => void;
+  /** Current fired-occurrence keys, for persisting alongside reminders. */
+  getTriggeredOccurrenceKeys: () => string[];
 }
 
 export function createReminderScheduler(
@@ -52,17 +68,37 @@ export function createReminderScheduler(
     ?? ((callback, delayMs) => globalThis.setTimeout(callback, delayMs));
   const clearTimer = dependencies.clearTimer
     ?? ((timer) => globalThis.clearTimeout(timer as ReturnType<typeof setTimeout>));
-  const triggeredOccurrences = new Set<string>();
+  /** occurrenceKey -> scheduledAt(ms) for pruning and persistence. */
+  const triggeredOccurrences = new Map<string, number>();
   let timer: unknown;
   let disposed = false;
   let reconciling = false;
   let reconcileRequested = false;
   let lastTrigger: ReminderTriggerPayload | undefined;
+  let missedOccurrences: MissedReminderRuntime[] = [];
 
   function clearActiveTimer(): void {
     if (timer !== undefined) {
       clearTimer(timer);
       timer = undefined;
+    }
+  }
+
+  function pruneTriggeredOccurrences(currentTime: Date): void {
+    const cutoff = currentTime.getTime() - REMINDER_TRIGGERED_RETENTION_MS;
+    for (const [key, scheduledAtMs] of triggeredOccurrences) {
+      if (scheduledAtMs < cutoff) {
+        triggeredOccurrences.delete(key);
+      }
+    }
+  }
+
+  // Seed from storage-provided state (if any) before the first reconcile so a
+  // restart inside the grace window still de-duplicates against history.
+  if (dependencies.getTriggeredOccurrences) {
+    for (const key of dependencies.getTriggeredOccurrences()) {
+      // Without a known schedule time, anchor to now so retention starts fresh.
+      triggeredOccurrences.set(key, Date.now());
     }
   }
 
@@ -95,6 +131,8 @@ export function createReminderScheduler(
     }
 
     const currentTime = now();
+    pruneTriggeredOccurrences(currentTime);
+    missedOccurrences = [];
     const enabledReminders = dependencies.getReminders().filter(({ enabled }) => enabled);
     const occurrences = enabledReminders.map((reminder) => ({
       occurrenceType: "reminder" as const,
@@ -111,6 +149,13 @@ export function createReminderScheduler(
       if (reminder.scheduleType === "once" && occurrence.status === "expired") {
         await dependencies.setReminderEnabled(reminder.id, false);
         reconcileRequested = true;
+        missedOccurrences.push({
+          id: reminder.id,
+          occurrenceType: "reminder",
+          text: reminder.text,
+          scheduledAt: occurrence.scheduledAt?.toISOString()
+            ?? createLocalOnceDate(reminder).toISOString(),
+        });
       }
     }
 
@@ -118,6 +163,12 @@ export function createReminderScheduler(
       if (occurrence.status === "expired") {
         await dependencies.deleteSnooze(snooze.id);
         reconcileRequested = true;
+        missedOccurrences.push({
+          id: snooze.reminderId,
+          occurrenceType: "snooze",
+          text: snooze.text,
+          scheduledAt: new Date(snooze.triggerAt).toISOString(),
+        });
       }
     }
 
@@ -137,7 +188,7 @@ export function createReminderScheduler(
         continue;
       }
 
-      triggeredOccurrences.add(occurrenceKey);
+      triggeredOccurrences.set(occurrenceKey, scheduledAt.getTime());
       try {
         if (
           candidate.occurrenceType === "reminder"
@@ -163,6 +214,15 @@ export function createReminderScheduler(
       }
     }
 
+    if (dueOccurrences.length > 0 && dependencies.markTriggered) {
+      // Best effort: failures are logged inside the manager via lastError and
+      // must not abort reconciliation.
+      await dependencies.markTriggered([...triggeredOccurrences.keys()])
+        .catch((error: unknown) => {
+          console.error("Failed to persist triggered reminder occurrences.", error);
+        });
+    }
+
     const nextReminder = findNextReminder(
       dependencies.getReminders(),
       now(),
@@ -173,6 +233,7 @@ export function createReminderScheduler(
       status: "enabled",
       nextReminder,
       lastTrigger,
+      ...(missedOccurrences.length > 0 ? { missed: missedOccurrences } : {}),
     });
 
     if (nextReminder) {
@@ -198,7 +259,19 @@ export function createReminderScheduler(
     clearActiveTimer();
   }
 
-  return { refresh, dispose };
+  return {
+    refresh,
+    dispose,
+    restoreTriggeredOccurrences(keys) {
+      for (const key of keys) {
+        // Anchor to now: retention restarts from restore time.
+        triggeredOccurrences.set(key, Date.now());
+      }
+    },
+    getTriggeredOccurrenceKeys() {
+      return [...triggeredOccurrences.keys()];
+    },
+  };
 }
 
 export function evaluateReminderOccurrence(
@@ -251,9 +324,10 @@ export function evaluateSnoozeOccurrence(
 export function findNextReminder(
   reminders: readonly Reminder[],
   now: Date,
-  triggeredOccurrences: ReadonlySet<string> = new Set(),
+  triggeredOccurrences: { has: (key: string) => boolean } = new Set(),
   snoozes: readonly ReminderSnooze[] = [],
 ): NextReminderRuntime | undefined {
+  const hasTriggered = (key: string): boolean => triggeredOccurrences.has(key);
   const reminderCandidates = reminders
     .filter(({ enabled }) => enabled)
     .flatMap((reminder) => {
@@ -266,7 +340,7 @@ export function findNextReminder(
       if (
         reminder.scheduleType === "daily"
         && occurrence.status === "due"
-        && triggeredOccurrences.has(createOccurrenceKey(reminder.id, scheduledAt))
+        && hasTriggered(createOccurrenceKey(reminder.id, scheduledAt))
       ) {
         scheduledAt = createLocalDailyDate(now, reminder.time, 1);
       }
@@ -285,7 +359,7 @@ export function findNextReminder(
     if (
       !occurrence.scheduledAt
       || occurrence.status === "expired"
-      || triggeredOccurrences.has(createSnoozeOccurrenceKey(snooze))
+      || hasTriggered(createSnoozeOccurrenceKey(snooze))
     ) {
       return [];
     }
@@ -324,6 +398,8 @@ export function useReminderScheduler(): void {
     deleteSnooze: (id) => reminderManager.deleteSnooze(id),
     publishTrigger: publishReminderTrigger,
     updateRuntime: updateReminderRuntime,
+    markTriggered: (keys) => reminderManager.markTriggeredOccurrences(keys),
+    getTriggeredOccurrences: () => [...reminderManager.triggeredOccurrences.value],
   });
   let ready = false;
 
@@ -331,6 +407,11 @@ export function useReminderScheduler(): void {
     reminderManager.initialize(),
     settingsManager.initialize(),
   ]).then(() => {
+    // Restore persisted occurrence history before the first reconcile so a
+    // restart inside the grace window still de-duplicates.
+    scheduler.restoreTriggeredOccurrences([
+      ...reminderManager.triggeredOccurrences.value,
+    ]);
     ready = true;
     return scheduler.refresh();
   }).catch((error: unknown) => {
