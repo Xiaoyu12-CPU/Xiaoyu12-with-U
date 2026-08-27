@@ -1,10 +1,10 @@
-# DesktopPet 架构说明
+# withXiaoyu12 架构说明
 
 ## 1. 项目定位与当前状态
 
-DesktopPet 是一个以 macOS 为首要平台、后续支持 Windows 的像素桌宠应用。项目采用 Tauri 2 作为桌面运行时，Vue 3 + TypeScript 构建界面与交互，Rust 负责桌面窗口、系统能力和平台相关逻辑。
+withXiaoyu12（内部代号 DesktopPet）是一个以 macOS 为首要平台、后续支持 Windows 的像素桌宠应用。项目采用 Tauri 2 作为桌面运行时，Vue 3 + TypeScript 构建界面与交互，Rust 负责桌面窗口、系统能力和平台相关逻辑。对外产品名自 v0.4.0-preview 起锁定为 `withXiaoyu12`，源码层命名约定见第 28 节。
 
-当前仓库已完成透明桌宠窗口、PetState、资源加载、逐帧动画、交互、Dialogue、拖动、控制中心、State & Animation Editor、Behavior Manager、CPU / Memory / Network / Storage / Battery 系统监控、Reminder & Alarm，以及 Phase 5 Input Awareness。自定义皮肤和 AI 仍按路线图留待后续阶段。
+当前仓库已完成透明桌宠窗口、PetState、资源加载、逐帧动画、交互、Dialogue、拖动、控制中心、State & Animation Editor、Behavior Manager、CPU / Memory / Network / Storage / Battery 系统监控、Reminder & Alarm，以及 Phase 5 Input Awareness。核心纯逻辑由 `tests/` 下三个测试套件覆盖（提醒、输入感知、控制中心设置），使用 Node 原生 test runner 运行，见第 6.4 节。自定义皮肤和 AI 仍按路线图留待后续阶段。
 
 Phase 2-D Application Settings System 也已完成：全局用户偏好通过统一 Settings Manager 管理，保存到 Tauri 应用数据目录，并在桌宠窗口和控制中心之间实时同步。
 
@@ -180,10 +180,12 @@ src/
 ```text
 src-tauri/src/
 ├── commands/     Tauri command 边界、参数校验与结果转换
-├── system/       系统指标采集、能力检测与平台适配
-├── input/        全局键鼠监听、权限与事件归一化
-├── pet/          桌宠原生窗口、位置和平台窗口行为
-├── lib.rs        Tauri 应用构建与模块装配
+│                 （系统监控采样、提醒/设置持久化、用户资产上传、控制中心背景）
+├── input/        全局键鼠监听：事件归一化、共享监听状态机，
+│                 macOS 实现位于 platform/macos.rs（CGEventTap ListenOnly）
+├── system/       系统指标采集的平台抽象位（预留，采样器暂在 commands/ 内）
+├── pet/          桌宠原生窗口行为的预留目录
+├── lib.rs        Tauri 应用构建、共享状态管理（manage）与 command 注册
 └── main.rs       桌面程序入口
 ```
 
@@ -196,6 +198,25 @@ src-tauri/src/
 - Rust `commands/` 可以调用领域服务；领域服务不依赖 `commands/`。
 - 平台实现只出现在 Rust 原生层，Vue 侧只消费统一数据模型。
 - AI 功能作为可选领域接入，不侵入桌宠动画、系统监控等核心模块。
+
+### 6.4 测试体系
+
+核心业务逻辑保持纯函数化（依赖注入适配器、不直接触达 DOM 与 Tauri API），因此主要行为可以在 Node 环境下用原生 test runner 直接验证：
+
+```text
+tests/
+├── reminder*.test.mjs            提醒管理、调度器、贪睡、铃声、运行时消费
+├── dialogueLifecycle.test.mjs    对话生命周期
+├── keyboardMonitor.test.mjs      键盘监听控制器（启动竞态、权限状态机）
+├── keyDisplay.test.mjs           方向性按键历史栈
+├── mouseMonitor.test.mjs         鼠标监听控制器
+├── mouseVisualizer.test.mjs      鼠标可视化
+├── inputIntegration.test.mjs     输入链路集成
+├── typingFeedback.test.mjs       打字反馈指标与冷却
+└── controlCenterSettings.test.mjs 控制中心设置
+```
+
+通过 `package.json` 中三个脚本运行：`pnpm test:reminders`、`pnpm test:input`、`pnpm test:control-center`。Rust 侧对平台无关的纯函数（键码映射、滚动方向、提醒存储读写）使用 `#[cfg(test)]` 模块测试，随 `cargo test` 执行；依赖 macOS 私有框架的路径在 CI 之外的 Mac 上验证。前端类型检查由 `vue-tsc --noEmit`（`pnpm build` 的第一步）保证。
 
 ## 7. 跨领域数据流示例
 
