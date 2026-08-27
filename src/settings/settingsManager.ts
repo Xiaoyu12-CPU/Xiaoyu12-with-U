@@ -95,6 +95,10 @@ function update(patch: SettingsPatch): void {
     },
     input: { ...settings.value.input, ...patch.input },
     reminder: { ...settings.value.reminder, ...patch.reminder },
+    controlCenter: {
+      ...settings.value.controlCenter,
+      ...patch.controlCenter,
+    },
   });
   scheduleSave();
 }
@@ -163,6 +167,7 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
     : {};
   const input = isRecord(value.input) ? value.input : {};
   const reminder = isRecord(value.reminder) ? value.reminder : {};
+  const controlCenter = isRecord(value.controlCenter) ? value.controlCenter : {};
 
   return {
     schemaVersion: 1,
@@ -503,7 +508,116 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         DEFAULT_SETTINGS.reminder.soundVolume,
       ),
     },
+    controlCenter: {
+      backgroundColor: hexColorOrDefault(
+        controlCenter.backgroundColor,
+        DEFAULT_SETTINGS.controlCenter.backgroundColor,
+      ),
+      backgroundOpacity: clampNumber(
+        controlCenter.backgroundOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.controlCenter.backgroundOpacity,
+      ),
+      backgroundImage: managedBackgroundOrDefault(controlCenter.backgroundImage),
+      backgroundImageFit: backgroundFitOrDefault(controlCenter.backgroundImageFit),
+      backgroundImageOpacity: clampNumber(
+        controlCenter.backgroundImageOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.controlCenter.backgroundImageOpacity,
+      ),
+      sidebarBackgroundColor: hexColorOrDefault(
+        controlCenter.sidebarBackgroundColor,
+        DEFAULT_SETTINGS.controlCenter.sidebarBackgroundColor,
+      ),
+      sidebarBackgroundOpacity: clampNumber(
+        controlCenter.sidebarBackgroundOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.controlCenter.sidebarBackgroundOpacity,
+      ),
+      sidebarTextColor: hexColorOrDefault(
+        controlCenter.sidebarTextColor,
+        DEFAULT_SETTINGS.controlCenter.sidebarTextColor,
+      ),
+      sidebarActiveBackgroundColor: hexColorOrDefault(
+        controlCenter.sidebarActiveBackgroundColor,
+        DEFAULT_SETTINGS.controlCenter.sidebarActiveBackgroundColor,
+      ),
+      sidebarActiveBackgroundOpacity: clampNumber(
+        controlCenter.sidebarActiveBackgroundOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.controlCenter.sidebarActiveBackgroundOpacity,
+      ),
+      sidebarActiveTextColor: hexColorOrDefault(
+        controlCenter.sidebarActiveTextColor,
+        DEFAULT_SETTINGS.controlCenter.sidebarActiveTextColor,
+      ),
+      primaryTextColor: hexColorOrDefault(
+        controlCenter.primaryTextColor,
+        DEFAULT_SETTINGS.controlCenter.primaryTextColor,
+      ),
+      secondaryTextColor: hexColorOrDefault(
+        controlCenter.secondaryTextColor,
+        DEFAULT_SETTINGS.controlCenter.secondaryTextColor,
+      ),
+      cardBackgroundColor: hexColorOrDefault(
+        controlCenter.cardBackgroundColor,
+        DEFAULT_SETTINGS.controlCenter.cardBackgroundColor,
+      ),
+      cardBackgroundOpacity: clampNumber(
+        controlCenter.cardBackgroundOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.controlCenter.cardBackgroundOpacity,
+      ),
+      cardBorderColor: hexColorOrDefault(
+        controlCenter.cardBorderColor,
+        DEFAULT_SETTINGS.controlCenter.cardBorderColor,
+      ),
+      cardBorderOpacity: clampNumber(
+        controlCenter.cardBorderOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.controlCenter.cardBorderOpacity,
+      ),
+      cardBorderWidth: clampNumber(
+        controlCenter.cardBorderWidth,
+        0,
+        6,
+        DEFAULT_SETTINGS.controlCenter.cardBorderWidth,
+      ),
+      accentColor: hexColorOrDefault(
+        controlCenter.accentColor,
+        DEFAULT_SETTINGS.controlCenter.accentColor,
+      ),
+    },
   };
+}
+
+function managedBackgroundOrDefault(value: unknown): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return typeof value === "string"
+    && /^[a-z0-9][a-z0-9._-]{0,179}\.(?:png|jpe?g|webp)$/i.test(value)
+    ? value
+    : null;
+}
+
+function backgroundFitOrDefault(
+  value: unknown,
+): DesktopPetSettings["controlCenter"]["backgroundImageFit"] {
+  return value === "cover"
+      || value === "contain"
+      || value === "stretch"
+      || value === "center"
+      || value === "tile"
+    ? value
+    : DEFAULT_SETTINGS.controlCenter.backgroundImageFit;
 }
 
 function clampNumber(

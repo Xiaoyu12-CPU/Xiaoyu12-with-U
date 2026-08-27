@@ -1,5 +1,6 @@
 pub mod app;
 pub mod battery;
+pub mod control_center_assets;
 pub mod cpu;
 pub mod dialogue;
 pub mod memory;

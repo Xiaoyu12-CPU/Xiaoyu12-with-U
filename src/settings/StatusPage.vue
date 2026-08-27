@@ -629,7 +629,7 @@ header {
 
 .eyebrow {
   margin: 0 0 4px;
-  color: #8d78db;
+  color: var(--cc-accent, #8d78db);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.12em;
@@ -638,7 +638,7 @@ header {
 
 h2 {
   margin: 0;
-  color: #211b31;
+  color: var(--cc-text-primary, #211b31);
   font-size: 26px;
 }
 
@@ -666,8 +666,8 @@ article {
   gap: 7px;
   min-height: 72px;
   padding: 15px;
-  background: #faf9fd;
-  border: 1px solid #ebe7f3;
+  background: var(--cc-card-bg, #faf9fd);
+  border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #ebe7f3);
   border-radius: 13px;
 }
 
@@ -676,12 +676,12 @@ article.wide {
 }
 
 article span {
-  color: #81798f;
+  color: var(--cc-text-secondary, #81798f);
   font-size: 12px;
 }
 
 article strong {
-  color: #2b2438;
+  color: var(--cc-text-primary, #2b2438);
   font-size: 15px;
   overflow-wrap: anywhere;
 }
@@ -841,7 +841,7 @@ article strong {
   display: grid;
   gap: 13px;
   padding: 16px;
-  background: #f7f5fb;
+  background: var(--cc-card-bg, #f7f5fb);
   border: 1px dashed #cfc7df;
   border-radius: 13px;
 }
@@ -855,7 +855,7 @@ article strong {
 
 h3 {
   margin: 0;
-  color: #2b2438;
+  color: var(--cc-text-primary, #2b2438);
   font-size: 16px;
 }
 
@@ -867,7 +867,7 @@ h3 {
 .behavior-request {
   min-height: 0;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--cc-input-bg, #fff);
 }
 
 .behavior-request strong {
@@ -878,7 +878,7 @@ h3 {
 .behavior-request span,
 .empty {
   margin: 0;
-  color: #81798f;
+  color: var(--cc-text-secondary, #81798f);
   font-size: 11px;
 }
 
@@ -894,7 +894,7 @@ button {
   font: inherit;
   font-size: 13px;
   font-weight: 650;
-  background: #6f57c8;
+  background: var(--cc-accent, #6f57c8);
   border: 0;
   border-radius: 9px;
   cursor: pointer;

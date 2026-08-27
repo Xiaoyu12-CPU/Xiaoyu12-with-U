@@ -164,7 +164,7 @@ header,
 
 .eyebrow {
   margin: 0 0 4px;
-  color: #8d78db;
+  color: var(--cc-accent, #8d78db);
   font-size: 11px;
   font-weight: 750;
   letter-spacing: 0.12em;
@@ -173,14 +173,14 @@ header,
 
 h2 {
   margin: 0;
-  color: #211b31;
+  color: var(--cc-text-primary, #211b31);
   font-size: 26px;
 }
 
 header > span,
 small,
 footer span {
-  color: #81798f;
+  color: var(--cc-text-secondary, #81798f);
   font-size: 12px;
 }
 
@@ -193,8 +193,8 @@ article {
   display: grid;
   gap: 13px;
   padding: 16px;
-  background: #faf9fd;
-  border: 1px solid #e8e4f0;
+  background: var(--cc-card-bg, #faf9fd);
+  border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e8e4f0);
   border-radius: 13px;
 }
 
@@ -222,17 +222,17 @@ input {
   flex: 1;
   min-width: 0;
   padding: 9px 10px;
-  color: #30283d;
+  color: var(--cc-text-primary, #30283d);
   font: inherit;
   font-size: 13px;
-  background: #fff;
-  border: 1px solid #dcd6e7;
+  background: var(--cc-input-bg, #fff);
+  border: 1px solid var(--cc-card-border, #dcd6e7);
   border-radius: 8px;
   outline: none;
 }
 
 input:focus {
-  border-color: #8c75dc;
+  border-color: var(--cc-accent, #8c75dc);
   box-shadow: 0 0 0 3px rgba(140, 117, 220, 0.13);
 }
 
@@ -246,16 +246,16 @@ button {
   font: inherit;
   font-size: 12px;
   font-weight: 650;
-  background: #6f57c8;
-  border: 1px solid #6f57c8;
+  background: var(--cc-accent, #6f57c8);
+  border: 1px solid var(--cc-accent, #6f57c8);
   border-radius: 8px;
   cursor: pointer;
 }
 
 button.secondary {
-  color: #5d48a6;
-  background: #fff;
-  border-color: #d9d1ef;
+  color: var(--cc-accent, #5d48a6);
+  background: var(--cc-input-bg, #fff);
+  border-color: var(--cc-card-border, #d9d1ef);
 }
 
 button.remove {

@@ -82,6 +82,7 @@ fn validate_settings(contents: &str) -> Result<(), String> {
         "systemMonitor",
         "input",
         "reminder",
+        "controlCenter",
     ] {
         if !document.get(section).is_some_and(Value::is_object) {
             return Err(format!("Settings section \"{section}\" must be an object."));

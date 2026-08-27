@@ -85,8 +85,33 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     enabled: false,
     soundVolume: 0.7,
   },
+  controlCenter: {
+    backgroundColor: "#FFFFFF",
+    backgroundOpacity: 1,
+    backgroundImage: null,
+    backgroundImageFit: "cover",
+    backgroundImageOpacity: 1,
+    sidebarBackgroundColor: "#292337",
+    sidebarBackgroundOpacity: 1,
+    sidebarTextColor: "#C8C1D4",
+    sidebarActiveBackgroundColor: "#8B78FF",
+    sidebarActiveBackgroundOpacity: 0.22,
+    sidebarActiveTextColor: "#FFFFFF",
+    primaryTextColor: "#30283D",
+    secondaryTextColor: "#857C91",
+    cardBackgroundColor: "#FAF9FD",
+    cardBackgroundOpacity: 1,
+    cardBorderColor: "#E8E4F0",
+    cardBorderOpacity: 1,
+    cardBorderWidth: 1,
+    accentColor: "#745BC9",
+  },
 };
 
 export function createDefaultSettings(): DesktopPetSettings {
   return structuredClone(DEFAULT_SETTINGS);
+}
+
+export function createDefaultControlCenterAppearance(): DesktopPetSettings["controlCenter"] {
+  return structuredClone(DEFAULT_SETTINGS.controlCenter);
 }

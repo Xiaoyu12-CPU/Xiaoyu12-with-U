@@ -34,6 +34,9 @@ const selectedSoundId = computed({
 const pendingSnoozes = computed(() =>
   sortReminderSnoozesByTriggerAt(reminderManager.snoozes.value),
 );
+const reminderSoundVolumePercent = computed(() =>
+  Math.round(settingsManager.settings.value.reminder.soundVolume * 100),
+);
 
 onMounted(() => {
   void reminderManager.initialize();
@@ -149,6 +152,22 @@ async function cancelSnooze(id: string): Promise<void> {
   }
 }
 
+function updateReminderEnabled(event: Event): void {
+  settingsManager.updateSetting(
+    "reminder",
+    "enabled",
+    (event.target as HTMLInputElement).checked,
+  );
+}
+
+function updateReminderSoundVolume(event: Event): void {
+  settingsManager.updateSetting(
+    "reminder",
+    "soundVolume",
+    Number((event.target as HTMLInputElement).value) / 100,
+  );
+}
+
 function createEmptyForm(): ReminderInput {
   return {
     text: "",
@@ -192,6 +211,23 @@ function formatRuntimeDate(value: string): string {
       读取提醒失败，当前使用安全空列表：{{ reminderManager.lastError.value }}
     </p>
     <p v-if="formError" class="error">{{ formError }}</p>
+
+    <article class="reminder-system-settings" data-reminder-settings>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Reminder System</p>
+          <h3>提醒系统</h3>
+        </div>
+      </div>
+      <label class="system-setting-row">
+        <span><strong>Enable Reminder System</strong><small>关闭只暂停Scheduler，保留Reminder与Pending Snooze。</small></span>
+        <input class="toggle" type="checkbox" :checked="settingsManager.settings.value.reminder.enabled" @change="updateReminderEnabled" />
+      </label>
+      <label class="system-setting-row">
+        <span><strong>Reminder Sound Volume</strong><small>作用于之后触发或试听的内置提醒声音。</small></span>
+        <div class="volume-control"><input type="range" min="0" max="100" step="5" :value="reminderSoundVolumePercent" @input="updateReminderSoundVolume" /><output>{{ reminderSoundVolumePercent }}%</output></div>
+      </label>
+    </article>
 
     <article class="scheduler-status">
       <div>
@@ -387,20 +423,29 @@ function formatRuntimeDate(value: string): string {
 </template>
 
 <style scoped>
-.reminder-page { display: grid; gap: 18px; color: #30283d; }
+.reminder-page { display: grid; gap: 18px; color: var(--cc-text-primary, #30283d); }
 header, .editor-heading, .editor-actions, .reminder-list article, .schedule, .row-actions, .delete-confirmation { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.eyebrow { margin: 0 0 4px; color: #8d78db; font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+.eyebrow { margin: 0 0 4px; color: var(--cc-accent, #8d78db); font-size: 11px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
 h2, h3, p { margin: 0; }
-h2 { color: #211b31; font-size: 26px; }
+h2 { color: var(--cc-text-primary, #211b31); font-size: 26px; }
 h3 { font-size: 17px; }
-.subtitle { margin-top: 5px; color: #857c91; font-size: 11px; }
-button { padding: 8px 11px; color: #5d48a6; font: inherit; font-size: 12px; font-weight: 650; background: #fff; border: 1px solid #d9d1ef; border-radius: 8px; cursor: pointer; }
+.subtitle { margin-top: 5px; color: var(--cc-text-secondary, #857c91); font-size: 11px; }
+button { padding: 8px 11px; color: var(--cc-accent, #5d48a6); font: inherit; font-size: 12px; font-weight: 650; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #d9d1ef); border-radius: 8px; cursor: pointer; }
 button:hover { background: #f3efff; }
 button:disabled { cursor: default; opacity: .55; }
-.primary { color: #fff; background: #745bc9; border-color: #745bc9; }
+.primary { color: #fff; background: var(--cc-accent, #745bc9); border-color: var(--cc-accent, #745bc9); }
 .primary:hover { background: #654db9; }
 .danger { color: #a44050; border-color: #e9cbd0; }
-.editor, .reminder-list article, .empty-state, .scheduler-status, .pending-snoozes { padding: 17px; background: #faf9fd; border: 1px solid #e8e4f0; border-radius: 13px; }
+.editor, .reminder-list article, .empty-state, .scheduler-status, .pending-snoozes, .reminder-system-settings { padding: 17px; background: var(--cc-card-bg, #faf9fd); border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e8e4f0); border-radius: 13px; }
+.reminder-system-settings { display: grid; gap: 4px; }
+.section-heading { padding-bottom: 8px; }
+.system-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 42px; padding: 9px 0; border-top: 1px solid var(--cc-card-border, #ede9f2); }
+.system-setting-row > span { display: grid; gap: 3px; }
+.system-setting-row small { color: var(--cc-text-secondary, #8c8397); font-size: 10px; }
+.toggle { width: 18px; height: 18px; accent-color: var(--cc-accent, #745bc9); }
+.volume-control { display: flex; align-items: center; gap: 10px; min-width: 230px; }
+.volume-control input { flex: 1; accent-color: var(--cc-accent, #745bc9); }
+.volume-control output { width: 50px; color: var(--cc-accent, #604ca5); font-size: 12px; font-weight: 700; text-align: right; }
 .scheduler-status { display: grid; grid-template-columns: minmax(110px, .7fr) minmax(90px, .6fr) repeat(2, minmax(150px, 1fr)); gap: 16px; }
 .scheduler-status > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
 .scheduler-status strong { overflow: hidden; color: #433750; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }

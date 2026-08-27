@@ -3,6 +3,12 @@ import type { SystemStatusItemId } from "../system/statusItems";
 export type DesktopDisplayMode = "pet-only" | "status-only" | "both";
 export type KeyDisplayPosition = "top" | "bottom" | "left" | "right";
 export type MouseVisualizerPosition = "top" | "bottom" | "left" | "right";
+export type ControlCenterBackgroundImageFit =
+  | "cover"
+  | "contain"
+  | "stretch"
+  | "center"
+  | "tile";
 export type KeyDisplayFlowDirection =
   | "auto"
   | "up"
@@ -90,6 +96,27 @@ export interface DesktopPetSettings {
   reminder: {
     enabled: boolean;
     soundVolume: number;
+  };
+  controlCenter: {
+    backgroundColor: string;
+    backgroundOpacity: number;
+    backgroundImage: string | null;
+    backgroundImageFit: ControlCenterBackgroundImageFit;
+    backgroundImageOpacity: number;
+    sidebarBackgroundColor: string;
+    sidebarBackgroundOpacity: number;
+    sidebarTextColor: string;
+    sidebarActiveBackgroundColor: string;
+    sidebarActiveBackgroundOpacity: number;
+    sidebarActiveTextColor: string;
+    primaryTextColor: string;
+    secondaryTextColor: string;
+    cardBackgroundColor: string;
+    cardBackgroundOpacity: number;
+    cardBorderColor: string;
+    cardBorderOpacity: number;
+    cardBorderWidth: number;
+    accentColor: string;
   };
 }
 

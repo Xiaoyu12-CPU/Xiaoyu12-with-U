@@ -338,6 +338,14 @@ Phase 1～5 Feature Development 已完成，项目进入 Feature Freeze。当前
 - 当前以 `x86_64-apple-darwin` cross-build 和 Bundle 静态验证为目标；Intel Runtime Verified 必须等待 Intel Mac 实机验收。
 - x86_64 Cargo check、纯 Intel Release `.app` / `.dmg` 构建与 DMG 只读挂载验证已完成；测试包未签名、未公证，Intel 实机运行状态仍为待验收。
 
+### Release UX Polish：Control Center Settings IA
+
+- Settings 已拆成 General、System、Input、Dialogue & Interaction、Control Center Appearance 五个二级页面；Input 再拆分 Keyboard、Typing Feedback、Mouse 三级页，不再依赖单页滚动定位。
+- Reminder Master 与 Sound Volume 移入 Reminder 页面，仍复用原 Settings 字段与 Scheduler / Sound Runtime。
+- Control Center Theme 使用集中 Semantic Tokens，支持 WebView 内部背景色/透明度、托管背景图片、Cover / Contain / Stretch / Center / Tile、图片透明度、Sidebar、文字、Cards / Borders、Accent 与只重置Theme。
+- 运行时导入的 PNG、JPG / JPEG、WebP 会复制到应用自己的 `app_data_dir()/control-center/background/`；settings.json 不保存Base64或外部绝对路径，损坏或缺失时回退背景颜色。
+- 本阶段属于 Release UX Polish，Feature Freeze继续有效，不修改Reminder、System Monitor、Input、Behavior、Animation或Dialogue业务逻辑。
+
 ## Phase 6：自定义皮肤
 
 目标：允许安全地安装、切换和管理桌宠外观。
