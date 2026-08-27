@@ -1,18 +1,28 @@
 use serde_json::Value;
 use std::fs;
 use std::io::{ErrorKind, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 const DIALOGUE_FILE_NAME: &str = "dialogue.json";
+const DIALOGUE_TEMP_FILE_NAME: &str = "dialogue.json.tmp";
+const DIALOGUE_BACKUP_FILE_NAME: &str = "dialogue.json.bak";
 
 #[tauri::command]
 pub fn load_dialogue_catalog(app: AppHandle) -> Result<Option<String>, String> {
-    let path = dialogue_file_path(&app)?;
+    let directory = dialogue_directory(&app)?;
+    let dialogue_path = directory.join(DIALOGUE_FILE_NAME);
 
-    match fs::read_to_string(path) {
+    match fs::read_to_string(&dialogue_path) {
         Ok(contents) => Ok(Some(contents)),
-        Err(error) if error.kind() == ErrorKind::NotFound => Ok(None),
+        Err(error) if error.kind() == ErrorKind::NotFound => {
+            let backup_path = directory.join(DIALOGUE_BACKUP_FILE_NAME);
+            match fs::read_to_string(&backup_path) {
+                Ok(contents) => Ok(Some(contents)),
+                Err(backup_error) if backup_error.kind() == ErrorKind::NotFound => Ok(None),
+                Err(backup_error) => Err(format!("Failed to read dialogue backup: {backup_error}")),
+            }
+        }
         Err(error) => Err(format!("Failed to read dialogue JSON: {error}")),
     }
 }
@@ -20,29 +30,52 @@ pub fn load_dialogue_catalog(app: AppHandle) -> Result<Option<String>, String> {
 #[tauri::command]
 pub fn save_dialogue_catalog(app: AppHandle, contents: String) -> Result<(), String> {
     validate_dialogue_document(&contents)?;
-    let path = dialogue_file_path(&app)?;
-    let parent = path
-        .parent()
-        .ok_or_else(|| "Dialogue storage path has no parent directory.".to_string())?;
-
-    fs::create_dir_all(parent)
+    let directory = dialogue_directory(&app)?;
+    fs::create_dir_all(&directory)
         .map_err(|error| format!("Failed to create dialogue storage directory: {error}"))?;
 
-    let mut file = fs::File::create(path)
-        .map_err(|error| format!("Failed to open dialogue JSON for writing: {error}"))?;
-    file.write_all(contents.as_bytes())
-        .map_err(|error| format!("Failed to write dialogue JSON: {error}"))?;
-    file.sync_all()
-        .map_err(|error| format!("Failed to flush dialogue JSON: {error}"))?;
+    let dialogue_path = directory.join(DIALOGUE_FILE_NAME);
+    let temp_path = directory.join(DIALOGUE_TEMP_FILE_NAME);
+    let backup_path = directory.join(DIALOGUE_BACKUP_FILE_NAME);
+    write_synced(&temp_path, contents.as_bytes())?;
 
+    // Same durable replace strategy as settings.rs: atomic rename fast path,
+    // with a backup round-trip for filesystems that refuse overwriting renames.
+    if fs::rename(&temp_path, &dialogue_path).is_ok() {
+        let _ = fs::remove_file(&backup_path);
+        return Ok(());
+    }
+
+    if dialogue_path.exists() {
+        let _ = fs::remove_file(&backup_path);
+        fs::rename(&dialogue_path, &backup_path)
+            .map_err(|error| format!("Failed to stage dialogue backup: {error}"))?;
+    }
+
+    if let Err(error) = fs::rename(&temp_path, &dialogue_path) {
+        if backup_path.exists() {
+            let _ = fs::rename(&backup_path, &dialogue_path);
+        }
+        return Err(format!("Failed to replace dialogue JSON: {error}"));
+    }
+
+    let _ = fs::remove_file(backup_path);
     Ok(())
 }
 
-fn dialogue_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+fn dialogue_directory(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
-        .map(|directory| directory.join(DIALOGUE_FILE_NAME))
         .map_err(|error| format!("Failed to resolve app data directory: {error}"))
+}
+
+fn write_synced(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let mut file = fs::File::create(path)
+        .map_err(|error| format!("Failed to create temporary dialogue file: {error}"))?;
+    file.write_all(bytes)
+        .map_err(|error| format!("Failed to write temporary dialogue file: {error}"))?;
+    file.sync_all()
+        .map_err(|error| format!("Failed to flush temporary dialogue file: {error}"))
 }
 
 fn validate_dialogue_document(contents: &str) -> Result<(), String> {
