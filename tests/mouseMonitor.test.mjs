@@ -39,6 +39,61 @@ try {
   );
   testSettings(normalizeSettings);
 
+  // Scroll coalescing: bursts of scroll events publish at most once per
+  // window, carrying the latest direction; button events flush immediately.
+  const { createMouseInputRuntime: createCoalescedRuntime } = await vite
+    .ssrLoadModule("/src/input/mouseRuntime.ts");
+  let flushed = 0;
+  const firedTimers = [];
+  const coalesced = createCoalescedRuntime(() => {
+    flushed += 1;
+  }, {
+    setTimer(callback) {
+      const timer = { callback };
+      firedTimers.push(timer);
+      return timer;
+    },
+    clearTimer() {},
+  });
+  coalesced.applyStatus({ status: "active" });
+  flushed = 0;
+  coalesced.applyEvent(scrollEvent("up", 1_000));
+  coalesced.applyEvent(scrollEvent("down", 1_010));
+  assert.equal(flushed, 0);
+  assert.equal(firedTimers.length, 1);
+  coalesced.applyEvent(scrollEvent("left", 1_020));
+  // Flushing the pending timer publishes the latest direction exactly once.
+  firedTimers[0].callback();
+  assert.equal(flushed, 1);
+  assert.equal(coalesced.getSnapshot().lastScrollDirection, "left");
+  assert.equal(firedTimers.length, 1);
+  // A new burst schedules a fresh timer.
+  coalesced.applyEvent(scrollEvent("right", 2_000));
+  assert.equal(firedTimers.length, 2);
+  // Button events cancel the pending scroll publish and flush immediately.
+  coalesced.applyEvent(buttonEvent("down", "left", 2_100));
+  assert.equal(flushed, 2);
+  firedTimers[1].callback();
+  assert.equal(flushed, 2);
+  // Zero window disables coalescing.
+  let immediate = 0;
+  const uncoalesced = createCoalescedRuntime(() => {
+    immediate += 1;
+  }, { scrollCoalesceMs: 0 });
+  uncoalesced.applyStatus({ status: "active" });
+  immediate = 0;
+  uncoalesced.applyEvent(scrollEvent("up", 3_000));
+  assert.equal(immediate, 1);
+  // Status changes discard pending publishes.
+  flushed = 0;
+  coalesced.applyEvent(scrollEvent("down", 4_000));
+  assert.equal(flushed, 0);
+  coalesced.applyStatus({ status: "disabled" });
+  const afterDisable = flushed;
+  assert.ok(afterDisable >= 1);
+  firedTimers[2].callback();
+  assert.equal(flushed, afterDisable);
+
   console.log("Mouse monitor tests passed.");
 } finally {
   await vite.close();

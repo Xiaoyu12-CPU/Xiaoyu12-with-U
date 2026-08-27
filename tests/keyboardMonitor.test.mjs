@@ -82,6 +82,26 @@ try {
   assert.equal(controllerRuntime.getSnapshot().message, "permission needed");
   assert.ok(updates.length >= 8);
 
+  // Stuck-key GC: a lost "up" must not block the next "down" of the same key.
+  const gcRuntime = createKeyboardInputRuntime();
+  gcRuntime.applyStatus({ status: "active" });
+  assert.equal(gcRuntime.applyEvent(keyEvent("down", "A", 1_000)), true);
+  assert.deepEqual(gcRuntime.getSnapshot().pressedKeys, ["A"]);
+  // Within the stale window the key is still pressed and the down is deduped.
+  assert.equal(gcRuntime.reapStalePressedKeys(20_000, 30_000), false);
+  assert.equal(gcRuntime.applyEvent(keyEvent("down", "A", 21_000)), false);
+  // Past the window the stuck key is reaped and the next down is accepted.
+  assert.equal(gcRuntime.reapStalePressedKeys(40_000, 30_000), true);
+  assert.deepEqual(gcRuntime.getSnapshot().pressedKeys, []);
+  assert.equal(gcRuntime.applyEvent(keyEvent("down", "A", 41_000)), true);
+  assert.deepEqual(gcRuntime.getSnapshot().pressedKeys, ["A"]);
+  // Fresh keys within the window survive reaping.
+  assert.equal(gcRuntime.reapStalePressedKeys(45_000, 30_000), false);
+  assert.deepEqual(gcRuntime.getSnapshot().pressedKeys, ["A"]);
+  // Inactive runtimes never reap.
+  const idleRuntime = createKeyboardInputRuntime();
+  assert.equal(idleRuntime.reapStalePressedKeys(999_999, 1), false);
+
   console.log("Keyboard monitor tests passed.");
 } finally {
   await vite.close();

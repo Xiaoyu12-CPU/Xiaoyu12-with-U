@@ -4,7 +4,10 @@ import type { UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentScope, onScopeDispose, watch } from "vue";
 import { updateKeyboardRuntime } from "../pet/runtimeStatus";
 import { settingsManager } from "../settings/settingsManager";
-import { createKeyboardInputRuntime } from "./keyboardRuntime";
+import {
+  createKeyboardInputRuntime,
+  KEYBOARD_PRESSED_KEY_STALE_MS,
+} from "./keyboardRuntime";
 import type {
   KeyboardInputEvent,
   NativeKeyboardMonitorSnapshot,
@@ -100,6 +103,9 @@ export function createKeyboardMonitorController(
   }
 
   function handleNativeEvent(event: KeyboardInputEvent): boolean {
+    // Reap stuck keys on every event before dedupe: a lost "up" must not
+    // block the next "down" of the same key forever.
+    runtime.reapStalePressedKeys(event.timestamp, KEYBOARD_PRESSED_KEY_STALE_MS);
     const accepted = runtime.applyEvent(event);
     if (accepted && isTypingActivityEvent(event)) {
       options.onTypingActivity?.(event.timestamp);

@@ -12,8 +12,21 @@ export interface MouseInputRuntime {
   disable: () => void;
 }
 
+export interface MouseInputRuntimeOptions {
+  /**
+   * Scroll events publish at most once per this window (inbound inertia
+   * scrolling easily exceeds 100 events/s). 0 disables coalescing.
+   */
+  scrollCoalesceMs?: number;
+  setTimer?: (callback: () => void, delayMs: number) => unknown;
+  clearTimer?: (timer: unknown) => void;
+}
+
+export const MOUSE_SCROLL_COALESCE_MS = 16;
+
 export function createMouseInputRuntime(
   onChange: (snapshot: MouseRuntimeSnapshot) => void = () => {},
+  options: MouseInputRuntimeOptions = {},
 ): MouseInputRuntime {
   const pressedButtons = new Set<NonNullable<MouseInputEvent["button"]>>();
   let status: MouseMonitorStatus = "disabled";
@@ -22,6 +35,13 @@ export function createMouseInputRuntime(
   let lastActivityAt: number | undefined;
   let lastScrollDirection: MouseInputEvent["scrollDirection"];
   let lastScrollAt: number | undefined;
+
+  const scrollCoalesceMs = options.scrollCoalesceMs ?? MOUSE_SCROLL_COALESCE_MS;
+  const setTimer = options.setTimer
+    ?? ((callback, delayMs) => globalThis.setTimeout(callback, delayMs));
+  const clearTimer = options.clearTimer
+    ?? ((timer) => globalThis.clearTimeout(timer as ReturnType<typeof setTimeout>));
+  let scrollPublishTimer: unknown;
 
   function getSnapshot(): MouseRuntimeSnapshot {
     return {
@@ -39,6 +59,38 @@ export function createMouseInputRuntime(
     onChange(getSnapshot());
   }
 
+  /**
+   * Publishes scroll-driven changes at most once per coalesce window; the
+   * flushed snapshot always carries the latest direction/timestamp pair.
+   */
+  function publishScrollCoalesced(): void {
+    if (scrollCoalesceMs <= 0) {
+      publish();
+      return;
+    }
+    // A flush is already scheduled; snapshot() reads latest state at flush time.
+    if (scrollPublishTimer !== undefined) {
+      return;
+    }
+    const handle: object = {};
+    scrollPublishTimer = handle;
+    setTimer(() => {
+      // Ownership check: cancelled handles must not publish stale state.
+      if (scrollPublishTimer !== handle) {
+        return;
+      }
+      scrollPublishTimer = undefined;
+      publish();
+    }, scrollCoalesceMs);
+  }
+
+  function cancelScrollPublish(): void {
+    if (scrollPublishTimer !== undefined) {
+      clearTimer(scrollPublishTimer);
+      scrollPublishTimer = undefined;
+    }
+  }
+
   function applyEvent(event: MouseInputEvent): boolean {
     if (status !== "active") {
       return false;
@@ -51,7 +103,7 @@ export function createMouseInputRuntime(
       lastScrollDirection = event.scrollDirection;
       lastScrollAt = event.timestamp;
       lastActivityAt = event.timestamp;
-      publish();
+      publishScrollCoalesced();
       return true;
     }
 
@@ -69,6 +121,8 @@ export function createMouseInputRuntime(
 
     lastButton = event.button;
     lastActivityAt = event.timestamp;
+    // Flush any pending scroll publish together with this button change.
+    cancelScrollPublish();
     publish();
     return true;
   }
@@ -81,6 +135,7 @@ export function createMouseInputRuntime(
       lastScrollDirection = undefined;
       lastScrollAt = undefined;
     }
+    cancelScrollPublish();
     publish();
   }
 
@@ -90,6 +145,7 @@ export function createMouseInputRuntime(
     pressedButtons.clear();
     lastScrollDirection = undefined;
     lastScrollAt = undefined;
+    cancelScrollPublish();
     publish();
   }
 
