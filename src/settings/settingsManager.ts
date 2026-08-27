@@ -11,6 +11,10 @@ import type {
   SettingsPatch,
   SettingsSection,
 } from "./settingsTypes";
+import {
+  isBuiltinControlCenterBackground,
+  isManagedControlCenterBackground,
+} from "./controlCenterBackgroundReference";
 
 const SAVE_DEBOUNCE_MS = 150;
 const settings = ref<DesktopPetSettings>(createDefaultSettings());
@@ -519,7 +523,7 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         1,
         DEFAULT_SETTINGS.controlCenter.backgroundOpacity,
       ),
-      backgroundImage: managedBackgroundOrDefault(controlCenter.backgroundImage),
+      backgroundImage: backgroundReferenceOrDefault(controlCenter.backgroundImage),
       backgroundImageFit: backgroundFitOrDefault(controlCenter.backgroundImageFit),
       backgroundImageOpacity: clampNumber(
         controlCenter.backgroundImageOpacity,
@@ -597,13 +601,16 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
   };
 }
 
-function managedBackgroundOrDefault(value: unknown): string | null {
-  if (value === null || value === undefined) {
+function backgroundReferenceOrDefault(value: unknown): string | null {
+  if (value === undefined) {
+    return DEFAULT_SETTINGS.controlCenter.backgroundImage;
+  }
+  if (value === null) {
     return null;
   }
-
   return typeof value === "string"
-    && /^[a-z0-9][a-z0-9._-]{0,179}\.(?:png|jpe?g|webp)$/i.test(value)
+      && (isBuiltinControlCenterBackground(value)
+        || isManagedControlCenterBackground(value))
     ? value
     : null;
 }

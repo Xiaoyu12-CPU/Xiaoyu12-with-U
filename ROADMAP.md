@@ -346,6 +346,12 @@ Phase 1～5 Feature Development 已完成，项目进入 Feature Freeze。当前
 - 运行时导入的 PNG、JPG / JPEG、WebP 会复制到应用自己的 `app_data_dir()/control-center/background/`；settings.json 不保存Base64或外部绝对路径，损坏或缺失时回退背景颜色。
 - 本阶段属于 Release UX Polish，Feature Freeze继续有效，不修改Reminder、System Monitor、Input、Behavior、Animation或Dialogue业务逻辑。
 
+### Release Baseline Freeze：Shipping Appearance
+
+- 当前确认的Control Center Appearance字段已冻结为新安装环境的Shipping Defaults；业务开关、Reminder数据、Monitor状态和跨设备不安全的各类Offset没有复制。
+- 当前托管背景已复制为`src/assets/control-center/default-background.jpg`，通过Vite Asset URL跨平台打包；默认Settings保存`builtin:shipping-default`，不包含用户绝对路径或Base64。
+- Built-in Shipping Background与用户Managed Background继续共存：existing settings优先，fresh install使用builtin，Reset Appearance恢复本次Shipping Theme并清理其后选择的Managed副本。
+
 ## Phase 6：自定义皮肤
 
 目标：允许安全地安装、切换和管理桌宠外观。

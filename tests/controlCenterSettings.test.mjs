@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
@@ -13,10 +14,12 @@ try {
   const defaults = await vite.ssrLoadModule("/src/settings/defaultSettings.ts");
   const theme = await vite.ssrLoadModule("/src/settings/controlCenterTheme.ts");
   const background = await vite.ssrLoadModule("/src/settings/controlCenterBackground.ts");
+  const references = await vite.ssrLoadModule("/src/settings/controlCenterBackgroundReference.ts");
 
   await testInformationArchitecture(navigation);
   testThemeSettings(normalizeSettings, defaults, theme);
-  await testManagedBackground(background);
+  await testShippingBaseline(normalizeSettings, defaults, references);
+  await testManagedBackground(background, references);
   console.log("Control Center settings tests passed.");
 } finally {
   await vite.close();
@@ -110,9 +113,65 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
   assert.equal(reset.reminder.enabled, true);
 }
 
-async function testManagedBackground(background) {
+async function testShippingBaseline(normalizeSettings, defaults, references) {
+  const expectedTheme = {
+    backgroundColor: "#ECF3F8",
+    backgroundOpacity: 0.75,
+    backgroundImage: references.CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE,
+    backgroundImageFit: "cover",
+    backgroundImageOpacity: 0.7,
+    sidebarBackgroundColor: "#2E073E",
+    sidebarBackgroundOpacity: 0.5,
+    sidebarTextColor: "#EBEBEB",
+    sidebarActiveBackgroundColor: "#8B78FF",
+    sidebarActiveBackgroundOpacity: 0.55,
+    sidebarActiveTextColor: "#FFFFFF",
+    primaryTextColor: "#30283D",
+    secondaryTextColor: "#857C91",
+    cardBackgroundColor: "#FFFFFF",
+    cardBackgroundOpacity: 0.55,
+    cardBorderColor: "#E392FE",
+    cardBorderOpacity: 0.4,
+    cardBorderWidth: 2.5,
+    accentColor: "#745BC9",
+  };
+  assert.deepEqual(defaults.DEFAULT_SETTINGS.controlCenter, expectedTheme);
+  assert.deepEqual(normalizeSettings({}).controlCenter, expectedTheme);
+
+  // Business defaults and all portable layout offsets remain their existing values.
+  assert.equal(defaults.DEFAULT_SETTINGS.input.keyboardEnabled, false);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.mouseEnabled, false);
+  assert.equal(defaults.DEFAULT_SETTINGS.reminder.enabled, false);
+  assert.equal(defaults.DEFAULT_SETTINGS.systemMonitor.enabled, false);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayOffsetX, 0);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayOffsetY, 0);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerOffsetX, 0);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerOffsetY, 0);
+
+  const existing = normalizeSettings({
+    controlCenter: {
+      backgroundColor: "#010203",
+      backgroundImage: "user-managed-123.jpg",
+      accentColor: "#AABBCC",
+    },
+  });
+  assert.equal(existing.controlCenter.backgroundColor, "#010203");
+  assert.equal(existing.controlCenter.backgroundImage, "user-managed-123.jpg");
+  assert.equal(existing.controlCenter.accentColor, "#AABBCC");
+  assert.equal(normalizeSettings({ controlCenter: { backgroundImage: null } }).controlCenter.backgroundImage, null);
+
+  const bytes = await readFile(new URL("../src/assets/control-center/default-background.jpg", import.meta.url));
+  assert.equal(bytes.subarray(0, 3).toString("hex"), "ffd8ff");
+  assert.equal(createHash("sha256").update(bytes).digest("hex"), "2bcfbff435781a319be5008ad459b9f12d39bf56e16624e182a7e07179588ce2");
+  const referenceSource = await readFile(new URL("../src/settings/controlCenterBackgroundReference.ts", import.meta.url), "utf8");
+  assert.match(referenceSource, /\.\.\/assets\/control-center\/default-background\.jpg/);
+  assert.doesNotMatch(referenceSource, /\/Users\//);
+}
+
+async function testManagedBackground(background, references) {
   const stored = new Map();
   let sequence = 0;
+  let loadCount = 0;
   const storage = {
     async upload(file) {
       const extension = file.name.split(".").pop().toLowerCase();
@@ -121,6 +180,7 @@ async function testManagedBackground(background) {
       return { storedName, fileName: file.name, mimeType: file.type };
     },
     async load(storedName) {
+      loadCount += 1;
       const bytes = stored.get(storedName);
       if (!bytes) throw new Error("missing");
       return bytes;
@@ -132,6 +192,10 @@ async function testManagedBackground(background) {
     create(_bytes, mime) { return `managed-url:${mime}:${sequence}`; },
     revoke(url) { revoked.push(url); },
   });
+
+  await manager.sync(references.CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE);
+  assert.equal(loadCount, 0);
+  assert.ok(manager.imageUrl.value);
 
   for (const [name, type] of [["scene.png", "image/png"], ["scene.jpg", "image/jpeg"], ["scene.webp", "image/webp"]]) {
     const file = fakeFile(name, type, [1, 2, 3]);

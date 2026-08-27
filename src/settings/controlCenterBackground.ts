@@ -1,5 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { readonly, ref } from "vue";
+import {
+  CONTROL_CENTER_BUILTIN_BACKGROUND_URL,
+  isBuiltinControlCenterBackground,
+  isManagedControlCenterBackground,
+} from "./controlCenterBackgroundReference";
 
 export const CONTROL_CENTER_BACKGROUND_MAX_BYTES = 20 * 1024 * 1024;
 const SUPPORTED_EXTENSIONS = new Set(["png", "jpg", "jpeg", "webp"]);
@@ -80,13 +85,15 @@ export function createControlCenterBackgroundManager(
   const imageUrl = ref<string>();
   const currentStoredName = ref<string>();
   const lastError = ref("");
+  let currentUrlNeedsRevoke = false;
 
   function clearUrl(): void {
-    if (imageUrl.value) {
+    if (imageUrl.value && currentUrlNeedsRevoke) {
       urlFactory.revoke(imageUrl.value);
     }
     imageUrl.value = undefined;
     currentStoredName.value = undefined;
+    currentUrlNeedsRevoke = false;
   }
 
   async function sync(storedName: string | null): Promise<void> {
@@ -97,11 +104,20 @@ export function createControlCenterBackgroundManager(
     }
     if (storedName === currentStoredName.value && imageUrl.value) return;
 
+    if (isBuiltinControlCenterBackground(storedName)) {
+      clearUrl();
+      imageUrl.value = CONTROL_CENTER_BUILTIN_BACKGROUND_URL;
+      currentStoredName.value = storedName;
+      lastError.value = "";
+      return;
+    }
+
     try {
       const bytes = await storage.load(storedName);
       clearUrl();
       imageUrl.value = urlFactory.create(bytes, backgroundMimeType(storedName));
       currentStoredName.value = storedName;
+      currentUrlNeedsRevoke = true;
       lastError.value = "";
     } catch (error) {
       clearUrl();
@@ -117,11 +133,15 @@ export function createControlCenterBackgroundManager(
   async function remove(storedName: string | null): Promise<void> {
     clearUrl();
     lastError.value = "";
-    if (storedName) await storage.remove(storedName);
+    if (isManagedControlCenterBackground(storedName)) {
+      await storage.remove(storedName);
+    }
   }
 
   async function deleteManaged(storedName: string | null): Promise<void> {
-    if (storedName) await storage.remove(storedName);
+    if (isManagedControlCenterBackground(storedName)) {
+      await storage.remove(storedName);
+    }
   }
 
   return {

@@ -4,6 +4,7 @@ import { controlCenterBackgroundManager } from "./controlCenterBackground";
 import { createDefaultControlCenterAppearance } from "./defaultSettings";
 import { settingsManager } from "./settingsManager";
 import type { ControlCenterBackgroundImageFit, DesktopPetSettings } from "./settingsTypes";
+import { isBuiltinControlCenterBackground } from "./controlCenterBackgroundReference";
 
 const settings = settingsManager.settings;
 const fileInput = ref<HTMLInputElement>();
@@ -64,6 +65,10 @@ async function resetAppearance(): Promise<void> {
 }
 
 function percent(value: number): number { return Math.round(value * 100); }
+function backgroundLabel(reference: string | null): string {
+  if (isBuiltinControlCenterBackground(reference)) return "内置默认背景";
+  return reference ?? "未选择背景图片";
+}
 </script>
 
 <template>
@@ -73,7 +78,7 @@ function percent(value: number): number { return Math.round(value * 100); }
       <div class="section-heading"><h3>Background</h3><p>背景色与图片是独立Layer，不改变WebView文字和组件透明度。</p></div>
       <label class="setting-row"><span><strong>Background Color</strong></span><div class="color-control"><input type="color" :value="appearance.backgroundColor" @input="updateColor('backgroundColor', $event)" /><code>{{ appearance.backgroundColor }}</code></div></label>
       <label class="setting-row scale-row"><span><strong>Background Opacity</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="percent(appearance.backgroundOpacity)" @input="updateOpacity('backgroundOpacity', $event)" /><output>{{ percent(appearance.backgroundOpacity) }}%</output></div></label>
-      <div class="setting-row"><span><strong>Background Image</strong><small>{{ appearance.backgroundImage ?? "未选择托管图片" }}</small></span><div class="inline-actions"><input ref="fileInput" class="file-input" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" @change="importBackground" /><button type="button" @click="openFilePicker">选择图片</button><button type="button" :disabled="!appearance.backgroundImage" @click="removeBackground">移除图片</button></div></div>
+      <div class="setting-row"><span><strong>Background Image</strong><small>{{ backgroundLabel(appearance.backgroundImage) }}</small></span><div class="inline-actions"><input ref="fileInput" class="file-input" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" @change="importBackground" /><button type="button" @click="openFilePicker">选择图片</button><button type="button" :disabled="!appearance.backgroundImage" @click="removeBackground">移除图片</button></div></div>
       <label class="setting-row"><span><strong>Image Fill</strong></span><select class="select-control" :value="appearance.backgroundImageFit" :disabled="!appearance.backgroundImage" @change="updateImageFit"><option value="cover">填满（Cover）</option><option value="contain">完整显示（Contain）</option><option value="stretch">拉伸（Stretch）</option><option value="center">居中原尺寸（Center）</option><option value="tile">平铺（Tile）</option></select></label>
       <label class="setting-row scale-row"><span><strong>Image Opacity</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="percent(appearance.backgroundImageOpacity)" :disabled="!appearance.backgroundImage" @input="updateOpacity('backgroundImageOpacity', $event)" /><output>{{ percent(appearance.backgroundImageOpacity) }}%</output></div></label>
     </article>
