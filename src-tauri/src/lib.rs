@@ -11,6 +11,24 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .on_page_load(|webview, payload| {
+            commands::app::diag_log(
+                webview.app_handle(),
+                &format!(
+                    "page-load label={} url={}",
+                    webview.label(),
+                    payload.url()
+                ),
+            );
+        })
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
+                commands::app::diag_log(
+                    window.app_handle(),
+                    &format!("close-requested label={}", window.label()),
+                );
+            }
+        })
         .manage(commands::battery::BatterySampler::default())
         .manage(commands::cpu::CpuSampler::default())
         .manage(commands::memory::MemorySampler::default())
@@ -22,6 +40,7 @@ pub fn run() {
             commands::app::open_control_center,
             commands::app::exit_app,
             commands::app::apply_pet_window_settings,
+            commands::app::write_diagnostic_line,
             commands::battery::sample_battery_status,
             commands::cpu::sample_cpu_usage,
             commands::control_center_assets::upload_control_center_background,

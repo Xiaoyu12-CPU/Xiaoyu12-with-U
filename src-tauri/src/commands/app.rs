@@ -1,17 +1,56 @@
+use std::fs::{self, OpenOptions};
+use std::io::Write;
+use std::path::PathBuf;
+use std::sync::Mutex;
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
 
 const CONTROL_CENTER_LABEL: &str = "control-center";
 const PET_WINDOW_LABEL: &str = "main";
+const DIAGNOSTIC_FILE_NAME: &str = "diagnostic.log";
+
+static DIAG_LOCK: Mutex<()> = Mutex::new(());
+
+/// Temporary diagnostic channel for the Windows control-center white screen.
+/// Appends a timestamped line to app_data_dir/diagnostic.log. Safe to keep:
+/// quiet unless something goes wrong.
+pub fn diag_log(app: &AppHandle, message: &str) {
+    let _guard = DIAG_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let directory = match app.path().app_data_dir() {
+        Ok(directory) => directory,
+        Err(_) => return,
+    };
+    if fs::create_dir_all(&directory).is_err() {
+        return;
+    }
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_millis())
+        .unwrap_or_default();
+    let path: PathBuf = directory.join(DIAGNOSTIC_FILE_NAME);
+    if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
+        let _ = writeln!(file, "[{timestamp}] {message}");
+        let _ = file.flush();
+    }
+}
+
+#[tauri::command]
+pub fn write_diagnostic_line(app: AppHandle, line: String) {
+    diag_log(&app, &format!("webview: {line}"));
+}
 
 #[tauri::command]
 pub fn open_control_center(app: AppHandle) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(CONTROL_CENTER_LABEL) {
+        diag_log(&app, "open-control-center: existing window, showing");
         window.show().map_err(|error| error.to_string())?;
         window.set_focus().map_err(|error| error.to_string())?;
         return Ok(());
     }
 
-    WebviewWindowBuilder::new(
+    diag_log(&app, "open-control-center: building new window");
+    let started_at = Instant::now();
+    let built = WebviewWindowBuilder::new(
         &app,
         CONTROL_CENTER_LABEL,
         WebviewUrl::App("index.html".into()),
@@ -23,8 +62,16 @@ pub fn open_control_center(app: AppHandle) -> Result<(), String> {
     .decorations(true)
     .transparent(false)
     .center()
-    .build()
-    .map_err(|error| error.to_string())?;
+    .build();
+    diag_log(
+        &app,
+        &format!(
+            "open-control-center: build finished in {:?} result={}",
+            started_at.elapsed(),
+            if built.is_ok() { "ok" } else { "error" }
+        ),
+    );
+    built.map_err(|error| error.to_string())?;
 
     Ok(())
 }
