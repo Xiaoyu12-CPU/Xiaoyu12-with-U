@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onScopeDispose, watch } from "vue";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { resetKeyHistoryOffset } from "../input/keyHistoryDrag";
 import { useRemotePetRuntime } from "../pet/runtimeBridge";
 import { settingsManager } from "./settingsManager";
@@ -17,7 +18,7 @@ const keyboardStatusNote = computed(() => {
     case "starting":
       return "正在启动监听…";
     case "permission-required":
-      return "缺少「输入监听」权限，键位历史不会显示。请前往 系统设置 → 隐私与安全性 → 输入监听，允许 withXiaoyu12 后点击「重新检测」。";
+      return "缺少「输入监听」权限，键位历史不会显示。请在 系统设置 → 隐私与安全性 → 输入监控 中允许 withXiaoyu12；若其开关无法打开，先点 − 删除该条目，再点 + 重新选择应用。授权后应用会每 2 秒自动重试，若仍无效请重启应用。";
     case "unsupported":
       return "当前平台暂不支持全局键盘监听（Windows 支持在规划中）。";
     case "error":
@@ -35,6 +36,37 @@ function retryKeyboardMonitor(): void {
     });
   }
 }
+
+function openInputMonitoringSettings(): void {
+  if (isTauri()) {
+    void openUrl(
+      "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent",
+    ).catch((error: unknown) => {
+      console.error("Failed to open Input Monitoring settings.", error);
+    });
+  }
+}
+
+// 授权后无需手动点「重新检测」：每 2 秒重试一次，直到状态离开 permission-required。
+let permissionPollTimer: ReturnType<typeof setInterval> | undefined;
+watch(keyboardStatus, (status) => {
+  if (status === "permission-required") {
+    if (permissionPollTimer === undefined) {
+      permissionPollTimer = setInterval(() => {
+        retryKeyboardMonitor();
+      }, 2000);
+    }
+  } else if (permissionPollTimer !== undefined) {
+    clearInterval(permissionPollTimer);
+    permissionPollTimer = undefined;
+  }
+}, { immediate: true });
+onScopeDispose(() => {
+  if (permissionPollTimer !== undefined) {
+    clearInterval(permissionPollTimer);
+    permissionPollTimer = undefined;
+  }
+});
 const durationSeconds = computed(() => (settings.value.input.keyDisplayDurationMs / 1000).toFixed(1));
 const lineOpacityPercent = computed(() => Math.round(settings.value.input.keyDisplayStartLineOpacity * 100));
 
@@ -81,6 +113,7 @@ function resetPosition(): void {
       </label>
       <p v-if="keyboardStatusNote" class="monitor-status-note" :data-status="keyboardStatus">
         {{ keyboardStatusNote }}
+        <button v-if="showRetry" type="button" class="retry-button" @click="openInputMonitoringSettings">打开系统设置</button>
         <button v-if="showRetry" type="button" class="retry-button" @click="retryKeyboardMonitor">重新检测</button>
       </p>
       <label class="setting-row">
