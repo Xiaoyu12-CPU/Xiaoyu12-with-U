@@ -16,7 +16,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
-use std::sync::OnceLock;
+use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -43,7 +43,7 @@ enum RawInputEvent {
     Mouse(RawMouseEvent),
 }
 
-static EVENT_CHANNEL: OnceLock<mpsc::Sender<RawInputEvent>> = OnceLock::new();
+static EVENT_CHANNEL: Mutex<Option<mpsc::Sender<RawInputEvent>>> = Mutex::new(None);
 
 const WM_KEYDOWN: u32 = 0x0100;
 const WM_KEYUP: u32 = 0x0101;
@@ -121,6 +121,11 @@ pub struct PlatformInputMonitor {
 impl PlatformInputMonitor {
     pub fn stop(&mut self) {
         self.stop_requested.store(true, Ordering::Release);
+        // Drop the sender so the forwarder unblocks and future starts work.
+        EVENT_CHANNEL
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .take();
         // Wake the GetMessageW loop; joining alone would deadlock because the
         // hook thread is blocked in GetMessageW, not polling the flag.
         unsafe {
@@ -141,7 +146,7 @@ pub fn request_permission() {}
 
 extern "system" fn keyboard_hook_proc(code: i32, w_param: usize, l_param: isize) -> isize {
     if code >= 0 {
-        if let Some(sender) = EVENT_CHANNEL.get() {
+        if let Some(sender) = EVENT_CHANNEL.lock().unwrap_or_else(|error| error.into_inner()).as_ref() {
             let info = unsafe { &*(l_param as *const KbdLlHookStruct) };
             if info.flags & LLKHF_INJECTED == 0 {
                 let _ = sender.send(RawInputEvent::Keyboard(RawKeyboardEvent {
@@ -156,7 +161,7 @@ extern "system" fn keyboard_hook_proc(code: i32, w_param: usize, l_param: isize)
 
 extern "system" fn mouse_hook_proc(code: i32, w_param: usize, l_param: isize) -> isize {
     if code >= 0 {
-        if let Some(sender) = EVENT_CHANNEL.get() {
+        if let Some(sender) = EVENT_CHANNEL.lock().unwrap_or_else(|error| error.into_inner()).as_ref() {
             let info = unsafe { &*(l_param as *const MsLlHookStruct) };
             if info.flags & LLKHF_INJECTED == 0 {
                 let _ = sender.send(RawInputEvent::Mouse(RawMouseEvent {
@@ -243,9 +248,15 @@ pub fn start(
     let (thread_id_sender, thread_id_receiver) = mpsc::channel::<u32>();
     let (raw_sender, raw_receiver) = mpsc::channel::<RawInputEvent>();
 
-    EVENT_CHANNEL
-        .set(raw_sender)
-        .map_err(|_| "Input monitor is already running.".to_string())?;
+    {
+        let mut channel = EVENT_CHANNEL
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
+        if channel.is_some() {
+            return Err("Input monitor is already running.".to_string());
+        }
+        *channel = Some(raw_sender);
+    }
 
     let thread = thread::Builder::new()
         .name("desktop-pet-input-hook-win".to_string())
@@ -300,16 +311,16 @@ pub fn start(
                     break;
                 }
                 let event = match raw {
-                    RawInputEvent::Keyboard(raw) => map_keyboard_event(raw.message, raw.vk_code),
-                    RawInputEvent::Mouse(raw) => map_mouse_event(raw.message, raw.mouse_data),
+                    RawInputEvent::Keyboard(raw) => {
+                        map_keyboard_event(raw.message, raw.vk_code)
+                            .map(NativeInputEvent::Keyboard)
+                    }
+                    RawInputEvent::Mouse(raw) => {
+                        map_mouse_event(raw.message, raw.mouse_data).map(NativeInputEvent::Mouse)
+                    }
                 };
                 if let Some(event) = event {
-                    event_sink(match event {
-                        NativeInputEvent::Keyboard(keyboard) => {
-                            NativeInputEvent::Keyboard(keyboard)
-                        }
-                        NativeInputEvent::Mouse(mouse) => NativeInputEvent::Mouse(mouse),
-                    });
+                    event_sink(event);
                 }
             }
         });
