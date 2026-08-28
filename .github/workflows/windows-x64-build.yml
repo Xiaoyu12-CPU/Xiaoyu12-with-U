@@ -37,6 +37,14 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Compile Rust (cargo check)
+        run: cargo check --color never 2>&1 | tee check-log.txt
+        shell: bash
+        working-directory: src-tauri
+
       - name: Build NSIS installer
         run: pnpm tauri build --bundles nsis 2>&1 | tee build-log.txt
         shell: bash
@@ -45,13 +53,12 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          # $GITHUB_STEP_SUMMARY 会显示在 check-run 的 output.summary 里,
-          # 该字段通过公开 API 可读(check-suites -> check-runs -> output),
-          # 让没有 Actions 日志权限的协作者也能拿到 rustc 的真实报错。
+          # job summary 供人查看;真实诊断走下面的 ci-logs 分支。
+          LOG=check-log.txt; [ -f build-log.txt ] && LOG=build-log.txt
           {
             printf '### Windows build failed (`%s`)\n\n' "$GITHUB_SHA"
             printf '```text\n'
-            tail -80 build-log.txt
+            tail -80 "$LOG"
             printf '\n```\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -66,10 +73,12 @@ jobs:
           git config user.email "actions@github.com"
           git checkout -B ci-logs
           git rm -rf --cached . -q
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          cp "$GITHUB_WORKSPACE/build-log.txt" . 2>/dev/null || true
-          git add build-log.txt
-          git commit -m "ci log for $GITHUB_SHA" || true
+          cp check-log.txt . 2>/dev/null || true
+          cp build-log.txt . 2>/dev/null || true
+          # 复制完成后再清空工作区,避免误删日志文件
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name 'check-log.txt' ! -name 'build-log.txt' -exec rm -rf {} +
+          git add -A
+          git commit -m "ci logs for $GITHUB_SHA" || true
           git push origin ci-logs --force
 
       - name: Upload build log on failure
