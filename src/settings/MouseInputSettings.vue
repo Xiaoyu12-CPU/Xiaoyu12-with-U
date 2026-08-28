@@ -1,10 +1,40 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { resetMouseVisualizerOffset } from "../input/mouseVisualizer";
+import { useRemotePetRuntime } from "../pet/runtimeBridge";
 import { settingsManager } from "./settingsManager";
 import type { MouseVisualizerPosition } from "./settingsTypes";
 
 const settings = settingsManager.settings;
+const { snapshot } = useRemotePetRuntime();
+
+const mouseStatus = computed(() => snapshot.value?.mouseStatus ?? "disabled");
+const mouseStatusNote = computed(() => {
+  switch (mouseStatus.value) {
+    case "active":
+      return "监听运行中，鼠标可视化可以正常显示。";
+    case "starting":
+      return "正在启动监听…";
+    case "permission-required":
+      return "缺少「输入监听」权限，鼠标可视化不会显示。请前往 系统设置 → 隐私与安全性 → 输入监听，允许 withXiaoyu12 后点击「重新检测」。";
+    case "unsupported":
+      return "当前平台暂不支持全局鼠标监听（Windows 支持在规划中）。";
+    case "error":
+      return snapshot.value?.mouseMessage ?? "监听启动失败，请重试。";
+    default:
+      return "";
+  }
+});
+const showRetry = computed(() => mouseStatus.value === "permission-required");
+
+function retryMouseMonitor(): void {
+  if (isTauri()) {
+    void invoke("start_mouse_monitor").catch((error: unknown) => {
+      console.error("Failed to restart the mouse monitor.", error);
+    });
+  }
+}
 const bodyOpacity = computed(() => Math.round(settings.value.input.mouseVisualizerBodyOpacity * 100));
 const buttonOpacity = computed(() => Math.round(settings.value.input.mouseVisualizerButtonOpacity * 100));
 const outlineOpacity = computed(() => Math.round(settings.value.input.mouseVisualizerOutlineOpacity * 100));
@@ -38,6 +68,10 @@ function resetPosition(): void {
     <article>
       <div class="section-heading"><h3>Mouse Monitor</h3><p>监听全局按键与滚轮，不监听移动、坐标或轨迹。</p></div>
       <label class="setting-row"><span><strong>Mouse Monitoring</strong><small>与Keyboard开关和Runtime完全独立。</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseEnabled" @change="updateBoolean('mouseEnabled', $event)" /></label>
+      <p v-if="mouseStatusNote" class="monitor-status-note" :data-status="mouseStatus">
+        {{ mouseStatusNote }}
+        <button v-if="showRetry" type="button" class="retry-button" @click="retryMouseMonitor">重新检测</button>
+      </p>
       <label class="setting-row"><span><strong>Show Mouse Visualizer</strong><small>只隐藏UI，不停止Mouse Runtime。</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseVisualizerEnabled" @change="updateBoolean('mouseVisualizerEnabled', $event)" /></label>
       <label class="setting-row"><span><strong>Mouse Visualizer Position</strong><small>选择相对桌宠的Base Anchor。</small></span><select class="select-control" :value="settings.input.mouseVisualizerPosition" @change="updatePosition"><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option></select></label>
     </article>
@@ -65,3 +99,33 @@ function resetPosition(): void {
     </article>
   </div>
 </template>
+
+<style scoped>
+.monitor-status-note {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  background: rgba(96, 165, 250, 0.12);
+  color: var(--control-center-text, inherit);
+}
+
+.monitor-status-note[data-status="permission-required"],
+.monitor-status-note[data-status="error"] {
+  background: rgba(248, 113, 113, 0.16);
+}
+
+.monitor-status-note[data-status="active"] {
+  background: rgba(74, 222, 128, 0.14);
+}
+
+.retry-button {
+  flex: none;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+</style>

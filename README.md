@@ -82,7 +82,30 @@ pnpm test:control-center   # 控制中心设置测试
 
 ### 授予输入监听权限（可选，为了输入感知功能）
 
-首次启用键盘/鼠标监听时，请按提示前往 **系统设置 → 隐私 & 安全性 → 输入监控**，允许 withXiaoyu12。应用内也会给出引导。
+首次启用键盘/鼠标监听时，macOS 会弹出权限请求；允许后键位历史和鼠标可视化立即生效。
+如果错过了弹窗或曾经点过"拒绝"，监听会保持静默（开关开着但无可视化），此时：
+
+1. 打开 **系统设置 → 隐私与安全性 → 输入监听**（Input Monitoring）
+2. 在列表中找到并勾选 **withXiaoyu12**
+3. 回到应用，在 控制中心 → 设置 → 输入监控 对应页签点击 **重新检测**
+4. 若列表里没有 withXiaoyu12，先把监听开关关掉再打开，触发一次新的权限请求
+
+> 授权后如果仍无反应，退出应用重新打开一次（macOS 偶发需要重启才对新授权生效）。
+
+### 安装 Release 包（macOS）
+
+当前 Release 的 DMG **未经 Apple 公证**。首次打开如提示"已损坏，无法打开"或无法验证开发者，
+在终端执行（二选一）：
+
+```bash
+xattr -dr com.apple.quarantine /Applications/withXiaoyu12.app
+# 或解除 DMG 自身的隔离标记后再安装：
+xattr -dr com.apple.quarantine ~/Downloads/withXiaoyu12-macOS-*.dmg
+```
+
+- 提示"无法验证开发者"：右键 App → 打开 → 再点"打开"，只需一次
+- Apple Silicon（M 系列）建议下载 `macOS-arm64` 包；`macOS-x64` 包在 M 系列上经 Rosetta 也能运行，
+  但性能与权限体验以原生 arm64 包为准
 
 ## 项目结构
 

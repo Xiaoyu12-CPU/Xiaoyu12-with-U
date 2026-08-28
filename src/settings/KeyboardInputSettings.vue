@@ -1,10 +1,40 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 import { resetKeyHistoryOffset } from "../input/keyHistoryDrag";
+import { useRemotePetRuntime } from "../pet/runtimeBridge";
 import { settingsManager } from "./settingsManager";
 import type { KeyDisplayFlowDirection, KeyDisplayPosition } from "./settingsTypes";
 
 const settings = settingsManager.settings;
+const { snapshot } = useRemotePetRuntime();
+
+const keyboardStatus = computed(() => snapshot.value?.keyboardStatus ?? "disabled");
+const keyboardStatusNote = computed(() => {
+  switch (keyboardStatus.value) {
+    case "active":
+      return "监听运行中，键位历史可以正常显示。";
+    case "starting":
+      return "正在启动监听…";
+    case "permission-required":
+      return "缺少「输入监听」权限，键位历史不会显示。请前往 系统设置 → 隐私与安全性 → 输入监听，允许 withXiaoyu12 后点击「重新检测」。";
+    case "unsupported":
+      return "当前平台暂不支持全局键盘监听（Windows 支持在规划中）。";
+    case "error":
+      return snapshot.value?.keyboardMessage ?? "监听启动失败，请重试。";
+    default:
+      return "";
+  }
+});
+const showRetry = computed(() => keyboardStatus.value === "permission-required");
+
+function retryKeyboardMonitor(): void {
+  if (isTauri()) {
+    void invoke("start_keyboard_monitor").catch((error: unknown) => {
+      console.error("Failed to restart the keyboard monitor.", error);
+    });
+  }
+}
 const durationSeconds = computed(() => (settings.value.input.keyDisplayDurationMs / 1000).toFixed(1));
 const lineOpacityPercent = computed(() => Math.round(settings.value.input.keyDisplayStartLineOpacity * 100));
 
@@ -49,6 +79,10 @@ function resetPosition(): void {
         <span><strong>Keyboard Monitoring</strong><small>macOS可能要求授予输入监听权限。</small></span>
         <input class="toggle" type="checkbox" :checked="settings.input.keyboardEnabled" @change="updateBoolean('keyboardEnabled', $event)" />
       </label>
+      <p v-if="keyboardStatusNote" class="monitor-status-note" :data-status="keyboardStatus">
+        {{ keyboardStatusNote }}
+        <button v-if="showRetry" type="button" class="retry-button" @click="retryKeyboardMonitor">重新检测</button>
+      </p>
       <label class="setting-row">
         <span><strong>Show Keyboard History</strong><small>只控制可视化；关闭后Keyboard仍可驱动WORKING。</small></span>
         <input class="toggle" type="checkbox" :checked="settings.input.keyDisplayEnabled" @change="updateBoolean('keyDisplayEnabled', $event)" />
@@ -97,3 +131,33 @@ function resetPosition(): void {
     </article>
   </div>
 </template>
+
+<style scoped>
+.monitor-status-note {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  background: rgba(96, 165, 250, 0.12);
+  color: var(--control-center-text, inherit);
+}
+
+.monitor-status-note[data-status="permission-required"],
+.monitor-status-note[data-status="error"] {
+  background: rgba(248, 113, 113, 0.16);
+}
+
+.monitor-status-note[data-status="active"] {
+  background: rgba(74, 222, 128, 0.14);
+}
+
+.retry-button {
+  flex: none;
+  padding: 2px 10px;
+  font-size: 12px;
+}
+</style>
