@@ -5,9 +5,10 @@
 //   thread that pumps messages; Windows delivers low-level hook callbacks on
 //   the installing thread, so a message loop is mandatory.
 // - The hook callback must return quickly. If it stalls, Windows silently
-//   removes the hook after a timeout (LowLevelHooksTimeout). Callbacks only
-//   copy the raw event into a channel; every bit of real work (key-name
-//   mapping, filtering) happens on a separate forwarder thread.
+//   removes the hook after a timeout (LowLevelHooksTimeout). The callbacks
+//   only do a table lookup plus a channel-free direct dispatch into the
+//   installed sink (a Mutex<Option<Arc<dyn Fn>>>, taken out on stop); the
+//   emitting side of the monitor filters by enabled channel afterwards.
 // - A graceful stop posts WM_APP+1 to the hook thread so GetMessageW wakes
 //   up, uninstalls both hooks and lets the thread exit.
 // - Windows low-level hooks see other user-mode processes, but NOT elevated
@@ -26,22 +27,11 @@ use super::super::mouse::{MouseButton, MouseEventType, MouseInputEvent, ScrollDi
 use super::PermissionState;
 use crate::input::platform::windows_keymap::key_name;
 
-struct RawKeyboardEvent {
-    message: u32,
-    vk_code: u32,
-}
+// The sink is installed before the hooks go live and taken out on stop, so
+// the callbacks can call it directly: Arc<dyn Fn + Send + Sync> is Sync.
+type EventSink = Arc<dyn Fn(NativeInputEvent) + Send + Sync>;
 
-struct RawMouseEvent {
-    message: u32,
-    mouse_data: u32,
-}
-
-enum RawInputEvent {
-    Keyboard(RawKeyboardEvent),
-    Mouse(RawMouseEvent),
-}
-
-static EVENT_CHANNEL: Mutex<Option<mpsc::Sender<RawInputEvent>>> = Mutex::new(None);
+static EVENT_SINK: Mutex<Option<EventSink>> = Mutex::new(None);
 
 const WM_KEYDOWN: u32 = 0x0100;
 const WM_KEYUP: u32 = 0x0101;
@@ -119,8 +109,8 @@ pub struct PlatformInputMonitor {
 impl PlatformInputMonitor {
     pub fn stop(&mut self) {
         self.stop_requested.store(true, Ordering::Release);
-        // Drop the sender so the forwarder unblocks and future starts work.
-        EVENT_CHANNEL
+        // Take the sink out so future starts work and the callbacks go quiet.
+        EVENT_SINK
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .take();
@@ -144,13 +134,12 @@ pub fn request_permission() {}
 
 extern "system" fn keyboard_hook_proc(code: i32, w_param: usize, l_param: isize) -> isize {
     if code >= 0 {
-        if let Some(sender) = EVENT_CHANNEL.lock().unwrap_or_else(|error| error.into_inner()).as_ref() {
+        if let Some(sink) = EVENT_SINK.lock().unwrap_or_else(|error| error.into_inner()).as_ref() {
             let info = unsafe { &*(l_param as *const KbdLlHookStruct) };
             if info.flags & LLKHF_INJECTED == 0 {
-                let _ = sender.send(RawInputEvent::Keyboard(RawKeyboardEvent {
-                    message: w_param as u32,
-                    vk_code: info.vk_code,
-                }));
+                if let Some(event) = map_keyboard_event(w_param as u32, info.vk_code) {
+                    sink(NativeInputEvent::Keyboard(event));
+                }
             }
         }
     }
@@ -159,13 +148,12 @@ extern "system" fn keyboard_hook_proc(code: i32, w_param: usize, l_param: isize)
 
 extern "system" fn mouse_hook_proc(code: i32, w_param: usize, l_param: isize) -> isize {
     if code >= 0 {
-        if let Some(sender) = EVENT_CHANNEL.lock().unwrap_or_else(|error| error.into_inner()).as_ref() {
+        if let Some(sink) = EVENT_SINK.lock().unwrap_or_else(|error| error.into_inner()).as_ref() {
             let info = unsafe { &*(l_param as *const MsLlHookStruct) };
             if info.flags & LLKHF_INJECTED == 0 {
-                let _ = sender.send(RawInputEvent::Mouse(RawMouseEvent {
-                    message: w_param as u32,
-                    mouse_data: info.mouse_data,
-                }));
+                if let Some(event) = map_mouse_event(w_param as u32, info.mouse_data) {
+                    sink(NativeInputEvent::Mouse(event));
+                }
             }
         }
     }
@@ -240,20 +228,18 @@ pub fn start(
     on_event: impl Fn(NativeInputEvent) + Send + Sync + 'static,
 ) -> Result<PlatformInputMonitor, String> {
     let stop_requested = Arc::new(AtomicBool::new(false));
-    let thread_stop = Arc::clone(&stop_requested);
     let event_sink = Arc::new(on_event);
     let (ready_sender, ready_receiver) = mpsc::sync_channel::<Result<(), String>>(1);
     let (thread_id_sender, thread_id_receiver) = mpsc::channel::<u32>();
-    let (raw_sender, raw_receiver) = mpsc::channel::<RawInputEvent>();
 
     {
-        let mut channel = EVENT_CHANNEL
+        let mut sink_slot = EVENT_SINK
             .lock()
             .unwrap_or_else(|error| error.into_inner());
-        if channel.is_some() {
+        if sink_slot.is_some() {
             return Err("Input monitor is already running.".to_string());
         }
-        *channel = Some(raw_sender);
+        *sink_slot = Some(Arc::clone(&event_sink) as EventSink);
     }
 
     let thread = thread::Builder::new()
@@ -299,35 +285,9 @@ pub fn start(
         })
         .map_err(|error| format!("Failed to start input monitor thread: {error}"))?;
 
-    // Forwarder: does all the mapping work off the hook callbacks and fans
-    // out to the caller-provided sink.
-    let forwarder = thread::Builder::new()
-        .name("desktop-pet-input-forwarder-win".to_string())
-        .spawn(move || {
-            while let Ok(raw) = raw_receiver.recv() {
-                if thread_stop.load(Ordering::Acquire) {
-                    break;
-                }
-                let event = match raw {
-                    RawInputEvent::Keyboard(raw) => {
-                        map_keyboard_event(raw.message, raw.vk_code)
-                            .map(NativeInputEvent::Keyboard)
-                    }
-                    RawInputEvent::Mouse(raw) => {
-                        map_mouse_event(raw.message, raw.mouse_data).map(NativeInputEvent::Mouse)
-                    }
-                };
-                if let Some(event) = event {
-                    event_sink(event);
-                }
-            }
-        });
-
-    if forwarder.is_err() {
-        stop_requested.store(true, Ordering::Release);
-        let _ = thread.join();
-        return Err("Failed to start input forwarder.".to_string());
-    }
+    // The forwarder thread is gone: the hook callbacks now call the sink
+    // directly. Mapping work is a table lookup - cheap enough to stay well
+    // under the low-level hook timeout, and it removes a thread entirely.
 
     // The hook thread reports its id so stop() can post the wake-up message.
     // Give it a moment; installation normally finishes in microseconds.
