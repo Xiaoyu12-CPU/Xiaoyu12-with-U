@@ -45,17 +45,23 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          tail -80 build-log.txt > error-body.md
-          printf '\n(自动评论: Windows 构建失败的日志尾部, sha %s)\n' "$GITHUB_SHA" >> error-body.md
+          {
+            printf '🚨 **Windows build failed** (`%s`)\n\n```text\n' "$GITHUB_SHA"
+            tail -80 build-log.txt
+            printf '\n```\n'
+          } > error-body.md
 
       - name: Post build errors as commit comment
         if: failure()
-        uses: peter-evans/create-or-update-comment@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          issue-number: 0
-          body-path: error-body.md
-          reactions: eyes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
+            -F body=@"error-body.md"
 
       - name: Upload build log on failure
         if: failure()
