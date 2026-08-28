@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-windows-x64:
@@ -45,21 +45,31 @@ jobs:
         if: failure()
         shell: bash
         run: |
-          # 提取最后的编译错误(rustc error 块 + 尾部 100 行),发成 commit comment。
-          # Actions 日志 API 需要管理员权限,而 commit comment 公开可读,
-          # 让无本地 Windows 工具链的协作者也能拿到真实报错。
-          ERRORS=$(grep -A4 "^error" build-log.txt | tail -120)
-          if [ -z "$ERRORS" ]; then ERRORS=$(tail -60 build-log.txt); fi
-          PAYLOAD=$(jq -n --arg body "🚨 **Windows build failed** (\`$GITHUB_SHA\`)
+          # 提取最后的编译错误,用 python 构造 JSON(避免 jq 引号地狱),
+          # 发成 commit comment(公开可读,无需任何令牌即可查看)。
+          python - <<'PYEOF'
+          import json, os, urllib.request
 
-          \`\`\`
-          $ERRORS
-          \`\`\`" '{body: $body}')
-          curl -s -X POST \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
-            -d "$PAYLOAD" | head -c 300
+          log = open("build-log.txt", encoding="utf-8", errors="replace").read()
+          lines = [ln for ln in log.splitlines()]
+          tail = "\n".join(lines[-80:])
+          body = "🚨 **Windows build failed** (`%s`)\n\n```text\n%s\n```" % (
+              os.environ.get("GITHUB_SHA", "")[:12], tail)
+
+          payload = json.dumps({"body": body}).encode()
+          url = "https://api.github.com/repos/%s/commits/%s/comments" % (
+              os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_SHA"])
+          req = urllib.request.Request(url, data=payload, method="POST", headers={
+              "Authorization": "Bearer %s" % os.environ["GITHUB_TOKEN"],
+              "Accept": "application/vnd.github+json",
+              "Content-Type": "application/json",
+          })
+          try:
+              with urllib.request.urlopen(req) as resp:
+                  print("comment created:", resp.status)
+          except Exception as error:
+              print("comment failed:", error)
+          PYEOF
 
       - name: Upload build log on failure
         if: failure()
