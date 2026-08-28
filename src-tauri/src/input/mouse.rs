@@ -84,20 +84,21 @@ pub struct MouseMonitorSnapshot {
     pub message: Option<String>,
 }
 
+// NOTE: must stay async - see the comment on the keyboard monitor commands.
 #[tauri::command]
-pub fn start_mouse_monitor(
+pub async fn start_mouse_monitor(
     app: AppHandle,
     monitor: State<'_, InputMonitor>,
-) -> MouseMonitorSnapshot {
-    monitor.start_mouse(&app)
+) -> Result<MouseMonitorSnapshot, String> {
+    Ok(monitor.start_mouse(&app))
 }
 
 #[tauri::command]
-pub fn stop_mouse_monitor(
+pub async fn stop_mouse_monitor(
     app: AppHandle,
     monitor: State<'_, InputMonitor>,
-) -> MouseMonitorSnapshot {
-    monitor.stop_mouse(&app)
+) -> Result<MouseMonitorSnapshot, String> {
+    Ok(monitor.stop_mouse(&app))
 }
 
 #[cfg(test)]

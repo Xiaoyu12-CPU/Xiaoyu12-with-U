@@ -50,20 +50,26 @@ pub struct KeyboardMonitorSnapshot {
     pub message: Option<String>,
 }
 
+// NOTE: these must stay async. ensure_started() blocks up to 2s waiting for
+// the platform listener to report readiness; sync commands would run that
+// wait on the main thread and freeze the UI (and on Windows this disease
+// escalates to a WebView2 deadlock - see open_control_center). Async
+// commands run on the async runtime instead. Borrowed State<'_, T>
+// parameters require a Result return type in async commands.
 #[tauri::command]
-pub fn start_keyboard_monitor(
+pub async fn start_keyboard_monitor(
     app: AppHandle,
     monitor: State<'_, InputMonitor>,
-) -> KeyboardMonitorSnapshot {
-    monitor.start_keyboard(&app)
+) -> Result<KeyboardMonitorSnapshot, String> {
+    Ok(monitor.start_keyboard(&app))
 }
 
 #[tauri::command]
-pub fn stop_keyboard_monitor(
+pub async fn stop_keyboard_monitor(
     app: AppHandle,
     monitor: State<'_, InputMonitor>,
-) -> KeyboardMonitorSnapshot {
-    monitor.stop_keyboard(&app)
+) -> Result<KeyboardMonitorSnapshot, String> {
+    Ok(monitor.stop_keyboard(&app))
 }
 
 pub(crate) fn current_timestamp() -> u64 {
