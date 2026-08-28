@@ -41,35 +41,21 @@ jobs:
         run: pnpm tauri build --bundles nsis 2>&1 | tee build-log.txt
         shell: bash
 
-      - name: Post build errors as commit comment
+      - name: Save build errors for comment
         if: failure()
         shell: bash
         run: |
-          # 提取最后的编译错误,用 python 构造 JSON(避免 jq 引号地狱),
-          # 发成 commit comment(公开可读,无需任何令牌即可查看)。
-          python - <<'PYEOF'
-          import json, os, urllib.request
+          tail -80 build-log.txt > error-body.md
+          printf '\n(自动评论: Windows 构建失败的日志尾部, sha %s)\n' "$GITHUB_SHA" >> error-body.md
 
-          log = open("build-log.txt", encoding="utf-8", errors="replace").read()
-          lines = [ln for ln in log.splitlines()]
-          tail = "\n".join(lines[-80:])
-          body = "🚨 **Windows build failed** (`%s`)\n\n```text\n%s\n```" % (
-              os.environ.get("GITHUB_SHA", "")[:12], tail)
-
-          payload = json.dumps({"body": body}).encode()
-          url = "https://api.github.com/repos/%s/commits/%s/comments" % (
-              os.environ["GITHUB_REPOSITORY"], os.environ["GITHUB_SHA"])
-          req = urllib.request.Request(url, data=payload, method="POST", headers={
-              "Authorization": "Bearer %s" % os.environ["GITHUB_TOKEN"],
-              "Accept": "application/vnd.github+json",
-              "Content-Type": "application/json",
-          })
-          try:
-              with urllib.request.urlopen(req) as resp:
-                  print("comment created:", resp.status)
-          except Exception as error:
-              print("comment failed:", error)
-          PYEOF
+      - name: Post build errors as commit comment
+        if: failure()
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-number: 0
+          body-path: error-body.md
+          reactions: eyes
 
       - name: Upload build log on failure
         if: failure()
