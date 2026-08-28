@@ -27,7 +27,7 @@ jobs:
             artifact-glob: src-tauri/target/*/bundle/dmg/*.dmg
             asset-suffix: macOS-arm64
           - name: macos-x64
-            runner: macos-13
+            runner: macos-15-intel
             rust-target: x86_64-apple-darwin
             bundle-args: --bundles dmg
             artifact-glob: src-tauri/target/*/bundle/dmg/*.dmg
