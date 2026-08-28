@@ -73,7 +73,8 @@ jobs:
           git config user.email "actions@github.com"
           git checkout -B ci-logs
           git rm -rf --cached . -q
-          cp check-log.txt . 2>/dev/null || true
+          # cargo check 在 src-tauri/ 下运行,日志也在那里
+          cp src-tauri/check-log.txt . 2>/dev/null || true
           cp build-log.txt . 2>/dev/null || true
           # 复制完成后再清空工作区,避免误删日志文件
           find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name 'check-log.txt' ! -name 'build-log.txt' -exec rm -rf {} +
