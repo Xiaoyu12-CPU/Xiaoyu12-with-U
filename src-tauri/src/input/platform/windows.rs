@@ -143,7 +143,7 @@ extern "system" fn keyboard_hook_proc(code: i32, w_param: usize, l_param: isize)
             }
         }
     }
-    CallNextHookEx(0, code, w_param, l_param)
+    unsafe { CallNextHookEx(0, code, w_param, l_param) }
 }
 
 extern "system" fn mouse_hook_proc(code: i32, w_param: usize, l_param: isize) -> isize {
@@ -157,7 +157,7 @@ extern "system" fn mouse_hook_proc(code: i32, w_param: usize, l_param: isize) ->
             }
         }
     }
-    CallNextHookEx(0, code, w_param, l_param)
+    unsafe { CallNextHookEx(0, code, w_param, l_param) }
 }
 
 fn wheel_delta(mouse_data: u32) -> i16 {
@@ -229,7 +229,7 @@ pub fn start(
 ) -> Result<PlatformInputMonitor, String> {
     let stop_requested = Arc::new(AtomicBool::new(false));
     let event_sink = Arc::new(on_event);
-    let (ready_sender, ready_receiver) = mpsc::sync_channel::<Result<(), String>>(1);
+    let (ready_sender, _ready_receiver) = mpsc::sync_channel::<Result<(), String>>(1);
     let (thread_id_sender, thread_id_receiver) = mpsc::channel::<u32>();
 
     {
