@@ -41,27 +41,19 @@ jobs:
         run: pnpm tauri build --bundles nsis 2>&1 | tee build-log.txt
         shell: bash
 
-      - name: Save build errors for comment
+      - name: Publish build errors to job summary
         if: failure()
         shell: bash
         run: |
+          # $GITHUB_STEP_SUMMARY 会显示在 check-run 的 output.summary 里,
+          # 该字段通过公开 API 可读(check-suites -> check-runs -> output),
+          # 让没有 Actions 日志权限的协作者也能拿到 rustc 的真实报错。
           {
-            printf '🚨 **Windows build failed** (`%s`)\n\n```text\n' "$GITHUB_SHA"
+            printf '### Windows build failed (`%s`)\n\n' "$GITHUB_SHA"
+            printf '```text\n'
             tail -80 build-log.txt
             printf '\n```\n'
-          } > error-body.md
-
-      - name: Post build errors as commit comment
-        if: failure()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api \
-            --method POST \
-            -H "Accept: application/vnd.github+json" \
-            "/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
-            -F body=@"error-body.md"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload build log on failure
         if: failure()
