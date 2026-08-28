@@ -20,7 +20,7 @@ const mouseStatusNote = computed(() => {
     case "permission-required":
       return "缺少「输入监听」权限，鼠标可视化不会显示。请在 系统设置 → 隐私与安全性 → 输入监控 中允许 withXiaoyu12；若其开关无法打开，先点 − 删除该条目，再点 + 重新选择应用。授权后应用会每 2 秒自动重试，若仍无效请重启应用。";
     case "unsupported":
-      return "当前平台暂不支持全局鼠标监听（Windows 支持在规划中）。";
+      return "当前平台暂不支持全局鼠标监听。";
     case "error":
       return snapshot.value?.mouseMessage ?? "监听启动失败，请重试。";
     default:

@@ -1,8 +1,8 @@
 # withXiaoyu12
 
-一只住在 macOS 桌面上的像素小桌宠。她会陪你打字、感知你的鼠标、关心你的电脑负载，还能到点提醒你别忘了事情。
+一只住在桌面上的像素小桌宠。她会陪你打字、感知你的鼠标、关心你的电脑负载，还能到点提醒你别忘了事情。
 
-基于 Tauri 2 + Vue 3 + TypeScript 构建，macOS 优先（Apple Silicon / Intel），Windows 支持在路线图上。
+基于 Tauri 2 + Vue 3 + TypeScript 构建，支持 macOS（Apple Silicon / Intel）与 Windows x64。
 
 > 当前版本：v0.4.0-preview。软件尚在开发期，功能与外观都可能变化，欢迎试用反馈。
 
@@ -15,7 +15,7 @@
 - **行为状态机**：多个状态请求按优先级仲裁（拖拽 > 警觉 > 睡眠 > 开心 > 工作 > 疲惫 > 待机），瞬时状态自动超时回落
 - **点击与对话**：点她会有反应，配合气泡对话系统
 
-### ⌨️ 输入感知（需要 Input Monitoring 权限）
+### ⌨️ 输入感知（macOS 需要 Input Monitoring 权限，Windows 免授权）
 
 - **实时按键显示**：全屏打字时，桌宠头顶会冒出你敲的键
 - **方向性按键历史栈**：最近的按键像瀑布一样流过
@@ -23,7 +23,7 @@
 - **鼠标可视化**：点击、滚轮动作可视化展示
 - **陪你工作**：检测到你持续输入时进入 working 状态——她在陪你加班
 
-隐私说明：按键监听通过 macOS `CGEventTap` 以 **ListenOnly** 模式在本地实现，数据只用于驱动桌宠动画和显示，**不上传任何数据，不联网**。
+隐私说明：按键监听在 macOS 通过 `CGEventTap`（ListenOnly）、在 Windows 通过 `SetWindowsHookEx` 低级钩子（过滤注入事件）在本地实现，数据只用于驱动桌宠动画和显示，**不上传任何数据，不联网**。
 
 ### 🔔 提醒与闹钟
 
@@ -120,7 +120,7 @@ xattr -dr com.apple.quarantine ~/Downloads/withXiaoyu12-macOS-*.dmg
 ├── src-tauri/              # Tauri 2 / Rust 后端
 │   └── src/
 │       ├── commands/       # 各领域 Tauri command（监控、存储、资产上传…）
-│       └── input/          # 平台抽象的全局输入监听（macOS CGEventTap 实现）
+│       └── input/          # 平台抽象的全局输入监听（macOS CGEventTap / Windows SetWindowsHookEx）
 └── tests/                  # 纯逻辑单元测试（Node 原生 test runner）
 ```
 
