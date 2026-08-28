@@ -26,8 +26,6 @@ use super::super::mouse::{MouseButton, MouseEventType, MouseInputEvent, ScrollDi
 use super::PermissionState;
 use crate::input::platform::windows_keymap::key_name;
 
-mod windows_keymap;
-
 struct RawKeyboardEvent {
     message: u32,
     vk_code: u32,
