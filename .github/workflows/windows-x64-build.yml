@@ -41,6 +41,26 @@ jobs:
         run: pnpm tauri build --bundles nsis 2>&1 | tee build-log.txt
         shell: bash
 
+      - name: Post build errors as commit comment
+        if: failure()
+        shell: bash
+        run: |
+          # 提取最后的编译错误(rustc error 块 + 尾部 100 行),发成 commit comment。
+          # Actions 日志 API 需要管理员权限,而 commit comment 公开可读,
+          # 让无本地 Windows 工具链的协作者也能拿到真实报错。
+          ERRORS=$(grep -A4 "^error" build-log.txt | tail -120)
+          if [ -z "$ERRORS" ]; then ERRORS=$(tail -60 build-log.txt); fi
+          PAYLOAD=$(jq -n --arg body "🚨 **Windows build failed** (\`$GITHUB_SHA\`)
+
+          \`\`\`
+          $ERRORS
+          \`\`\`" '{body: $body}')
+          curl -s -X POST \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" \
+            -d "$PAYLOAD" | head -c 300
+
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
