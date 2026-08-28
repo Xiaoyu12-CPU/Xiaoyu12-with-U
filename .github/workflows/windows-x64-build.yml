@@ -55,6 +55,23 @@ jobs:
             printf '\n```\n'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Push build log to ci-logs branch
+        if: failure()
+        shell: bash
+        run: |
+          # check-run summary 并不总是回传 API;artifact 又需要认证。
+          # git push 走 checkout@v4 的持久化凭据(contents:write),而
+          # raw.githubusercontent.com 对公开仓库无需任何令牌即可读取。
+          git config user.name "ci-log-bot"
+          git config user.email "actions@github.com"
+          git checkout -B ci-logs
+          git rm -rf --cached . -q
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp "$GITHUB_WORKSPACE/build-log.txt" . 2>/dev/null || true
+          git add build-log.txt
+          git commit -m "ci log for $GITHUB_SHA" || true
+          git push origin ci-logs --force
+
       - name: Upload build log on failure
         if: failure()
         uses: actions/upload-artifact@v4
