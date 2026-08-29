@@ -164,9 +164,20 @@ pub fn load_window_position(
         Err(_) => return Ok(None),
     };
 
-    let entry = positions.get(&label)?;
-    let x = entry.get("x").and_then(serde_json::Value::as_i64)?;
-    let y = entry.get("y").and_then(serde_json::Value::as_i64)?;
+    // positions.get/entry.get return Options; a missing key means no saved
+    // position, which for the caller is exactly Ok(None).
+    let entry = match positions.get(&label) {
+        Some(entry) => entry,
+        None => return Ok(None),
+    };
+    let x = match entry.get("x").and_then(serde_json::Value::as_i64) {
+        Some(x) => x,
+        None => return Ok(None),
+    };
+    let y = match entry.get("y").and_then(serde_json::Value::as_i64) {
+        Some(y) => y,
+        None => return Ok(None),
+    };
     Ok(Some((x as i32, y as i32)))
 }
 
