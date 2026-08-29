@@ -99,6 +99,7 @@ function update(patch: SettingsPatch): void {
     },
     input: { ...settings.value.input, ...patch.input },
     reminder: { ...settings.value.reminder, ...patch.reminder },
+    windows: { ...settings.value.windows, ...patch.windows },
     controlCenter: {
       ...settings.value.controlCenter,
       ...patch.controlCenter,
@@ -512,6 +513,7 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         DEFAULT_SETTINGS.reminder.soundVolume,
       ),
     },
+    windows: normalizeWindowSettings(value.windows, systemStatusBubble),
     controlCenter: {
       backgroundColor: hexColorOrDefault(
         controlCenter.backgroundColor,
@@ -657,6 +659,49 @@ function displayModeOrDefault(
   return value === "pet-only" || value === "status-only" || value === "both"
     ? value
     : fallback;
+}
+
+/**
+ * Normalizes the per-window switches. A settings file written before the
+ * window split has no `windows` block; the deprecated systemStatusBubble
+ * displayMode then decides whether the status window starts enabled
+ * ("status-only"/"both" -> on, "pet-only" -> off).
+ */
+function normalizeWindowSettings(
+  value: unknown,
+  legacySystemStatusBubble: Record<string, unknown>,
+): DesktopPetSettings["windows"] {
+  const windows = isRecord(value) ? value : {};
+  const legacyMode = displayModeOrDefault(
+    legacySystemStatusBubble.displayMode,
+    DEFAULT_SETTINGS.systemStatusBubble.displayMode,
+  );
+  const legacyStatusEnabled = legacyMode !== "pet-only";
+  const fallback = DEFAULT_SETTINGS.windows;
+
+  return {
+    petWindowEnabled: booleanOrDefault(
+      windows.petWindowEnabled,
+      fallback.petWindowEnabled,
+    ),
+    systemStatusWindowEnabled: booleanOrDefault(
+      windows.systemStatusWindowEnabled,
+      legacyStatusEnabled,
+    ),
+    inputMonitorWindowEnabled: booleanOrDefault(
+      windows.inputMonitorWindowEnabled,
+      fallback.inputMonitorWindowEnabled,
+    ),
+    systemStatusClickThrough: booleanOrDefault(
+      windows.systemStatusClickThrough,
+      fallback.systemStatusClickThrough,
+    ),
+    inputMonitorClickThrough: booleanOrDefault(
+      windows.inputMonitorClickThrough,
+      fallback.inputMonitorClickThrough,
+    ),
+    followPet: booleanOrDefault(windows.followPet, fallback.followPet),
+  };
 }
 
 function keyDisplayPositionOrDefault(

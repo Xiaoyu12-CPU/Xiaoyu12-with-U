@@ -14,6 +14,9 @@ pub fn run() {
         .manage(input::monitor::InputMonitor::default())
         .invoke_handler(tauri::generate_handler![
             commands::app::open_control_center,
+            commands::app::open_overlay_window,
+            commands::app::move_overlay_window,
+            commands::app::set_overlay_click_through,
             commands::app::exit_app,
             commands::app::apply_pet_window_settings,
             commands::battery::sample_battery_status,

@@ -82,6 +82,7 @@ fn validate_settings(contents: &str) -> Result<(), String> {
         "systemMonitor",
         "input",
         "reminder",
+        "windows",
         "controlCenter",
     ] {
         if !document.get(section).is_some_and(Value::is_object) {

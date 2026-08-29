@@ -4,19 +4,15 @@ import { SYSTEM_STATUS_ITEMS } from "../system/statusItems";
 import type { SystemStatusItemId } from "../system/statusItems";
 import { DEFAULT_SETTINGS } from "./defaultSettings";
 import { settingsManager } from "./settingsManager";
-import type { DesktopDisplayMode } from "./settingsTypes";
 
 const settings = settingsManager.settings;
 const panelScalePercent = computed(() => Math.round(settings.value.systemStatusBubble.panelScale * 100));
 
-function updateDisplayMode(displayMode: DesktopDisplayMode): void {
-  const bubble = settings.value.systemStatusBubble;
-  const usesInitialPosition = bubble.offsetX === DEFAULT_SETTINGS.systemStatusBubble.offsetX && bubble.offsetY === DEFAULT_SETTINGS.systemStatusBubble.offsetY;
-  if (displayMode === "both" && usesInitialPosition) {
-    settingsManager.update({ systemStatusBubble: { displayMode, offsetX: rightSideOffset() } });
-  } else {
-    settingsManager.updateSetting("systemStatusBubble", "displayMode", displayMode);
-  }
+function updateWindowBoolean(
+  key: "systemStatusWindowEnabled" | "inputMonitorWindowEnabled" | "systemStatusClickThrough" | "inputMonitorClickThrough" | "followPet",
+  event: Event,
+): void {
+  settingsManager.updateSetting("windows", key, (event.target as HTMLInputElement).checked);
 }
 function updateVisibleItem(itemId: SystemStatusItemId, event: Event): void {
   const checked = (event.target as HTMLInputElement).checked;
@@ -48,15 +44,19 @@ function updateMonitorNumber(key: "cpuPollIntervalMs" | "cpuHighThreshold" | "me
   <div class="settings-sections" data-settings-category="system">
     <article>
       <div class="section-heading"><h3>System Status Bubble</h3><p>显示、尺寸、位置与外观设置；Runtime逻辑保持不变。</p></div>
-      <h4 class="settings-group-heading">显示</h4>
+      <h4 class="settings-group-heading">窗口与显示</h4>
       <div class="setting-row">
-        <span><strong>桌面显示</strong><small>修改后立即同步到主桌宠窗口。</small></span>
-        <div class="display-mode-options" role="radiogroup" aria-label="桌面显示">
-          <label><input type="radio" name="display-mode" :checked="settings.systemStatusBubble.displayMode === 'both'" @change="updateDisplayMode('both')" />宠物 + 系统状态</label>
-          <label><input type="radio" name="display-mode" :checked="settings.systemStatusBubble.displayMode === 'pet-only'" @change="updateDisplayMode('pet-only')" />仅宠物</label>
-          <label><input type="radio" name="display-mode" :checked="settings.systemStatusBubble.displayMode === 'status-only'" @change="updateDisplayMode('status-only')" />仅系统状态</label>
+        <span><strong>窗口开关</strong><small>桌宠本体、系统状态、键鼠监视三个独立窗口。</small></span>
+        <div class="item-options" role="group" aria-label="窗口开关">
+          <label><input type="checkbox" :checked="settings.windows.petWindowEnabled" disabled />桌宠本体</label>
+          <label><input type="checkbox" :checked="settings.windows.systemStatusWindowEnabled" @change="updateWindowBoolean('systemStatusWindowEnabled', $event)" />系统状态窗口</label>
+          <label><input type="checkbox" :checked="settings.windows.inputMonitorWindowEnabled" @change="updateWindowBoolean('inputMonitorWindowEnabled', $event)" />键鼠监视窗口</label>
         </div>
       </div>
+      <label class="setting-row"><span><strong>跟随桌宠</strong><small>开启后悬浮窗口随桌宠本体一起移动；关闭后可任意摆放。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.followPet" @change="updateWindowBoolean('followPet', $event)" /></label>
+      <label class="setting-row"><span><strong>系统状态窗口点击穿透</strong><small>鼠标点击穿过窗口，直接作用于下层内容。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.systemStatusClickThrough" :disabled="!settings.windows.systemStatusWindowEnabled || settings.windows.followPet" @change="updateWindowBoolean('systemStatusClickThrough', $event)" /></label>
+      <label class="setting-row"><span><strong>键鼠监视窗口点击穿透</strong><small>鼠标点击穿过窗口，直接作用于下层内容。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.inputMonitorClickThrough" :disabled="!settings.windows.inputMonitorWindowEnabled || settings.windows.followPet" @change="updateWindowBoolean('inputMonitorClickThrough', $event)" /></label>
+      <h4 class="settings-group-heading">显示内容</h4>
       <div class="setting-row">
         <span><strong>显示内容</strong><small>全部取消时仍保留最小标题。</small></span>
         <div class="item-options"><label v-for="item in SYSTEM_STATUS_ITEMS" :key="item.id"><input type="checkbox" :checked="settings.systemStatusBubble.visibleItems.includes(item.id)" @change="updateVisibleItem(item.id, $event)" />{{ item.label }}</label></div>

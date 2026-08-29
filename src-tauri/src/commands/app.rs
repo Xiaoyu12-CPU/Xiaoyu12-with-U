@@ -1,8 +1,107 @@
 use std::time::Instant;
-use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, LogicalSize, LogicalPosition, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
 
 const CONTROL_CENTER_LABEL: &str = "control-center";
 const PET_WINDOW_LABEL: &str = "main";
+const SYSTEM_STATUS_LABEL: &str = "system-status";
+const INPUT_MONITOR_LABEL: &str = "input-monitor";
+
+/// Overlay window blueprints. Sizes and titles are fixed on the Rust side so
+/// the frontend cannot open arbitrary windows; each window loads the same
+/// index.html and routes by its label.
+fn overlay_blueprint(label: &str) -> Option<(&'static str, &'static str, f64, f64)> {
+    match label {
+        SYSTEM_STATUS_LABEL => Some((SYSTEM_STATUS_LABEL, "withXiaoyu12 系统状态", 230.0, 320.0)),
+        INPUT_MONITOR_LABEL => Some((INPUT_MONITOR_LABEL, "withXiaoyu12 键鼠监视", 240.0, 360.0)),
+        _ => None,
+    }
+}
+
+/// Opens one of the floating overlay windows (system-status / input-monitor).
+/// Must stay async: on Windows, WebviewWindowBuilder::build() deadlocks when
+/// called from a synchronous command or event handler.
+#[tauri::command]
+pub async fn open_overlay_window(app: AppHandle, label: String) -> Result<(), String> {
+    let (label, title, width, height) =
+        overlay_blueprint(&label).ok_or_else(|| format!("Unknown overlay window: {label}"))?;
+
+    if let Some(window) = app.get_webview_window(label) {
+        window.show().map_err(|error| error.to_string())?;
+        window.set_focus().map_err(|error| error.to_string())?;
+        return Ok(());
+    }
+
+    let built = WebviewWindowBuilder::new(&app, label, WebviewUrl::App("index.html".into()))
+        .title(title)
+        .inner_size(width, height)
+        .min_inner_size(160.0, 160.0)
+        .resizable(true)
+        .decorations(false)
+        .shadow(false)
+        .transparent(true)
+        .always_on_top(true)
+        .build();
+    built.map_err(|error| error.to_string())?;
+
+    Ok(())
+}
+
+/// Repositions an overlay window relative to the pet window (follow-pet mode).
+#[tauri::command]
+pub async fn move_overlay_window(
+    app: AppHandle,
+    label: String,
+    delta_x: f64,
+    delta_y: f64,
+) -> Result<(), String> {
+    if !delta_x.is_finite() || !delta_y.is_finite() {
+        return Err("Overlay position delta must be finite.".to_string());
+    }
+    if delta_x.abs() > 2000.0 || delta_y.abs() > 2000.0 {
+        return Err("Overlay position delta is too large.".to_string());
+    }
+
+    let (label, ..) =
+        overlay_blueprint(&label).ok_or_else(|| format!("Unknown overlay window: {label}"))?;
+    let window = app
+        .get_webview_window(label)
+        .ok_or_else(|| format!("Overlay window {label} is not open."))?;
+
+    let scale_factor = window
+        .scale_factor()
+        .map_err(|error| format!("Failed to read scale factor: {error}"))?;
+    let current = window
+        .outer_position()
+        .map_err(|error| format!("Failed to read overlay position: {error}"))?;
+    window
+        .set_position(PhysicalPosition::new(
+            current.x + (delta_x * scale_factor).round() as i32,
+            current.y + (delta_y * scale_factor).round() as i32,
+        ))
+        .map_err(|error| format!("Failed to move overlay window: {error}"))?;
+
+    Ok(())
+}
+
+/// Enables or disables mouse click-through for an overlay window.
+#[tauri::command]
+pub async fn set_overlay_click_through(
+    app: AppHandle,
+    label: String,
+    enabled: bool,
+) -> Result<(), String> {
+    let (label, ..) =
+        overlay_blueprint(&label).ok_or_else(|| format!("Unknown overlay window: {label}"))?;
+    let window = app.get_webview_window(label);
+
+    match window {
+        Some(window) => window
+            .set_ignore_cursor_events(enabled)
+            .map_err(|error| format!("Failed to update click-through: {error}")),
+        // Window not open: nothing to do; the flag is applied on open.
+        None => Ok(()),
+    }
+}
 
 #[tauri::command]
 pub async fn open_control_center(app: AppHandle) -> Result<(), String> {

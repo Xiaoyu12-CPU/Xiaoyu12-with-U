@@ -1,6 +1,23 @@
 import type { SystemStatusItemId } from "../system/statusItems";
 
+/** @deprecated Replaced by the per-window switches in `windows`. */
 export type DesktopDisplayMode = "pet-only" | "status-only" | "both";
+
+/** Per-window visibility and behavior switches. */
+export interface WindowSettings {
+  /** Pet window (always true in practice; kept for completeness). */
+  petWindowEnabled: boolean;
+  /** Floating system-status window. */
+  systemStatusWindowEnabled: boolean;
+  /** Floating keyboard/mouse monitor window. */
+  inputMonitorWindowEnabled: boolean;
+  /** Click-through for the system-status window. */
+  systemStatusClickThrough: boolean;
+  /** Click-through for the input-monitor window. */
+  inputMonitorClickThrough: boolean;
+  /** Floating windows follow the pet window when it moves. */
+  followPet: boolean;
+}
 export type KeyDisplayPosition = "top" | "bottom" | "left" | "right";
 export type MouseVisualizerPosition = "top" | "bottom" | "left" | "right";
 export type ControlCenterBackgroundImageFit =
@@ -45,6 +62,7 @@ export interface DesktopPetSettings {
     batteryEnabled: boolean;
   };
   systemStatusBubble: {
+    /** @deprecated Replaced by `windows.systemStatusWindowEnabled`. */
     displayMode: DesktopDisplayMode;
     offsetX: number;
     offsetY: number;
@@ -97,6 +115,7 @@ export interface DesktopPetSettings {
     enabled: boolean;
     soundVolume: number;
   };
+  windows: WindowSettings;
   controlCenter: {
     backgroundColor: string;
     backgroundOpacity: number;

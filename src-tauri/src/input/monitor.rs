@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 
 use super::keyboard::{
     KeyboardInputEvent, KeyboardMonitorSnapshot, KeyboardMonitorStatus, KEYBOARD_INPUT_EVENT,
@@ -12,7 +12,6 @@ use super::mouse::{
 };
 use super::platform::{self, PermissionState, PlatformInputMonitor};
 
-const MAIN_WINDOW_LABEL: &str = "main";
 
 pub(crate) enum NativeInputEvent {
     Keyboard(KeyboardInputEvent),
@@ -149,16 +148,14 @@ impl InputMonitor {
         match platform::start(move |event| match event {
             NativeInputEvent::Keyboard(event) => {
                 if keyboard_enabled.load(Ordering::Acquire) {
-                    if let Some(window) = event_app.get_webview_window(MAIN_WINDOW_LABEL) {
-                        let _ = window.emit(KEYBOARD_INPUT_EVENT, event);
-                    }
+                    // Broadcast: the pet window, the input-monitor overlay and
+                    // any future listener all receive the same stream.
+                    let _ = event_app.emit(KEYBOARD_INPUT_EVENT, event);
                 }
             }
             NativeInputEvent::Mouse(event) => {
                 if mouse_enabled.load(Ordering::Acquire) {
-                    if let Some(window) = event_app.get_webview_window(MAIN_WINDOW_LABEL) {
-                        let _ = window.emit(MOUSE_INPUT_EVENT, event);
-                    }
+                    let _ = event_app.emit(MOUSE_INPUT_EVENT, event);
                 }
             }
         }) {
@@ -258,15 +255,11 @@ fn mouse_snapshot(inner: &InputMonitorInner) -> MouseMonitorSnapshot {
 }
 
 fn emit_keyboard_status(app: &AppHandle, status: &KeyboardMonitorSnapshot) {
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-        let _ = window.emit(KEYBOARD_STATUS_EVENT, status);
-    }
+    let _ = app.emit(KEYBOARD_STATUS_EVENT, status);
 }
 
 fn emit_mouse_status(app: &AppHandle, status: &MouseMonitorSnapshot) {
-    if let Some(window) = app.get_webview_window(MAIN_WINDOW_LABEL) {
-        let _ = window.emit(MOUSE_STATUS_EVENT, status);
-    }
+    let _ = app.emit(MOUSE_STATUS_EVENT, status);
 }
 
 #[cfg(test)]

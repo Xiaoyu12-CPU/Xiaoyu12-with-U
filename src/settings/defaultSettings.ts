@@ -86,6 +86,14 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     enabled: false,
     soundVolume: 0.7,
   },
+  windows: {
+    petWindowEnabled: true,
+    systemStatusWindowEnabled: false,
+    inputMonitorWindowEnabled: true,
+    systemStatusClickThrough: false,
+    inputMonitorClickThrough: false,
+    followPet: true,
+  },
   controlCenter: {
     backgroundColor: "#ECF3F8",
     backgroundOpacity: 0.75,

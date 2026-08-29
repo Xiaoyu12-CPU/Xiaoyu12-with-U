@@ -1,5 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { emitTo, listen } from "@tauri-apps/api/event";
+import { emit, emitTo, listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import {
   getCurrentScope,
@@ -50,6 +50,14 @@ export async function openSystemMonitorSettings(): Promise<void> {
   }
 }
 
+export async function openOverlayWindow(label: string): Promise<void> {
+  if (!isTauri()) {
+    return;
+  }
+
+  await invoke("open_overlay_window", { label });
+}
+
 export function useMainRuntimeBridge(
   executeAction: (action: PetControlAction) => void | Promise<void>,
 ): void {
@@ -65,7 +73,9 @@ export function useMainRuntimeBridge(
       return;
     }
 
-    await emitTo(CONTROL_CENTER_LABEL, STATUS_UPDATED_EVENT, snapshot.value);
+    // Broadcast: the control center and the floating overlay windows all
+    // render from the same snapshot.
+    await emit(STATUS_UPDATED_EVENT, snapshot.value);
   }
 
   if (isTauri()) {
