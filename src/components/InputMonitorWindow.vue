@@ -1,22 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted } from "vue";
 import KeyHistoryStack from "./KeyHistoryStack.vue";
 import MouseInputVisualizer from "./MouseInputVisualizer.vue";
 import { settingsManager } from "../settings/settingsManager";
 import { useInputOverlayRuntime } from "../input/inputOverlayRuntime";
 import { applyWindowChrome } from "./overlayChrome";
+import { useOverlayDrag } from "./overlayDrag";
 
-const isDragging = ref(false);
+const LABEL = "input-monitor";
+const { isDragging, restorePosition, onPointerDown, onPointerUp, startWindowDrag } =
+  useOverlayDrag(LABEL);
 
-const {
-  pressedKeys,
-  keyboardStatus,
-  mouseStatus,
-  pressedButtons,
-  lastScroll,
-  lastScrollAt,
-  dispose,
-} = useInputOverlayRuntime();
+const { pressedKeys, keyboardStatus, mouseStatus, pressedButtons, lastScroll, lastScrollAt } =
+  useInputOverlayRuntime();
 
 const input = computed(() => settingsManager.settings.value.input);
 
@@ -34,16 +30,25 @@ const showsMouseVisualizer = computed(
     ["active", "starting"].includes(mouseStatus.value),
 );
 
+function handlePointerDown(event: PointerEvent): void {
+  onPointerDown(event);
+  startWindowDrag();
+}
+
 onMounted(() => {
   void settingsManager.initialize();
   applyWindowChrome();
+  void restorePosition();
 });
-
-onUnmounted(dispose);
 </script>
 
 <template>
-  <main class="input-monitor" @pointer-down="isDragging = true" @pointer-up="isDragging = false">
+  <main
+    class="input-monitor"
+    @pointer-down="handlePointerDown"
+    @pointer-up="onPointerUp"
+    @pointer-cancel="onPointerUp"
+  >
     <KeyHistoryStack
       v-if="showsKeyHistory"
       class="input-monitor__key-history"
@@ -97,6 +102,13 @@ onUnmounted(dispose);
   padding: 10px;
   overflow: hidden;
   background: transparent;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.input-monitor:active {
+  cursor: grabbing;
 }
 
 .input-monitor__empty {

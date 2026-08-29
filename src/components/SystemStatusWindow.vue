@@ -1,38 +1,42 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { computed, onMounted } from "vue";
 import SystemStatusBubble from "./SystemStatusBubble.vue";
 import { settingsManager } from "../settings/settingsManager";
 import { applyWindowChrome } from "./overlayChrome";
 import { useRemotePetRuntime } from "../pet/runtimeBridge";
+import { useOverlayDrag } from "./overlayDrag";
 
-const isDragging = ref(false);
+const LABEL = "system-status";
+const { restorePosition, onPointerDown, onPointerUp, startWindowDrag } =
+  useOverlayDrag(LABEL);
 
 // The pet window broadcasts its runtime snapshot; this window only renders it.
 const { snapshot } = useRemotePetRuntime();
 
 const bubble = computed(() => settingsManager.settings.value.systemStatusBubble);
 
-const fallbackSnapshot = computed(() => snapshot.value ?? undefined);
-
-function handlePointerDown(): void {
-  isDragging.value = true;
-  void getCurrentWindow().startDragging().finally(() => {
-    isDragging.value = false;
-  });
+function handlePointerDown(event: PointerEvent): void {
+  onPointerDown(event);
+  startWindowDrag();
 }
 
 onMounted(() => {
   void settingsManager.initialize();
   applyWindowChrome();
+  void restorePosition();
 });
 </script>
 
 <template>
-  <main class="system-status-window">
+  <main
+    class="system-status-window"
+    @pointer-down="handlePointerDown"
+    @pointer-up="onPointerUp"
+    @pointer-cancel="onPointerUp"
+  >
     <SystemStatusBubble
-      v-if="fallbackSnapshot"
-      :snapshot="fallbackSnapshot"
+      v-if="snapshot"
+      :snapshot="snapshot"
       :background-color="bubble.backgroundColor"
       :background-opacity="bubble.backgroundOpacity"
       :text-color="bubble.textColor"
@@ -42,7 +46,6 @@ onMounted(() => {
       :panel-scale="bubble.panelScale"
       :visible-items="bubble.visibleItems"
       window-drag-handle
-      @pointer-down="handlePointerDown"
     />
     <p v-else class="system-status-window__empty">等待桌宠窗口的运行状态…</p>
   </main>
@@ -58,6 +61,13 @@ onMounted(() => {
   padding: 8px;
   background: transparent;
   overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.system-status-window:active {
+  cursor: grabbing;
 }
 
 .system-status-window__empty {

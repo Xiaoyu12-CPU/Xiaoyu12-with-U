@@ -17,6 +17,8 @@ pub fn run() {
             commands::app::open_overlay_window,
             commands::app::move_overlay_window,
             commands::app::set_overlay_click_through,
+            commands::app::save_window_position,
+            commands::app::load_window_position,
             commands::app::exit_app,
             commands::app::apply_pet_window_settings,
             commands::battery::sample_battery_status,

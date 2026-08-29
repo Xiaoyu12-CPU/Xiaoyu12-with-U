@@ -103,6 +103,73 @@ pub async fn set_overlay_click_through(
     }
 }
 
+const WINDOW_POSITIONS_FILE: &str = "window-positions.json";
+
+fn validate_overlay_label(label: &str) -> Result<(), String> {
+    if overlay_blueprint(label).is_none() {
+        return Err(format!("Unknown overlay window: {label}"));
+    }
+    Ok(())
+}
+
+fn positions_path(app: &AppHandle) -> Result<std::path::PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|error| format!("Failed to resolve app data directory: {error}"))
+}
+
+/// Persists an overlay window position so it reopens where the user left it.
+#[tauri::command]
+pub fn save_window_position(app: AppHandle, label: String, x: i32, y: i32) -> Result<(), String> {
+    validate_overlay_label(&label)?;
+
+    let path = positions_path(&app)?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|error| format!("Failed to create app data directory: {error}"))?;
+    }
+
+    let mut positions = match std::fs::read_to_string(&path) {
+        Ok(contents) => serde_json::from_str::<serde_json::Value>(&contents)
+            .unwrap_or_else(|_| serde_json::json!({})),
+        Err(_) => serde_json::json!({}),
+    };
+
+    if !positions.is_object() {
+        positions = serde_json::json!({});
+    }
+    positions[&label] = serde_json::json!({ "x": x, "y": y });
+
+    std::fs::write(&path, serde_json::to_string(&positions).unwrap_or_default())
+        .map_err(|error| format!("Failed to save window positions: {error}"))?;
+    Ok(())
+}
+
+/// Loads a previously saved overlay window position, if any.
+#[tauri::command]
+pub fn load_window_position(
+    app: AppHandle,
+    label: String,
+) -> Result<Option<(i32, i32)>, String> {
+    validate_overlay_label(&label)?;
+
+    let path = positions_path(&app)?;
+    let contents = match std::fs::read_to_string(&path) {
+        Ok(contents) => contents,
+        Err(_) => return Ok(None),
+    };
+
+    let positions: serde_json::Value = match serde_json::from_str(&contents) {
+        Ok(value) => value,
+        Err(_) => return Ok(None),
+    };
+
+    let entry = positions.get(&label)?.clone();
+    let x = entry.get("x").and_then(serde_json::Value::as_i64)?;
+    let y = entry.get("y").and_then(serde_json::Value::as_i64)?;
+    Ok(Some((x as i32, y as i32)))
+}
+
 #[tauri::command]
 pub async fn open_control_center(app: AppHandle) -> Result<(), String> {
     // NOTE: must stay async. On Windows, WebviewWindowBuilder::build()
