@@ -1,5 +1,5 @@
 use std::time::Instant;
-use tauri::{AppHandle, LogicalSize, LogicalPosition, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder};
 
 const CONTROL_CENTER_LABEL: &str = "control-center";
 const PET_WINDOW_LABEL: &str = "main";
@@ -164,7 +164,7 @@ pub fn load_window_position(
         Err(_) => return Ok(None),
     };
 
-    let entry = positions.get(&label)?.clone();
+    let entry = positions.get(&label)?;
     let x = entry.get("x").and_then(serde_json::Value::as_i64)?;
     let y = entry.get("y").and_then(serde_json::Value::as_i64)?;
     Ok(Some((x as i32, y as i32)))
