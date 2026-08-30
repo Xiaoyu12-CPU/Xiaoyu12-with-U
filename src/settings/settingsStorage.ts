@@ -1,11 +1,10 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { emitTo, listen } from "@tauri-apps/api/event";
+import { emit, listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import type { DesktopPetSettings } from "./settingsTypes";
 
 const BROWSER_STORAGE_KEY = "desktop-pet.settings.v1";
 const SETTINGS_UPDATED_EVENT = "desktop-pet://settings-updated";
-const MAIN_WINDOW_LABEL = "main";
 
 export const settingsStorage = {
   async load(): Promise<unknown | undefined> {
@@ -29,7 +28,7 @@ export const settingsStorage = {
 
   async broadcast(settings: DesktopPetSettings): Promise<void> {
     if (isTauri()) {
-      await emitTo(MAIN_WINDOW_LABEL, SETTINGS_UPDATED_EVENT, settings);
+      await emit(SETTINGS_UPDATED_EVENT, settings);
       return;
     }
 

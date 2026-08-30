@@ -2,8 +2,8 @@
 import { computed, onScopeDispose, watch } from "vue";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { resetKeyHistoryOffset } from "../input/keyHistoryDrag";
 import { useRemotePetRuntime } from "../pet/runtimeBridge";
+import { OVERLAY_LABELS, resetOverlayPosition } from "../pet/desktopWindows";
 import { settingsManager } from "./settingsManager";
 import type { KeyDisplayFlowDirection, KeyDisplayPosition } from "./settingsTypes";
 
@@ -74,6 +74,10 @@ function updateBoolean(key: "keyboardEnabled" | "keyDisplayEnabled" | "keyDispla
   settingsManager.updateSetting("input", key, (event.target as HTMLInputElement).checked);
 }
 
+function updateWindowBoolean(key: "keyboardHistoryWindowEnabled" | "keyboardHistoryClickThrough", event: Event): void {
+  settingsManager.updateSetting("windows", key, (event.target as HTMLInputElement).checked);
+}
+
 function updateNumber(key: "keyDisplayMaxItems" | "keyDisplayDurationMs" | "keyDisplayStartLineGapPx", event: Event): void {
   settingsManager.updateSetting("input", key, Number((event.target as HTMLInputElement).value));
 }
@@ -95,8 +99,10 @@ function updateLineOpacity(event: Event): void {
 }
 
 function resetPosition(): void {
-  const offset = resetKeyHistoryOffset();
-  settingsManager.update({ input: { keyDisplayOffsetX: offset.x, keyDisplayOffsetY: offset.y } });
+  settingsManager.update({ input: { keyDisplayOffsetX: 0, keyDisplayOffsetY: 0 } });
+  void resetOverlayPosition(OVERLAY_LABELS.keyboardHistory).catch((error) => {
+    console.error("Failed to reset the keyboard history window position.", error);
+  });
 }
 </script>
 
@@ -119,6 +125,14 @@ function resetPosition(): void {
       <label class="setting-row">
         <span><strong>Show Keyboard History</strong><small>只控制可视化；关闭后Keyboard仍可驱动WORKING。</small></span>
         <input class="toggle" type="checkbox" :checked="settings.input.keyDisplayEnabled" @change="updateBoolean('keyDisplayEnabled', $event)" />
+      </label>
+      <label class="setting-row">
+        <span><strong>键盘历史窗口</strong><small>独立于桌宠主窗口显示，位置会自动保存。</small></span>
+        <input class="toggle" type="checkbox" :checked="settings.windows.keyboardHistoryWindowEnabled" @change="updateWindowBoolean('keyboardHistoryWindowEnabled', $event)" />
+      </label>
+      <label class="setting-row">
+        <span><strong>鼠标穿透</strong><small>开启后不能拖动窗口，可在控制中心关闭。</small></span>
+        <input class="toggle" type="checkbox" :checked="settings.windows.keyboardHistoryClickThrough" @change="updateWindowBoolean('keyboardHistoryClickThrough', $event)" />
       </label>
     </article>
 
@@ -160,7 +174,7 @@ function resetPosition(): void {
         <span><strong>起始线透明度</strong><small>0%时透明拖动区域仍然可用。</small></span>
         <div class="scale-control"><input type="range" min="0" max="100" step="5" :value="lineOpacityPercent" @input="updateLineOpacity" /><output>{{ lineOpacityPercent }}%</output></div>
       </label>
-      <div class="setting-row"><span><strong>键位显示位置</strong><small>只清除Manual Offset。</small></span><button type="button" @click="resetPosition">重置键位显示位置</button></div>
+      <div class="setting-row"><span><strong>键盘窗口位置</strong><small>按 Position 重新放到桌宠四周。</small></span><button type="button" @click="resetPosition">重置键盘窗口位置</button></div>
     </article>
   </div>
 </template>

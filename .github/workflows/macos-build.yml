@@ -19,7 +19,7 @@ jobs:
           - runner: macos-14
             arch: arm64
             rust-target: aarch64-apple-darwin
-          - runner: macos-13
+          - runner: macos-15-intel
             arch: x64
             rust-target: x86_64-apple-darwin
     runs-on: ${{ matrix.runner }}
@@ -52,6 +52,7 @@ jobs:
           pnpm test:reminders
           pnpm test:input
           pnpm test:control-center
+          pnpm test:windows
 
       - name: Build app bundle and DMG
         run: pnpm tauri build --bundles dmg

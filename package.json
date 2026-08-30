@@ -1,7 +1,7 @@
 {
   "name": "desktoppet",
   "private": true,
-  "version": "0.4.1",
+  "version": "0.4.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,6 +9,7 @@
     "test:reminders": "node tests/reminderManager.test.mjs && node tests/reminderScheduler.test.mjs && node tests/reminderRuntimeConsumer.test.mjs && node tests/reminderSound.test.mjs && node tests/reminderSnooze.test.mjs && node tests/dialogueLifecycle.test.mjs",
     "test:input": "node tests/keyboardMonitor.test.mjs && node tests/keyDisplay.test.mjs && node tests/keyboardActivityBehavior.test.mjs && node tests/mouseMonitor.test.mjs && node tests/mouseVisualizer.test.mjs && node tests/inputIntegration.test.mjs && node tests/typingFeedback.test.mjs",
     "test:control-center": "node tests/controlCenterSettings.test.mjs",
+    "test:windows": "node tests/desktopWindows.test.mjs && node tests/petInteraction.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

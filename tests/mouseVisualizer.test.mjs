@@ -163,7 +163,7 @@ function testVisibilityIsolation(module, createMouseRuntime) {
 
 function testSettings(normalizeSettings) {
   const defaults = normalizeSettings({}).input;
-  assert.equal(defaults.mouseVisualizerEnabled, true);
+  assert.equal(defaults.mouseVisualizerEnabled, false);
   assert.equal(defaults.mouseVisualizerPosition, "left");
   assert.equal(defaults.mouseVisualizerOffsetX, 0);
   assert.equal(defaults.mouseVisualizerOffsetY, 0);

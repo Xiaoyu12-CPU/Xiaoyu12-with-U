@@ -43,7 +43,7 @@ const presentation = computed(() =>
   width: 72px;
   height: 24px;
   place-items: center;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(var(--key-display-scale, 1));
   cursor: grab;
   pointer-events: auto;
   touch-action: none;

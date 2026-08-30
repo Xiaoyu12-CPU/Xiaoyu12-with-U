@@ -2,21 +2,21 @@
 import { computed } from "vue";
 import { SYSTEM_STATUS_ITEMS } from "../system/statusItems";
 import type { SystemStatusItemId } from "../system/statusItems";
-import { DEFAULT_SETTINGS } from "./defaultSettings";
 import { settingsManager } from "./settingsManager";
-import type { DesktopDisplayMode } from "./settingsTypes";
+import { OVERLAY_LABELS, resetOverlayPosition } from "../pet/desktopWindows";
 
 const settings = settingsManager.settings;
 const panelScalePercent = computed(() => Math.round(settings.value.systemStatusBubble.panelScale * 100));
 
-function updateDisplayMode(displayMode: DesktopDisplayMode): void {
-  const bubble = settings.value.systemStatusBubble;
-  const usesInitialPosition = bubble.offsetX === DEFAULT_SETTINGS.systemStatusBubble.offsetX && bubble.offsetY === DEFAULT_SETTINGS.systemStatusBubble.offsetY;
-  if (displayMode === "both" && usesInitialPosition) {
-    settingsManager.update({ systemStatusBubble: { displayMode, offsetX: rightSideOffset() } });
-  } else {
-    settingsManager.updateSetting("systemStatusBubble", "displayMode", displayMode);
-  }
+function updateStatusWindowEnabled(event: Event): void {
+  const enabled = (event.target as HTMLInputElement).checked;
+  settingsManager.update({
+    windows: { systemStatusWindowEnabled: enabled },
+    systemStatusBubble: { displayMode: enabled ? "both" : "pet-only" },
+  });
+}
+function updateWindowBoolean(key: "systemStatusClickThrough" | "followPet", event: Event): void {
+  settingsManager.updateSetting("windows", key, (event.target as HTMLInputElement).checked);
 }
 function updateVisibleItem(itemId: SystemStatusItemId, event: Event): void {
   const checked = (event.target as HTMLInputElement).checked;
@@ -33,9 +33,10 @@ function updateBubbleColor(key: "backgroundColor" | "textColor" | "borderColor",
   settingsManager.updateSetting("systemStatusBubble", key, (event.target as HTMLInputElement).value);
 }
 function resetBubblePosition(): void {
-  settingsManager.update({ systemStatusBubble: { offsetX: rightSideOffset(), offsetY: DEFAULT_SETTINGS.systemStatusBubble.offsetY } });
+  void resetOverlayPosition(OVERLAY_LABELS.systemStatus).catch((error) => {
+    console.error("Failed to reset the system status window position.", error);
+  });
 }
-function rightSideOffset(): number { return Math.round(180 * settings.value.appearance.petScale + 10); }
 function updateMonitorBoolean(key: "enabled" | "cpuEnabled" | "memoryEnabled" | "networkEnabled" | "storageEnabled" | "batteryEnabled", event: Event): void {
   settingsManager.updateSetting("systemMonitor", key, (event.target as HTMLInputElement).checked);
 }
@@ -50,13 +51,11 @@ function updateMonitorNumber(key: "cpuPollIntervalMs" | "cpuHighThreshold" | "me
       <div class="section-heading"><h3>System Status Bubble</h3><p>显示、尺寸、位置与外观设置；Runtime逻辑保持不变。</p></div>
       <h4 class="settings-group-heading">显示</h4>
       <div class="setting-row">
-        <span><strong>桌面显示</strong><small>修改后立即同步到主桌宠窗口。</small></span>
-        <div class="display-mode-options" role="radiogroup" aria-label="桌面显示">
-          <label><input type="radio" name="display-mode" :checked="settings.systemStatusBubble.displayMode === 'both'" @change="updateDisplayMode('both')" />宠物 + 系统状态</label>
-          <label><input type="radio" name="display-mode" :checked="settings.systemStatusBubble.displayMode === 'pet-only'" @change="updateDisplayMode('pet-only')" />仅宠物</label>
-          <label><input type="radio" name="display-mode" :checked="settings.systemStatusBubble.displayMode === 'status-only'" @change="updateDisplayMode('status-only')" />仅系统状态</label>
-        </div>
+        <span><strong>系统状态窗口</strong><small>与桌宠主窗口完全分离，可独立拖动。</small></span>
+        <input class="toggle" type="checkbox" :checked="settings.windows.systemStatusWindowEnabled" @change="updateStatusWindowEnabled" />
       </div>
+      <label class="setting-row"><span><strong>跟随桌宠</strong><small>三个浮层都保持各自相对位置；关闭后停在屏幕原位。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.followPet" @change="updateWindowBoolean('followPet', $event)" /></label>
+      <label class="setting-row"><span><strong>鼠标穿透</strong><small>开启后不能直接拖动此窗口，可在这里关闭。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.systemStatusClickThrough" @change="updateWindowBoolean('systemStatusClickThrough', $event)" /></label>
       <div class="setting-row">
         <span><strong>显示内容</strong><small>全部取消时仍保留最小标题。</small></span>
         <div class="item-options"><label v-for="item in SYSTEM_STATUS_ITEMS" :key="item.id"><input type="checkbox" :checked="settings.systemStatusBubble.visibleItems.includes(item.id)" @change="updateVisibleItem(item.id, $event)" />{{ item.label }}</label></div>
@@ -64,7 +63,7 @@ function updateMonitorNumber(key: "cpuPollIntervalMs" | "cpuHighThreshold" | "me
       <h4 class="settings-group-heading">尺寸与位置</h4>
       <label class="setting-row scale-row"><span><strong>面板宽度</strong><small>180～420 logical px</small></span><div class="scale-control"><input type="range" min="180" max="420" step="1" :value="settings.systemStatusBubble.panelWidth" @input="updateBubbleNumber('panelWidth', $event)" /><output>{{ settings.systemStatusBubble.panelWidth }} px</output></div></label>
       <label class="setting-row scale-row"><span><strong>面板缩放</strong><small>70%～160%</small></span><div class="scale-control"><input type="range" min="70" max="160" step="5" :value="panelScalePercent" @input="updatePanelScale" /><output>{{ panelScalePercent }}%</output></div></label>
-      <div class="setting-row"><span><strong>面板位置</strong><small>拖动面板后位置在松手时保存。</small></span><button type="button" @click="resetBubblePosition">重置系统状态面板位置</button></div>
+      <div class="setting-row"><span><strong>窗口位置</strong><small>拖动结束后自动保存；重置到桌宠右侧。</small></span><button type="button" @click="resetBubblePosition">重置系统状态窗口位置</button></div>
       <h4 class="settings-group-heading">外观</h4>
       <label class="setting-row"><span><strong>背景颜色</strong></span><div class="color-control"><input type="color" :value="settings.systemStatusBubble.backgroundColor" @input="updateBubbleColor('backgroundColor', $event)" /><code>{{ settings.systemStatusBubble.backgroundColor }}</code></div></label>
       <label class="setting-row scale-row"><span><strong>背景透明度</strong></span><div class="scale-control"><input type="range" min="0" max="1" step="0.05" :value="settings.systemStatusBubble.backgroundOpacity" @input="updateBubbleNumber('backgroundOpacity', $event)" /><output>{{ Math.round(settings.systemStatusBubble.backgroundOpacity * 100) }}%</output></div></label>

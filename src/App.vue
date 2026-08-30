@@ -2,13 +2,23 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import Pet from "./pet/Pet.vue";
 import ControlCenter from "./settings/ControlCenter.vue";
+import SystemStatusWindow from "./components/SystemStatusWindow.vue";
+import KeyboardHistoryWindow from "./components/KeyboardHistoryWindow.vue";
+import MouseVisualizerWindow from "./components/MouseVisualizerWindow.vue";
 
 // Route by window label (query strings are unreliable in release builds).
-const isControlCenter = getCurrentWindow().label === "control-center";
+const label = getCurrentWindow().label;
+const isControlCenter = label === "control-center";
+const isSystemStatus = label === "system-status";
+const isKeyboardHistory = label === "keyboard-history";
+const isMouseVisualizer = label === "mouse-visualizer";
 </script>
 
 <template>
   <ControlCenter v-if="isControlCenter" />
+  <SystemStatusWindow v-else-if="isSystemStatus" />
+  <KeyboardHistoryWindow v-else-if="isKeyboardHistory" />
+  <MouseVisualizerWindow v-else-if="isMouseVisualizer" />
   <main v-else class="pet-window">
     <Pet />
   </main>

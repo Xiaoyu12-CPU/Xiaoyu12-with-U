@@ -1,6 +1,16 @@
 import type { SystemStatusItemId } from "../system/statusItems";
 
 export type DesktopDisplayMode = "pet-only" | "status-only" | "both";
+
+export interface DesktopWindowSettings {
+  systemStatusWindowEnabled: boolean;
+  keyboardHistoryWindowEnabled: boolean;
+  mouseVisualizerWindowEnabled: boolean;
+  systemStatusClickThrough: boolean;
+  keyboardHistoryClickThrough: boolean;
+  mouseVisualizerClickThrough: boolean;
+  followPet: boolean;
+}
 export type KeyDisplayPosition = "top" | "bottom" | "left" | "right";
 export type MouseVisualizerPosition = "top" | "bottom" | "left" | "right";
 export type ControlCenterBackgroundImageFit =
@@ -97,6 +107,7 @@ export interface DesktopPetSettings {
     enabled: boolean;
     soundVolume: number;
   };
+  windows: DesktopWindowSettings;
   controlCenter: {
     backgroundColor: string;
     backgroundOpacity: number;

@@ -140,9 +140,24 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
 
   // Business defaults and all portable layout offsets remain their existing values.
   assert.equal(defaults.DEFAULT_SETTINGS.input.keyboardEnabled, false);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayEnabled, false);
   assert.equal(defaults.DEFAULT_SETTINGS.input.mouseEnabled, false);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerEnabled, false);
   assert.equal(defaults.DEFAULT_SETTINGS.reminder.enabled, false);
   assert.equal(defaults.DEFAULT_SETTINGS.systemMonitor.enabled, false);
+  assert.deepEqual(defaults.DEFAULT_SETTINGS.windows, {
+    systemStatusWindowEnabled: false,
+    keyboardHistoryWindowEnabled: false,
+    mouseVisualizerWindowEnabled: false,
+    systemStatusClickThrough: false,
+    keyboardHistoryClickThrough: false,
+    mouseVisualizerClickThrough: false,
+    followPet: true,
+  });
+  assert.deepEqual(
+    normalizeSettings({}).windows,
+    defaults.DEFAULT_SETTINGS.windows,
+  );
   assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayOffsetX, 0);
   assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayOffsetY, 0);
   assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerOffsetX, 0);

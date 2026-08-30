@@ -54,7 +54,6 @@ interface DragSession {
   startX: number;
   startY: number;
   active: boolean;
-  captureTarget?: HTMLElement;
 }
 
 export function usePetInteraction(
@@ -66,6 +65,18 @@ export function usePetInteraction(
   let dragSession: DragSession | undefined;
   let suppressClickUntil = 0;
   let dragEndDialogueTimer: ReturnType<typeof setTimeout> | undefined;
+  let unlistenWindowMoved: (() => void) | undefined;
+  let disposed = false;
+
+  void windowDrag.onMoved?.(activateDragSession).then((unlisten) => {
+    if (disposed) {
+      unlisten();
+    } else {
+      unlistenWindowMoved = unlisten;
+    }
+  }).catch((error: unknown) => {
+    console.error("Failed to observe native window dragging.", error);
+  });
 
   function handleInteraction(event: PetInteractionEvent): void {
     if (
@@ -144,18 +155,20 @@ export function usePetInteraction(
       return;
     }
 
-    const captureTarget = event.currentTarget as HTMLElement | null;
-
     dragSession = {
       pointerId: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       active: false,
-      captureTarget: captureTarget ?? undefined,
     };
     observePointerRelease();
 
-    captureTarget?.setPointerCapture?.(event.pointerId);
+    // On macOS, Tauri must receive the native mouse-down event. Delaying this
+    // call until pointermove can leave performWindowDragWithEvent with a
+    // mouse-dragged event, which does not start a window drag.
+    void windowDrag.startDragging().catch((error: unknown) => {
+      console.error("Failed to start native window dragging.", error);
+    });
   }
 
   function handlePointerMove(event: PointerEvent): void {
@@ -179,14 +192,7 @@ export function usePetInteraction(
       return;
     }
 
-    session.active = true;
-    handleInteraction(PET_INTERACTION_EVENT_TYPES.DRAG_START);
-    handleInteraction(PET_INTERACTION_EVENT_TYPES.DRAGGING);
-
-    // Tauri resolves after submitting the native drag request, not after release.
-    void windowDrag.startDragging().catch((error: unknown) => {
-      console.error("Failed to start native window dragging.", error);
-    });
+    activateDragSession();
   }
 
   function handlePointerUp(event: PointerEvent): void {
@@ -227,6 +233,18 @@ export function usePetInteraction(
     window.removeEventListener("mouseup", handleGlobalMouseUp, true);
   }
 
+  function activateDragSession(): void {
+    const session = dragSession;
+
+    if (!session || session.active) {
+      return;
+    }
+
+    session.active = true;
+    handleInteraction(PET_INTERACTION_EVENT_TYPES.DRAG_START);
+    handleInteraction(PET_INTERACTION_EVENT_TYPES.DRAGGING);
+  }
+
   function finishDragSession(): void {
     const session = dragSession;
 
@@ -236,10 +254,6 @@ export function usePetInteraction(
 
     dragSession = undefined;
     stopObservingPointerRelease();
-
-    if (session.captureTarget?.hasPointerCapture?.(session.pointerId)) {
-      session.captureTarget.releasePointerCapture(session.pointerId);
-    }
 
     if (session.active) {
       suppressClickUntil = Date.now() + POST_DRAG_CLICK_SUPPRESSION_MS;
@@ -256,8 +270,10 @@ export function usePetInteraction(
 
   if (getCurrentScope()) {
     onScopeDispose(() => {
+      disposed = true;
       dragSession = undefined;
       stopObservingPointerRelease();
+      unlistenWindowMoved?.();
       clearPendingDragEndDialogue();
       releaseState(BEHAVIOR_SOURCES.INTERACTION_DRAG);
     });

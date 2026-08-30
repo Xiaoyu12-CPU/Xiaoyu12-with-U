@@ -4,20 +4,22 @@
 
 基于 Tauri 2 + Vue 3 + TypeScript 构建，支持 macOS（Apple Silicon / Intel）与 Windows x64。
 
-> 当前版本：v0.4.0-preview。软件尚在开发期，功能与外观都可能变化，欢迎试用反馈。
+> 当前开发版本：v0.4.3-preview。软件尚在开发期，功能与外观都可能变化，欢迎试用反馈。
 
 ## 功能特性
 
 ### 🐾 桌宠本体
 
-- **透明置顶窗口**：200×200 起步的透明无边框窗口，始终浮在桌面上，可随意拖动
+- **透明置顶窗口**：桌宠本体保持独立的 200×200 起步透明窗口，可随意拖动
+- **四窗口桌面布局**：桌宠、系统状态、键盘历史、鼠标可视化各自使用原生窗口，互不扩张透明点击区域
+- **跟随与自由摆放**：三个浮层可跟随桌宠，也可独立拖动；位置自动持久化，并支持分别点击穿透
 - **逐帧像素动画**：idle / happy / tired / sleep / working / alert / dragging 等状态各有独立动画，支持随机回放间隔
 - **行为状态机**：多个状态请求按优先级仲裁（拖拽 > 警觉 > 睡眠 > 开心 > 工作 > 疲惫 > 待机），瞬时状态自动超时回落
 - **点击与对话**：点她会有反应，配合气泡对话系统
 
 ### ⌨️ 输入感知（macOS 需要 Input Monitoring 权限，Windows 免授权）
 
-- **实时按键显示**：全屏打字时，桌宠头顶会冒出你敲的键
+- **实时按键显示**：全屏打字时，独立键盘历史窗口会显示你敲的键
 - **方向性按键历史栈**：最近的按键像瀑布一样流过
 - **打字反馈**：持续打字或手速起飞时触发专属台词
 - **鼠标可视化**：点击、滚轮动作可视化展示
@@ -35,7 +37,7 @@
 ### 📊 系统监控
 
 - CPU、内存、网络吞吐、磁盘、电池五类指标采样
-- 可自定义的系统状态气泡（跟随宠物 / 仅宠物 / 仅状态）
+- 可自定义的独立系统状态窗口（跟随桌宠 / 自由摆放 / 点击穿透）
 - 阈值联动：CPU 过载时桌宠会变疲惫，内存紧张会有专属对话
 
 ### 🎛️ 控制中心
@@ -78,6 +80,7 @@ pnpm tauri build  # 产物在 src-tauri/target/release/bundle/
 pnpm test:reminders        # 提醒系统测试
 pnpm test:input            # 输入感知测试
 pnpm test:control-center   # 控制中心设置测试
+pnpm test:windows          # 四窗口、迁移与布局测试
 ```
 
 ### 授予输入监听权限（可选，为了输入感知功能）
@@ -90,11 +93,11 @@ pnpm test:control-center   # 控制中心设置测试
 3. 回到应用，在 控制中心 → 设置 → 输入监控 对应页签点击 **重新检测**
 4. 若列表里没有 withXiaoyu12，先把监听开关关掉再打开，触发一次新的权限请求
 
-> 授权后如果仍无反应，退出应用重新打开一次（macOS 偶发需要重启才对新授权生效）。
+> 授权期间应用会每 2 秒自动重试；如果仍无反应，再退出应用重新打开一次。
 
 ### 安装 Release 包（macOS）
 
-当前 Release 的 DMG **未经 Apple 公证**。首次打开如提示"已损坏，无法打开"或无法验证开发者，
+没有配置 Apple Developer 凭据时，Release 的 DMG **未经 Apple 公证**。首次打开如提示"已损坏，无法打开"或无法验证开发者，
 在终端执行（二选一）：
 
 ```bash
@@ -107,11 +110,17 @@ xattr -dr com.apple.quarantine ~/Downloads/withXiaoyu12-macOS-*.dmg
 - Apple Silicon（M 系列）建议下载 `macOS-arm64` 包；`macOS-x64` 包在 M 系列上经 Rosetta 也能运行，
   但性能与权限体验以原生 arm64 包为准
 
+构建配置已显式使用 ad-hoc 签名，避免 Apple Silicon 下载包因只有 linker signature 而被误判为损坏。
+若要让公开下载完全通过 Gatekeeper，Release workflow 还需要仓库管理员配置
+`APPLE_CERTIFICATE`、`APPLE_CERTIFICATE_PASSWORD`、`APPLE_SIGNING_IDENTITY`、`APPLE_ID`、
+`APPLE_PASSWORD`、`APPLE_TEAM_ID` 六个 GitHub Actions secrets；提供后 Tauri 会自动改用
+Developer ID 签名并提交 Apple 公证。
+
 ## 项目结构
 
 ```
 ├── src/                    # Vue 3 前端
-│   ├── pet/                # 桌宠核心：动画引擎、行为状态机、资源加载、交互
+│   ├── pet/                # 桌宠核心、四窗口协调器、布局与运行时桥接
 │   ├── input/              # 全局键鼠监听的前端侧：运行时、可视化、打字反馈
 │   ├── reminder/           # 提醒调度、贪睡、铃声播放
 │   ├── system/             # 五类系统指标的采集与格式化
@@ -132,6 +141,9 @@ xattr -dr com.apple.quarantine ~/Downloads/withXiaoyu12-macOS-*.dmg
 |---|---|
 | v0.3.0-preview | 首个公开预览：桌宠 + 对话 + 系统监控 + 控制中心 |
 | v0.4.0-preview | 新增输入感知（键鼠监听）、提醒闹钟、Intel Mac 支持、新图标 |
+| v0.4.1-preview.1 | Windows 控制中心与全局键鼠监听修复、macOS 权限重试、持久化加固、自动构建流程 |
+| v0.4.2-preview | 三窗口实验版；已知窗口边界、拖动、跟随与位置存储问题 |
+| v0.4.3-preview | 从 v0.4.1-preview.1 重建：桌宠 + 系统状态 + 键盘历史 + 鼠标可视化四个独立窗口 |
 
 下载最新预览版请移步 [Releases](https://github.com/Xiaoyu12-CPU/Xiaoyu12-with-U/releases)。
 

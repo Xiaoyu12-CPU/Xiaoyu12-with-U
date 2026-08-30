@@ -2,8 +2,8 @@
 import { computed, onScopeDispose, watch } from "vue";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { resetMouseVisualizerOffset } from "../input/mouseVisualizer";
 import { useRemotePetRuntime } from "../pet/runtimeBridge";
+import { OVERLAY_LABELS, resetOverlayPosition } from "../pet/desktopWindows";
 import { settingsManager } from "./settingsManager";
 import type { MouseVisualizerPosition } from "./settingsTypes";
 
@@ -77,6 +77,9 @@ type OpacityKey = "mouseVisualizerBodyOpacity" | "mouseVisualizerButtonOpacity" 
 function updateBoolean(key: "mouseEnabled" | "mouseVisualizerEnabled", event: Event): void {
   settingsManager.updateSetting("input", key, (event.target as HTMLInputElement).checked);
 }
+function updateWindowBoolean(key: "mouseVisualizerWindowEnabled" | "mouseVisualizerClickThrough", event: Event): void {
+  settingsManager.updateSetting("windows", key, (event.target as HTMLInputElement).checked);
+}
 function updatePosition(event: Event): void {
   settingsManager.updateSetting("input", "mouseVisualizerPosition", (event.target as HTMLSelectElement).value as MouseVisualizerPosition);
 }
@@ -90,8 +93,10 @@ function updateOutlineWidth(event: Event): void {
   settingsManager.updateSetting("input", "mouseVisualizerOutlineWidth", Number((event.target as HTMLInputElement).value));
 }
 function resetPosition(): void {
-  const offset = resetMouseVisualizerOffset();
-  settingsManager.update({ input: { mouseVisualizerOffsetX: offset.x, mouseVisualizerOffsetY: offset.y } });
+  settingsManager.update({ input: { mouseVisualizerOffsetX: 0, mouseVisualizerOffsetY: 0 } });
+  void resetOverlayPosition(OVERLAY_LABELS.mouseVisualizer).catch((error) => {
+    console.error("Failed to reset the mouse visualizer window position.", error);
+  });
 }
 </script>
 
@@ -106,6 +111,8 @@ function resetPosition(): void {
         <button v-if="showRetry" type="button" class="retry-button" @click="retryMouseMonitor">重新检测</button>
       </p>
       <label class="setting-row"><span><strong>Show Mouse Visualizer</strong><small>只隐藏UI，不停止Mouse Runtime。</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseVisualizerEnabled" @change="updateBoolean('mouseVisualizerEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>鼠标可视化窗口</strong><small>独立于桌宠和键盘历史窗口。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.mouseVisualizerWindowEnabled" @change="updateWindowBoolean('mouseVisualizerWindowEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>鼠标穿透</strong><small>开启后不能拖动窗口，可在控制中心关闭。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.mouseVisualizerClickThrough" @change="updateWindowBoolean('mouseVisualizerClickThrough', $event)" /></label>
       <label class="setting-row"><span><strong>Mouse Visualizer Position</strong><small>选择相对桌宠的Base Anchor。</small></span><select class="select-control" :value="settings.input.mouseVisualizerPosition" @change="updatePosition"><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option></select></label>
     </article>
 
@@ -128,7 +135,7 @@ function resetPosition(): void {
       <div class="section-heading"><h3>Active</h3><p>Pressed Button与Scroll Pulse共享强调样式。</p></div>
       <label class="setting-row"><span><strong>Active Color</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerActiveColor" @input="updateColor('mouseVisualizerActiveColor', $event)" /><code>{{ settings.input.mouseVisualizerActiveColor }}</code></div></label>
       <label class="setting-row scale-row"><span><strong>Active Opacity</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="activeOpacity" @input="updateOpacity('mouseVisualizerActiveOpacity', $event)" /><output>{{ activeOpacity }}%</output></div></label>
-      <div class="setting-row"><span><strong>鼠标显示位置</strong><small>只清除Manual Offset。</small></span><button type="button" @click="resetPosition">重置鼠标显示位置</button></div>
+      <div class="setting-row"><span><strong>鼠标窗口位置</strong><small>按 Position 重新放到桌宠四周。</small></span><button type="button" @click="resetPosition">重置鼠标窗口位置</button></div>
     </article>
   </div>
 </template>

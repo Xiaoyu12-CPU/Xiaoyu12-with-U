@@ -99,6 +99,7 @@ function update(patch: SettingsPatch): void {
     },
     input: { ...settings.value.input, ...patch.input },
     reminder: { ...settings.value.reminder, ...patch.reminder },
+    windows: { ...settings.value.windows, ...patch.windows },
     controlCenter: {
       ...settings.value.controlCenter,
       ...patch.controlCenter,
@@ -171,7 +172,11 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
     : {};
   const input = isRecord(value.input) ? value.input : {};
   const reminder = isRecord(value.reminder) ? value.reminder : {};
+  const windows = isRecord(value.windows) ? value.windows : {};
   const controlCenter = isRecord(value.controlCenter) ? value.controlCenter : {};
+  const legacyInputWindowEnabled = optionalBoolean(
+    windows.inputMonitorWindowEnabled,
+  );
 
   return {
     schemaVersion: 1,
@@ -512,6 +517,40 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         DEFAULT_SETTINGS.reminder.soundVolume,
       ),
     },
+    windows: {
+      systemStatusWindowEnabled: booleanOrDefault(
+        windows.systemStatusWindowEnabled,
+        DEFAULT_SETTINGS.windows.systemStatusWindowEnabled,
+      ),
+      keyboardHistoryWindowEnabled: booleanOrDefault(
+        windows.keyboardHistoryWindowEnabled,
+        legacyInputWindowEnabled
+          ?? DEFAULT_SETTINGS.windows.keyboardHistoryWindowEnabled,
+      ),
+      mouseVisualizerWindowEnabled: booleanOrDefault(
+        windows.mouseVisualizerWindowEnabled,
+        legacyInputWindowEnabled
+          ?? DEFAULT_SETTINGS.windows.mouseVisualizerWindowEnabled,
+      ),
+      systemStatusClickThrough: booleanOrDefault(
+        windows.systemStatusClickThrough,
+        DEFAULT_SETTINGS.windows.systemStatusClickThrough,
+      ),
+      keyboardHistoryClickThrough: booleanOrDefault(
+        windows.keyboardHistoryClickThrough,
+        optionalBoolean(windows.inputMonitorClickThrough)
+          ?? DEFAULT_SETTINGS.windows.keyboardHistoryClickThrough,
+      ),
+      mouseVisualizerClickThrough: booleanOrDefault(
+        windows.mouseVisualizerClickThrough,
+        optionalBoolean(windows.inputMonitorClickThrough)
+          ?? DEFAULT_SETTINGS.windows.mouseVisualizerClickThrough,
+      ),
+      followPet: booleanOrDefault(
+        windows.followPet,
+        DEFAULT_SETTINGS.windows.followPet,
+      ),
+    },
     controlCenter: {
       backgroundColor: hexColorOrDefault(
         controlCenter.backgroundColor,
@@ -640,6 +679,10 @@ function clampNumber(
 
 function booleanOrDefault(value: unknown, fallback: boolean): boolean {
   return typeof value === "boolean" ? value : fallback;
+}
+
+function optionalBoolean(value: unknown): boolean | undefined {
+  return typeof value === "boolean" ? value : undefined;
 }
 
 function nonEmptyTextOrDefault(value: unknown, fallback: string): string {

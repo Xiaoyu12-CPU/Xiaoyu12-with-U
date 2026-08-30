@@ -37,6 +37,13 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Run frontend tests
+        run: |
+          pnpm test:reminders
+          pnpm test:input
+          pnpm test:control-center
+          pnpm test:windows
+
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2
 
@@ -96,4 +103,3 @@ jobs:
           name: withXiaoyu12-windows-x64-nsis-${{ github.sha }}
           path: src-tauri/target/release/bundle/nsis/*.exe
           if-no-files-found: error
-

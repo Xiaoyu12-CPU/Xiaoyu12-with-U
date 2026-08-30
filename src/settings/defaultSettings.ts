@@ -48,7 +48,7 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
   },
   input: {
     keyboardEnabled: false,
-    keyDisplayEnabled: true,
+    keyDisplayEnabled: false,
     keyDisplayMaxItems: 4,
     keyDisplayDurationMs: 3000,
     keyDisplayPersistent: false,
@@ -68,7 +68,7 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     typingSpeedText: TYPING_SPEED_DEFAULT_TEXT,
     typingFeedbackCooldownSeconds: 10,
     mouseEnabled: false,
-    mouseVisualizerEnabled: true,
+    mouseVisualizerEnabled: false,
     mouseVisualizerPosition: "left",
     mouseVisualizerOffsetX: 0,
     mouseVisualizerOffsetY: 0,
@@ -85,6 +85,15 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
   reminder: {
     enabled: false,
     soundVolume: 0.7,
+  },
+  windows: {
+    systemStatusWindowEnabled: false,
+    keyboardHistoryWindowEnabled: false,
+    mouseVisualizerWindowEnabled: false,
+    systemStatusClickThrough: false,
+    keyboardHistoryClickThrough: false,
+    mouseVisualizerClickThrough: false,
+    followPet: true,
   },
   controlCenter: {
     backgroundColor: "#ECF3F8",

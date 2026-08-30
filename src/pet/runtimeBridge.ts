@@ -1,5 +1,6 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { emitTo, listen } from "@tauri-apps/api/event";
+import { emit, emitTo, listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 import {
   getCurrentScope,
@@ -23,6 +24,8 @@ const CONTROL_CENTER_NAVIGATION_READY_EVENT =
   "desktop-pet://control-center-navigation-ready";
 const CONTROL_CENTER_NAVIGATION_ACK_EVENT =
   "desktop-pet://control-center-navigation-ack";
+const OPEN_SYSTEM_MONITOR_SETTINGS_EVENT =
+  "desktop-pet://open-system-monitor-settings";
 
 export const CONTROL_CENTER_DESTINATIONS = {
   SYSTEM_MONITOR_SETTINGS: "system-monitor-settings",
@@ -35,6 +38,11 @@ let pendingControlCenterDestination: ControlCenterDestination | undefined;
 
 export async function openSystemMonitorSettings(): Promise<void> {
   if (!isTauri()) {
+    return;
+  }
+
+  if (getCurrentWindow().label !== MAIN_WINDOW_LABEL) {
+    await emitTo(MAIN_WINDOW_LABEL, OPEN_SYSTEM_MONITOR_SETTINGS_EVENT);
     return;
   }
 
@@ -59,13 +67,14 @@ export function useMainRuntimeBridge(
   let unlistenRequest: UnlistenFn | undefined;
   let unlistenNavigationReady: UnlistenFn | undefined;
   let unlistenNavigationAck: UnlistenFn | undefined;
+  let unlistenOpenSystemSettings: UnlistenFn | undefined;
 
   async function publishStatus(): Promise<void> {
     if (!isTauri() || disposed) {
       return;
     }
 
-    await emitTo(CONTROL_CENTER_LABEL, STATUS_UPDATED_EVENT, snapshot.value);
+    await emit(STATUS_UPDATED_EVENT, snapshot.value);
   }
 
   if (isTauri()) {
@@ -113,6 +122,18 @@ export function useMainRuntimeBridge(
         unlistenNavigationAck = unlisten;
       }
     });
+
+    void listen(OPEN_SYSTEM_MONITOR_SETTINGS_EVENT, () => {
+      void openSystemMonitorSettings().catch((error) => {
+        console.error("Failed to open system monitor settings.", error);
+      });
+    }).then((unlisten) => {
+      if (disposed) {
+        unlisten();
+      } else {
+        unlistenOpenSystemSettings = unlisten;
+      }
+    });
   }
 
   const stopWatching = watch(
@@ -130,6 +151,7 @@ export function useMainRuntimeBridge(
     unlistenRequest?.();
     unlistenNavigationReady?.();
     unlistenNavigationAck?.();
+    unlistenOpenSystemSettings?.();
   }
 
   if (getCurrentScope()) {
@@ -176,6 +198,13 @@ export function useRemotePetRuntime() {
   const isConnected = ref(false);
   let disposed = false;
   let unlistenStatus: UnlistenFn | undefined;
+  let requestTimer: ReturnType<typeof setInterval> | undefined;
+
+  function requestStatus(): void {
+    if (isTauri() && !disposed) {
+      void emitTo(MAIN_WINDOW_LABEL, STATUS_REQUEST_EVENT);
+    }
+  }
 
   if (isTauri()) {
     void listen<PetRuntimeSnapshot>(STATUS_UPDATED_EVENT, ({ payload }) => {
@@ -188,7 +217,17 @@ export function useRemotePetRuntime() {
       }
 
       unlistenStatus = unlisten;
-      void emitTo(MAIN_WINDOW_LABEL, STATUS_REQUEST_EVENT);
+      requestStatus();
+      requestTimer = setInterval(() => {
+        if (snapshot.value) {
+          if (requestTimer !== undefined) {
+            clearInterval(requestTimer);
+            requestTimer = undefined;
+          }
+          return;
+        }
+        requestStatus();
+      }, 1000);
     });
   }
 
@@ -201,6 +240,10 @@ export function useRemotePetRuntime() {
   function dispose(): void {
     disposed = true;
     unlistenStatus?.();
+    if (requestTimer !== undefined) {
+      clearInterval(requestTimer);
+      requestTimer = undefined;
+    }
   }
 
   if (getCurrentScope()) {
