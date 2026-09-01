@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const vite = await createServer({
@@ -32,6 +33,7 @@ try {
   testSettings(normalizeSettings);
   testPositionAndBounding(mouseVisualizer, calculatePetWindowLayout);
   testDragAndReset(mouseVisualizer);
+  await testDragSurface();
   testKeyboardAndBehaviorIsolation(
     mouseVisualizer,
     createMouseInputRuntime,
@@ -42,6 +44,21 @@ try {
   console.log("Mouse visualizer tests passed.");
 } finally {
   await vite.close();
+}
+
+async function testDragSurface() {
+  const visualizer = await readFile(
+    new URL("../src/components/MouseInputVisualizer.vue", import.meta.url),
+    "utf8",
+  );
+  const window = await readFile(
+    new URL("../src/components/MouseVisualizerWindow.vue", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(visualizer, /mouse-visualizer__drag-handle--back/);
+  assert.doesNotMatch(visualizer, /<span><\/span><span><\/span><span><\/span>/);
+  assert.doesNotMatch(window, /@pointerdown\.self="startDragging"/);
 }
 
 function testButtonPresentation(module) {

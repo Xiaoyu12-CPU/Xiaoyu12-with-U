@@ -35,9 +35,6 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   pointerDown: [event: PointerEvent];
-  pointerMove: [event: PointerEvent];
-  pointerUp: [event: PointerEvent];
-  pointerCancel: [event: PointerEvent];
 }>();
 
 const presentation = mouseVisualizerPointerPresentation();
@@ -123,21 +120,6 @@ onBeforeUnmount(() => controller.dispose());
     :style="visualizerStyle"
     :aria-label="$t('鼠标输入可视化')"
   >
-    <button
-      class="mouse-visualizer__drag-handle"
-      :class="{ 'mouse-visualizer__drag-handle--dragging': dragging }"
-      :style="{ pointerEvents: presentation.handlePointerEvents }"
-      type="button"
-      :aria-label="$t('拖动鼠标可视化窗口')"
-      @pointerdown.stop.prevent="emit('pointerDown', $event)"
-      @pointermove.stop.prevent="emit('pointerMove', $event)"
-      @pointerup.stop.prevent="emit('pointerUp', $event)"
-      @pointercancel.stop.prevent="emit('pointerCancel', $event)"
-      @click.stop.prevent
-    >
-      <span></span><span></span><span></span>
-    </button>
-
     <svg
       class="mouse-visualizer__body"
       :style="{ pointerEvents: presentation.visualPointerEvents }"
@@ -237,6 +219,16 @@ onBeforeUnmount(() => controller.dispose());
         y="75"
       >+</text>
     </svg>
+
+    <button
+      class="mouse-visualizer__drag-handle mouse-visualizer__drag-handle--back"
+      :class="{ 'mouse-visualizer__drag-handle--dragging': dragging }"
+      :style="{ pointerEvents: presentation.handlePointerEvents }"
+      type="button"
+      :aria-label="$t('拖动鼠标可视化窗口')"
+      @pointerdown.stop.prevent="emit('pointerDown', $event)"
+      @click.stop.prevent
+    />
   </div>
 </template>
 
@@ -253,32 +245,23 @@ onBeforeUnmount(() => controller.dispose());
 
 .mouse-visualizer__drag-handle {
   position: absolute;
-  top: 0;
-  left: 50%;
   z-index: 2;
-  display: flex;
-  width: 42%;
-  height: 15%;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
   padding: 0;
   background: transparent;
   border: 0;
-  transform: translateX(-50%);
   cursor: grab;
   touch-action: none;
 }
 
-.mouse-visualizer__drag-handle--dragging { cursor: grabbing; }
-
-.mouse-visualizer__drag-handle span {
-  width: 7px;
-  height: max(1px, var(--mouse-outline-width));
-  background: var(--mouse-outline);
-  border-radius: 999px;
-  pointer-events: none;
+.mouse-visualizer__drag-handle--back {
+  top: 52%;
+  left: 20%;
+  width: 43%;
+  height: 40%;
+  border-radius: 30% 30% 46% 46%;
 }
+
+.mouse-visualizer__drag-handle--dragging { cursor: grabbing; }
 
 .mouse-visualizer__body {
   position: absolute;

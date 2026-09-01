@@ -33,7 +33,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <main class="mouse-visualizer-window" @pointerdown.self="startDragging">
+  <main class="mouse-visualizer-window">
     <MouseInputVisualizer
       class="mouse-visualizer-window__visual"
       :style="visualizerStyle"
@@ -72,12 +72,10 @@ onMounted(() => {
   height: 100%;
   overflow: hidden;
   background: transparent;
-  cursor: grab;
   user-select: none;
   -webkit-user-select: none;
 }
 
-.mouse-visualizer-window:active { cursor: grabbing; }
 .mouse-visualizer-window__visual { position: absolute; }
 .mouse-visualizer-window__status {
   position: absolute;
@@ -91,5 +89,8 @@ onMounted(() => {
   white-space: nowrap;
   text-overflow: ellipsis;
   opacity: .55;
+  cursor: grab;
 }
+
+.mouse-visualizer-window__status:active { cursor: grabbing; }
 </style>

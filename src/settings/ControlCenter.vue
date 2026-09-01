@@ -133,7 +133,7 @@ function updateLanguage(event: Event): void {
         <img class="brand__mark" :src="appIconUrl" alt="withXiaoyu12" />
         <div>
           <strong>withXiaoyu12</strong>
-          <small>v0.4.5</small>
+          <small>v0.4.5.1</small>
         </div>
       </div>
 

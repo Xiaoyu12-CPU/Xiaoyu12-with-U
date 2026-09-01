@@ -709,7 +709,7 @@ main Pet Window 的独立 Mouse Runtime 只在内存维护 `pressedButtons` Set�
 
 `MouseInputVisualizer.vue` 是主桌宠窗口中的独立轻量 UI，只消费 Phase 5-D 权威 Runtime Snapshot 的 pressedButtons、lastScrollDirection 与 lastScrollAt，不注册 Native/DOM Mouse Listener。Left、Right、Middle、Mouse4、Mouse5 各自映射到抽象俯视鼠标区域，Set 中的多个按钮可以同时高亮；Other 使用安全的附加标记。Scroll 不进入 pressed state，只在最后事件变化时显示约 600ms 的 Up / Down / Left / Right wheel pulse，新事件会刷新 pulse，Middle held 状态在 pulse 结束后继续保持。
 
-`settings.input.mouseVisualizerEnabled` 默认 false；Visualizer 只有在用户同时开启它、mouseEnabled 且 Mouse Monitor Active 时渲染。用户可选择 Top / Bottom / Left / Right 独立锚点。组件使用简洁的 SVG 鼠标俯视线稿，Body、Inactive Button、Outline 与 Active 各自拥有独立颜色/透明度，Outline Width 统一控制外框与分隔线；这些纯样式字段不进入 Window Layout 输入。视觉区域无 pointer interaction；只有组件顶部的明确 Drag Handle 可接收 Pointer Events，因此不会成为 Pet click/drag handle。
+`settings.input.mouseVisualizerEnabled` 默认 false；Visualizer 只有在用户同时开启它、mouseEnabled 且 Mouse Monitor Active 时渲染。用户可选择 Top / Bottom / Left / Right 独立锚点。组件使用简洁的 SVG 鼠标俯视线稿，Body、Inactive Button、Outline 与 Active 各自拥有独立颜色/透明度，Outline Width 统一控制外框与分隔线；这些纯样式字段不进入 Window Layout 输入。按键、滚轮、侧键和窗口空白区域不接收拖动交互；只有覆盖在鼠标背部的透明 Drag Handle 接收 Pointer Events，并将拖动交给独立鼠标可视化窗口。
 
 Position 提供 Pet 侧边的固定 base anchor，manual offsetX / offsetY（±500 logical px）提供持久化微调。拖动过程只预览 Runtime offset，pointer up/cancel 才保存一次；Reset 只清零 Mouse Visualizer offset。Visualizer 使用固定 96×124 基础矩形，并随 petScale 在 0.75～1.5 范围适度缩放。该矩形与 manual offset 纳入既有 Window Bounding；content origin 与 position compensation 保持 Pet 屏幕坐标，而 Key History offset 与 SystemStatusBubble offset 保持独立。
 

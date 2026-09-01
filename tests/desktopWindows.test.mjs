@@ -213,5 +213,6 @@ async function testArchitectureSources() {
   assert.doesNotMatch(contextMenu, /测试事件|暂停动画|恢复动画/);
   assert.match(backend, /restore_pet_window_position/);
   assert.equal(tauriConfig.version, "0.4.5");
+  assert.equal(tauriConfig.bundle.macOS.bundleVersion, "40501");
   assert.equal(tauriConfig.bundle.macOS.signingIdentity, "-");
 }
