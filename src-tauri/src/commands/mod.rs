@@ -6,6 +6,7 @@ pub mod dialogue;
 pub mod memory;
 pub mod network;
 pub mod pet_assets;
+pub mod pointer;
 pub mod reminders;
 pub mod settings;
 pub mod storage;

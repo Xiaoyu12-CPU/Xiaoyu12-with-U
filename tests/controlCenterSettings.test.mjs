@@ -51,7 +51,7 @@ async function testInformationArchitecture(navigation) {
   assert.doesNotMatch(reminderPage, /class="scheduler-status"/);
   assert.match(controlCenter, /beforeunload/);
   assert.match(controlCenter, /dirty-change/);
-  assert.match(controlCenter, /<small>v0\.4\.5\.1<\/small>/);
+  assert.match(controlCenter, /<small>v0\.4\.5\.2<\/small>/);
   assert.doesNotMatch(controlCenter, /<p>withXiaoyu12<\/p>/);
   assert.doesNotMatch(systemSettings, /displayMode/);
   assert.doesNotMatch(dialogueSettings, /showDevelopmentMessageOnStartup/);

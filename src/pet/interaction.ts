@@ -54,6 +54,7 @@ interface DragSession {
   startX: number;
   startY: number;
   active: boolean;
+  stopNativeReleaseObserver?: () => void;
 }
 
 export function usePetInteraction(
@@ -161,7 +162,7 @@ export function usePetInteraction(
       startY: event.clientY,
       active: false,
     };
-    observePointerRelease();
+    observePointerRelease(dragSession);
 
     // On macOS, Tauri must receive the native mouse-down event. Delaying this
     // call until pointermove can leave performWindowDragWithEvent with a
@@ -223,14 +224,27 @@ export function usePetInteraction(
     }
   }
 
-  function observePointerRelease(): void {
+  function observePointerRelease(session: DragSession): void {
     window.addEventListener("pointerup", handlePointerUp, true);
     window.addEventListener("mouseup", handleGlobalMouseUp, true);
+
+    void windowDrag.onPrimaryButtonReleased?.(() => {
+      if (dragSession === session) finishDragSession();
+    }).then((unlisten) => {
+      if (dragSession === session) {
+        session.stopNativeReleaseObserver = unlisten;
+      } else {
+        unlisten();
+      }
+    }).catch((error: unknown) => {
+      console.error("Failed to observe native pointer release.", error);
+    });
   }
 
-  function stopObservingPointerRelease(): void {
+  function stopObservingPointerRelease(session?: DragSession): void {
     window.removeEventListener("pointerup", handlePointerUp, true);
     window.removeEventListener("mouseup", handleGlobalMouseUp, true);
+    session?.stopNativeReleaseObserver?.();
   }
 
   function activateDragSession(): void {
@@ -253,7 +267,7 @@ export function usePetInteraction(
     }
 
     dragSession = undefined;
-    stopObservingPointerRelease();
+    stopObservingPointerRelease(session);
 
     if (session.active) {
       suppressClickUntil = Date.now() + POST_DRAG_CLICK_SUPPRESSION_MS;
@@ -271,8 +285,9 @@ export function usePetInteraction(
   if (getCurrentScope()) {
     onScopeDispose(() => {
       disposed = true;
+      const session = dragSession;
       dragSession = undefined;
-      stopObservingPointerRelease();
+      stopObservingPointerRelease(session);
       unlistenWindowMoved?.();
       clearPendingDragEndDialogue();
       releaseState(BEHAVIOR_SOURCES.INTERACTION_DRAG);

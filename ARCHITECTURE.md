@@ -383,6 +383,7 @@ Phase 2-E 之前的 Interaction Cleanup 将桌宠主动鼠标交互收敛为 Cli
 - `hoverEnter` / `hoverLeave` 与 `enableHoverDialogue` 继续被 JSON schema 读取，避免破坏旧用户文件，但不再进入 Runtime 或主要编辑 UI。
 - Drag 在 4px 阈值后只触发一次 `drag.start`。Tauri `startDragging()` Promise 仅代表原生拖动请求已提交，不代表用户已经松开，因此不用于结束 Session。
 - Active Drag 只由真实 pointerup / mouseup 结束；原生接管产生的 pointercancel 不解释为 drag.end。Session 在结束处理前先清空，保证 `drag.end` 至多一次。
+- Windows 原生 caption drag 可能在松开时不把 pointerup / mouseup 交还 WebView；Interaction 为每次 Drag Session 启动轻量主按键状态观察器，检测到松开后走同一个幂等 `finishDragSession()`。非 Windows command 返回空值，不改变 macOS 时序。
 - `drag.end` 状态恢复在松开时立即发生，结束 Dialogue 延迟 500ms；新 Click 或 Drag 会取消尚未显示的旧结束文本。
 
 ## 12. Phase 2-E：Behavior Manager / State Arbitration

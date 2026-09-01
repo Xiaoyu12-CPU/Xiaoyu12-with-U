@@ -17,15 +17,18 @@ try {
   const { usePetInteraction } = await vite.ssrLoadModule(
     "/src/pet/interaction.ts",
   );
+  const windowDrag = await vite.ssrLoadModule("/src/pet/windowDrag.ts");
   const behavior = await vite.ssrLoadModule("/src/pet/behavior.ts");
   const contextMenuLayout = await vite.ssrLoadModule(
     "/src/pet/contextMenuLayout.ts",
   );
 
   testContextMenuLayout(contextMenuLayout);
+  await testPrimaryButtonReleaseObserver(windowDrag);
 
   let startCount = 0;
   let movedListener;
+  let primaryButtonReleasedListener;
   const controller = usePetInteraction({
     dialogue: { catalog: {} },
     windowDrag: {
@@ -34,6 +37,10 @@ try {
       },
       async onMoved(listener) {
         movedListener = listener;
+        return () => {};
+      },
+      async onPrimaryButtonReleased(listener) {
+        primaryButtonReleasedListener = listener;
         return () => {};
       },
     },
@@ -68,12 +75,53 @@ try {
   controller.handlePointerUp(pointerEvent({ pointerId: 2 }));
   assert.equal(behavior.winningSource.value, undefined);
 
+  controller.handlePointerDown(pointerEvent({ pointerId: 3 }));
+  movedListener();
+  assert.equal(behavior.winningSource.value, "interaction.drag");
+  primaryButtonReleasedListener();
+  assert.equal(
+    behavior.winningSource.value,
+    undefined,
+    "native primary-button release must end a drag when Windows loses DOM mouseup",
+  );
+
   controller.dialogue.dispose();
   console.log("Pet interaction tests passed.");
 } finally {
   await vite.close();
   delete globalThis.window;
   delete globalThis.localStorage;
+}
+
+async function testPrimaryButtonReleaseObserver(module) {
+  const scheduled = [];
+  const cleared = [];
+  const states = [true, true, false];
+  let releases = 0;
+  let nextTimerId = 1;
+  const stop = module.observePrimaryButtonRelease(
+    () => { releases += 1; },
+    {
+      async readPressed() { return states.shift() ?? null; },
+      setTimer(callback, delay) {
+        const id = nextTimerId++;
+        scheduled.push({ id, callback, delay });
+        return id;
+      },
+      clearTimer(id) { cleared.push(id); },
+    },
+  );
+
+  await Promise.resolve();
+  assert.equal(scheduled[0].delay, module.PRIMARY_BUTTON_POLL_INTERVAL_MS);
+  scheduled.shift().callback();
+  await Promise.resolve();
+  scheduled.shift().callback();
+  await Promise.resolve();
+  assert.equal(releases, 1);
+
+  stop();
+  assert.deepEqual(cleared, []);
 }
 
 function pointerEvent(overrides = {}) {
