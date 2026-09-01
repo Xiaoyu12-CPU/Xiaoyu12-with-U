@@ -7,7 +7,7 @@
 - 权限、隐私、资源占用和可恢复性属于每个相关阶段的完成条件。
 - 本路线图描述目标，不代表对应功能当前已经实现。
 
-当前实现进度：Phase 1、Phase 1.5、Phase 2-A 至 Phase 2-E、Phase 3-A 至 Phase 3-G、Phase 4 提醒系统和 Phase 5 输入感知均已完成；CPU、Memory、Network、Storage、Battery 使用真实采样。v0.4.4 已完成四窗口桌面重建后的 UI 与稳定性收尾，v0.4.5 正在完成中英日界面、品牌信息和默认布局固化。Phase 6 自定义皮肤包与 Phase 7 AI 互动仍属于后续规划。
+当前实现进度：Phase 1、Phase 1.5、Phase 2-A 至 Phase 2-E、Phase 3-A 至 Phase 3-G、Phase 4 提醒系统和 Phase 5 输入感知均已完成；CPU、Memory、Network、Storage、Battery 使用真实采样。v0.4.4 已完成四窗口桌面重建后的 UI 与稳定性收尾，v0.4.5 已完成中英日界面、品牌信息、默认布局固化和桌宠位置持久化。Phase 6 自定义皮肤包与 Phase 7 AI 互动仍属于后续规划。
 
 Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标交互调整为 Click + Drag。
 
