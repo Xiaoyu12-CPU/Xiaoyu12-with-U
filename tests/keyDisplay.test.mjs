@@ -86,12 +86,12 @@ function testSettingsCompatibility(normalizeSettings) {
     input: { keyboardEnabled: true, keyDisplayEnabled: true, mouseEnabled: false },
   }).input;
   assert.equal(oldSettings.keyDisplayMaxItems, 4);
-  assert.equal(oldSettings.keyDisplayDurationMs, 3000);
+  assert.equal(oldSettings.keyDisplayDurationMs, 2500);
   assert.equal(oldSettings.keyDisplayPersistent, false);
   assert.equal(oldSettings.keyDisplayPosition, "bottom");
-  assert.equal(oldSettings.keyDisplayFlowDirection, "auto");
-  assert.equal(oldSettings.keyDisplayOffsetX, 0);
-  assert.equal(oldSettings.keyDisplayOffsetY, 0);
+  assert.equal(oldSettings.keyDisplayFlowDirection, "up");
+  assert.equal(oldSettings.keyDisplayOffsetX, 115);
+  assert.equal(oldSettings.keyDisplayOffsetY, -175);
   assert.equal(oldSettings.keyDisplayStartLineGapPx, 8);
   assert.equal(oldSettings.keyDisplayStartLineColor, "#8B5CF6");
   assert.equal(oldSettings.keyDisplayStartLineOpacity, 0.5);
@@ -114,7 +114,7 @@ function testSettingsCompatibility(normalizeSettings) {
   assert.equal(invalid.keyDisplayMaxItems, 8);
   assert.equal(invalid.keyDisplayDurationMs, 500);
   assert.equal(invalid.keyDisplayPosition, "bottom");
-  assert.equal(invalid.keyDisplayFlowDirection, "auto");
+  assert.equal(invalid.keyDisplayFlowDirection, "up");
   assert.equal(invalid.keyDisplayOffsetX, -500);
   assert.equal(invalid.keyDisplayOffsetY, 500);
   assert.equal(invalid.keyDisplayStartLineGapPx, 80);
@@ -122,8 +122,8 @@ function testSettingsCompatibility(normalizeSettings) {
   assert.equal(invalid.keyDisplayStartLineOpacity, 1);
   assert.equal("keyDisplayDistancePx" in invalid, false);
   assert.equal(normalizeSettings({ input: { keyDisplayMaxItems: 4.6 } }).input.keyDisplayMaxItems, 5);
-  assert.equal(normalizeSettings({ input: { keyDisplayOffsetX: Number.NaN } }).input.keyDisplayOffsetX, 0);
-  assert.equal(normalizeSettings({ input: { keyDisplayOffsetY: "far" } }).input.keyDisplayOffsetY, 0);
+  assert.equal(normalizeSettings({ input: { keyDisplayOffsetX: Number.NaN } }).input.keyDisplayOffsetX, 115);
+  assert.equal(normalizeSettings({ input: { keyDisplayOffsetY: "far" } }).input.keyDisplayOffsetY, -175);
   assert.equal(normalizeSettings({ input: { keyDisplayStartLineGapPx: -10 } }).input.keyDisplayStartLineGapPx, 0);
   assert.equal(normalizeSettings({ input: { keyDisplayStartLineGapPx: Number.NaN } }).input.keyDisplayStartLineGapPx, 8);
   assert.equal(normalizeSettings({ input: { keyDisplayStartLineGapPx: "wide" } }).input.keyDisplayStartLineGapPx, 8);

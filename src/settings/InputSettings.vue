@@ -25,9 +25,9 @@ function selectTab(tab: InputSettingsTabId): void {
 
 <template>
   <section class="input-settings" data-settings-category="input">
-    <nav class="settings-subtabs" aria-label="输入监控设置分类">
+    <nav class="settings-subtabs" :aria-label="$t('输入设置分类')">
       <button v-for="tab in INPUT_SETTINGS_TABS" :key="tab.id" type="button" :class="{ active: activeTab === tab.id }" @click="selectTab(tab.id)">
-        {{ tab.label }}
+        {{ $t(tab.label) }}
       </button>
     </nav>
     <KeyboardInputSettings v-if="activeTab === 'keyboard'" />

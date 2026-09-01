@@ -18,24 +18,24 @@ function updateText(key: "typingBusyText" | "typingSpeedText", event: Event): vo
 <template>
   <div class="settings-sections" data-input-settings="typing">
     <p v-if="!settings.input.keyboardEnabled" class="settings-notice">
-      Keyboard Monitoring 当前已关闭。这些规则会保留，但在开启键盘监听前不会触发。
+      {{ $t("键盘监听当前已关闭。这些规则会保留，但在开启前不会触发。") }}
     </p>
     <article>
-      <div class="section-heading"><h3>Busy Typing</h3><p>Rolling Window达到设定次数时请求Low Priority Dialogue。</p></div>
-      <label class="setting-row"><span><strong>Enabled</strong></span><input class="toggle" type="checkbox" :checked="settings.input.typingBusyEnabled" @change="updateEnabled('typingBusyEnabled', $event)" /></label>
-      <label class="setting-row"><span><strong>时间窗口</strong><small>10～600秒。</small></span><div class="number-control"><input type="number" min="10" max="600" step="1" :value="settings.input.typingBusyWindowSeconds" :disabled="!settings.input.typingBusyEnabled" @change="updateNumber('typingBusyWindowSeconds', $event)" /><span>sec</span></div></label>
-      <label class="setting-row"><span><strong>输入次数</strong><small>10～5000次有效keydown。</small></span><div class="number-control"><input type="number" min="10" max="5000" step="1" :value="settings.input.typingBusyCountThreshold" :disabled="!settings.input.typingBusyEnabled" @change="updateNumber('typingBusyCountThreshold', $event)" /><span>times</span></div></label>
-      <label class="setting-row"><span><strong>提示文本</strong><small>留空自动恢复默认。</small></span><input class="text-control" type="text" :value="settings.input.typingBusyText" :disabled="!settings.input.typingBusyEnabled" @change="updateText('typingBusyText', $event)" /></label>
+      <div class="section-heading"><h3>{{ $t("忙碌反馈") }}</h3><p>{{ $t("在滚动时间窗口达到设定次数时触发低优先级对话。") }}</p></div>
+      <label class="setting-row"><span><strong>{{ $t("启用") }}</strong></span><input class="toggle" type="checkbox" :checked="settings.input.typingBusyEnabled" @change="updateEnabled('typingBusyEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>{{ $t("时间窗口") }}</strong><small>{{ $t("10～600 秒。") }}</small></span><div class="number-control"><input type="number" min="10" max="600" step="1" :value="settings.input.typingBusyWindowSeconds" :disabled="!settings.input.typingBusyEnabled" @change="updateNumber('typingBusyWindowSeconds', $event)" /><span>s</span></div></label>
+      <label class="setting-row"><span><strong>{{ $t("按键数量阈值") }}</strong><small>{{ $t("10～5000 次有效按键。") }}</small></span><div class="number-control"><input type="number" min="10" max="5000" step="1" :value="settings.input.typingBusyCountThreshold" :disabled="!settings.input.typingBusyEnabled" @change="updateNumber('typingBusyCountThreshold', $event)" /><span>×</span></div></label>
+      <label class="setting-row"><span><strong>{{ $t("忙碌反馈文本") }}</strong><small>{{ $t("留空会自动恢复默认文本。") }}</small></span><input class="text-control" type="text" :value="settings.input.typingBusyText" :disabled="!settings.input.typingBusyEnabled" @change="updateText('typingBusyText', $event)" /></label>
     </article>
     <article>
-      <div class="section-heading"><h3>Fast Typing</h3><p>固定最近1秒Rolling Window。</p></div>
-      <label class="setting-row"><span><strong>Enabled</strong></span><input class="toggle" type="checkbox" :checked="settings.input.typingSpeedEnabled" @change="updateEnabled('typingSpeedEnabled', $event)" /></label>
-      <label class="setting-row"><span><strong>触发速度</strong><small>1～30次/秒。</small></span><div class="number-control"><input type="number" min="1" max="30" step="1" :value="settings.input.typingSpeedThresholdPerSecond" :disabled="!settings.input.typingSpeedEnabled" @change="updateNumber('typingSpeedThresholdPerSecond', $event)" /><span>/ sec</span></div></label>
-      <label class="setting-row"><span><strong>提示文本</strong><small>留空自动恢复默认。</small></span><input class="text-control" type="text" :value="settings.input.typingSpeedText" :disabled="!settings.input.typingSpeedEnabled" @change="updateText('typingSpeedText', $event)" /></label>
+      <div class="section-heading"><h3>{{ $t("高速反馈") }}</h3><p>{{ $t("统计最近 1 秒内的有效按键。") }}</p></div>
+      <label class="setting-row"><span><strong>{{ $t("启用") }}</strong></span><input class="toggle" type="checkbox" :checked="settings.input.typingSpeedEnabled" @change="updateEnabled('typingSpeedEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>{{ $t("每秒按键阈值") }}</strong><small>{{ $t("每秒 1～30 次。") }}</small></span><div class="number-control"><input type="number" min="1" max="30" step="1" :value="settings.input.typingSpeedThresholdPerSecond" :disabled="!settings.input.typingSpeedEnabled" @change="updateNumber('typingSpeedThresholdPerSecond', $event)" /><span>/s</span></div></label>
+      <label class="setting-row"><span><strong>{{ $t("高速反馈文本") }}</strong><small>{{ $t("留空会自动恢复默认文本。") }}</small></span><input class="text-control" type="text" :value="settings.input.typingSpeedText" :disabled="!settings.input.typingSpeedEnabled" @change="updateText('typingSpeedText', $event)" /></label>
     </article>
     <article>
-      <div class="section-heading"><h3>Common</h3><p>Busy与Fast共享冷却，只在Dialogue实际显示后计时。</p></div>
-      <label class="setting-row"><span><strong>提示间隔</strong><small>1～600秒。</small></span><div class="number-control"><input type="number" min="1" max="600" step="1" :value="settings.input.typingFeedbackCooldownSeconds" @change="updateNumber('typingFeedbackCooldownSeconds', $event)" /><span>sec</span></div></label>
+      <div class="section-heading"><h3>{{ $t("通用") }}</h3><p>{{ $t("忙碌与高速反馈共享冷却时间，只在对话实际显示后计时。") }}</p></div>
+      <label class="setting-row"><span><strong>{{ $t("反馈冷却时间") }}</strong><small>{{ $t("1～600 秒。") }}</small></span><div class="number-control"><input type="number" min="1" max="600" step="1" :value="settings.input.typingFeedbackCooldownSeconds" @change="updateNumber('typingFeedbackCooldownSeconds', $event)" /><span>s</span></div></label>
     </article>
   </div>
 </template>

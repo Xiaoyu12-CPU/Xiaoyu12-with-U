@@ -118,6 +118,10 @@ function testWindowOptions(windows, defaults) {
   const enabledOptions = windows.buildOverlayWindowOptions(settings);
   assert.equal(enabledOptions[1].visible, true);
   assert.equal(enabledOptions[2].visible, true);
+  assert.deepEqual(
+    enabledOptions.map(({ defaultOffsetX, defaultOffsetY }) => [defaultOffsetX, defaultOffsetY]),
+    [[19, 152], [135, 33], [171, 201]],
+  );
 }
 
 function testKeyboardLayout(layout) {
@@ -199,6 +203,7 @@ async function testArchitectureSources() {
     "resize_overlay_window",
     "follow_overlay_windows",
     "save_overlay_window_position",
+    "save_pet_window_position",
     "reset_overlay_window_position",
   ]) {
     assert.match(backend, new RegExp(`pub async fn ${command}`));
@@ -206,6 +211,7 @@ async function testArchitectureSources() {
   assert.doesNotMatch(statusWindow, /<main[^>]*@pointer-down=/s);
   assert.doesNotMatch(statusPage, /Development \/ Debug|DEBUG_REQUEST|测试下一个事件|暂停动画|恢复动画/);
   assert.doesNotMatch(contextMenu, /测试事件|暂停动画|恢复动画/);
-  assert.equal(tauriConfig.version, "0.4.4");
+  assert.match(backend, /restore_pet_window_position/);
+  assert.equal(tauriConfig.version, "0.4.5");
   assert.equal(tauriConfig.bundle.macOS.signingIdentity, "-");
 }

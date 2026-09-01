@@ -5,6 +5,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useRemotePetRuntime } from "../pet/runtimeBridge";
 import { OVERLAY_LABELS, resetOverlayPosition } from "../pet/desktopWindows";
 import { settingsManager } from "./settingsManager";
+import { DEFAULT_SETTINGS } from "./defaultSettings";
+import { translate } from "../i18n";
 import type { MouseVisualizerPosition } from "./settingsTypes";
 
 const settings = settingsManager.settings;
@@ -14,15 +16,15 @@ const mouseStatus = computed(() => snapshot.value?.mouseStatus ?? "disabled");
 const mouseStatusNote = computed(() => {
   switch (mouseStatus.value) {
     case "active":
-      return "监听运行中，鼠标可视化可以正常显示。";
+      return translate("监听运行中，鼠标可视化可以正常显示。");
     case "starting":
-      return "正在启动监听…";
+      return translate("正在启动监听…");
     case "permission-required":
-      return "缺少「输入监听」权限，鼠标可视化不会显示。请在 系统设置 → 隐私与安全性 → 输入监控 中允许 withXiaoyu12；若其开关无法打开，先点 − 删除该条目，再点 + 重新选择应用。授权后应用会每 2 秒自动重试，若仍无效请重启应用。";
+      return translate("缺少鼠标输入监听权限");
     case "unsupported":
-      return "当前平台暂不支持全局鼠标监听。";
+      return translate("当前平台暂不支持全局鼠标监听。");
     case "error":
-      return snapshot.value?.mouseMessage ?? "监听启动失败，请重试。";
+      return snapshot.value?.mouseMessage ?? translate("监听启动失败，请重试。");
     default:
       return "";
   }
@@ -68,7 +70,13 @@ function updateVisualizerWindow(event: Event): void {
   });
 }
 function updatePosition(event: Event): void {
-  settingsManager.updateSetting("input", "mouseVisualizerPosition", (event.target as HTMLSelectElement).value as MouseVisualizerPosition);
+  settingsManager.update({
+    input: {
+      mouseVisualizerPosition: (event.target as HTMLSelectElement).value as MouseVisualizerPosition,
+      mouseVisualizerOffsetX: 0,
+      mouseVisualizerOffsetY: 0,
+    },
+  });
   void resetOverlayPosition(OVERLAY_LABELS.mouseVisualizer).catch((error) => {
     console.error("Failed to reposition the mouse visualizer window.", error);
   });
@@ -83,7 +91,13 @@ function updateOutlineWidth(event: Event): void {
   settingsManager.updateSetting("input", "mouseVisualizerOutlineWidth", Number((event.target as HTMLInputElement).value));
 }
 function resetPosition(): void {
-  settingsManager.update({ input: { mouseVisualizerOffsetX: 0, mouseVisualizerOffsetY: 0 } });
+  settingsManager.update({
+    input: {
+      mouseVisualizerPosition: DEFAULT_SETTINGS.input.mouseVisualizerPosition,
+      mouseVisualizerOffsetX: DEFAULT_SETTINGS.input.mouseVisualizerOffsetX,
+      mouseVisualizerOffsetY: DEFAULT_SETTINGS.input.mouseVisualizerOffsetY,
+    },
+  });
   void resetOverlayPosition(OVERLAY_LABELS.mouseVisualizer).catch((error) => {
     console.error("Failed to reset the mouse visualizer window position.", error);
   });
@@ -93,38 +107,38 @@ function resetPosition(): void {
 <template>
   <div class="settings-sections" data-input-settings="mouse">
     <article>
-      <div class="section-heading"><h3>Mouse Monitor</h3><p>监听全局按键与滚轮，不监听移动、坐标或轨迹。</p></div>
-      <label class="setting-row"><span><strong>Mouse Monitoring</strong><small>与Keyboard开关和Runtime完全独立。</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseEnabled" @change="updateBoolean('mouseEnabled', $event)" /></label>
+      <div class="section-heading"><h3>{{ $t("鼠标监听") }}</h3><p>{{ $t("监听全局按键与滚轮，不监听移动、坐标或轨迹。") }}</p></div>
+      <label class="setting-row"><span><strong>{{ $t("启用鼠标监听") }}</strong><small>{{ $t("与键盘监听开关和运行状态完全独立。") }}</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseEnabled" @change="updateBoolean('mouseEnabled', $event)" /></label>
       <p v-if="mouseStatusNote" class="monitor-status-note" :data-status="mouseStatus">
         {{ mouseStatusNote }}
-        <button v-if="showRetry" type="button" class="retry-button" @click="openInputMonitoringSettings">打开系统设置</button>
-        <button v-if="showRetry" type="button" class="retry-button" @click="retryMouseMonitor">重新检测</button>
+        <button v-if="showRetry" type="button" class="retry-button" @click="openInputMonitoringSettings">{{ $t("打开系统设置") }}</button>
+        <button v-if="showRetry" type="button" class="retry-button" @click="retryMouseMonitor">{{ $t("重新检测") }}</button>
       </p>
-      <label class="setting-row"><span><strong>鼠标可视化窗口</strong><small>显示独立鼠标按键与滚轮窗口；关闭不停止鼠标监听。</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseVisualizerEnabled && settings.windows.mouseVisualizerWindowEnabled" @change="updateVisualizerWindow" /></label>
-      <label class="setting-row"><span><strong>鼠标穿透</strong><small>开启后不能拖动窗口，可在控制中心关闭。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.mouseVisualizerClickThrough" :disabled="!settings.input.mouseVisualizerEnabled || !settings.windows.mouseVisualizerWindowEnabled" @change="updateWindowBoolean('mouseVisualizerClickThrough', $event)" /></label>
-      <label class="setting-row"><span><strong>Mouse Visualizer Position</strong><small>选择相对桌宠的Base Anchor。</small></span><select class="select-control" :value="settings.input.mouseVisualizerPosition" @change="updatePosition"><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option></select></label>
+      <label class="setting-row"><span><strong>{{ $t("鼠标可视化窗口") }}</strong><small>{{ $t("显示独立鼠标按键与滚轮窗口；关闭不停止鼠标监听。") }}</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseVisualizerEnabled && settings.windows.mouseVisualizerWindowEnabled" @change="updateVisualizerWindow" /></label>
+      <label class="setting-row"><span><strong>{{ $t("点击穿透") }}</strong><small>{{ $t("开启后不能拖动窗口，可在控制中心关闭。") }}</small></span><input class="toggle" type="checkbox" :checked="settings.windows.mouseVisualizerClickThrough" :disabled="!settings.input.mouseVisualizerEnabled || !settings.windows.mouseVisualizerWindowEnabled" @change="updateWindowBoolean('mouseVisualizerClickThrough', $event)" /></label>
+      <label class="setting-row"><span><strong>{{ $t("方位") }}</strong><small>{{ $t("选择相对桌宠的基础锚点。") }}</small></span><select class="select-control" :value="settings.input.mouseVisualizerPosition" @change="updatePosition"><option value="top">{{ $t("上") }}</option><option value="bottom">{{ $t("下") }}</option><option value="left">{{ $t("左") }}</option><option value="right">{{ $t("右") }}</option></select></label>
     </article>
 
     <article>
-      <div class="section-heading"><h3>Mouse Body & Buttons</h3><p>各层透明度独立，不改变整个组件透明度。</p></div>
-      <label class="setting-row"><span><strong>Body Color</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerBodyColor" @input="updateColor('mouseVisualizerBodyColor', $event)" /><code>{{ settings.input.mouseVisualizerBodyColor }}</code></div></label>
-      <label class="setting-row scale-row"><span><strong>Body Opacity</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="bodyOpacity" @input="updateOpacity('mouseVisualizerBodyOpacity', $event)" /><output>{{ bodyOpacity }}%</output></div></label>
-      <label class="setting-row"><span><strong>Button Color</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerButtonColor" @input="updateColor('mouseVisualizerButtonColor', $event)" /><code>{{ settings.input.mouseVisualizerButtonColor }}</code></div></label>
-      <label class="setting-row scale-row"><span><strong>Button Opacity</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="buttonOpacity" @input="updateOpacity('mouseVisualizerButtonOpacity', $event)" /><output>{{ buttonOpacity }}%</output></div></label>
+      <div class="section-heading"><h3>{{ $t("鼠标主体与按键") }}</h3><p>{{ $t("各层透明度独立，不改变整个组件透明度。") }}</p></div>
+      <label class="setting-row"><span><strong>{{ $t("主体颜色") }}</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerBodyColor" @input="updateColor('mouseVisualizerBodyColor', $event)" /><code>{{ settings.input.mouseVisualizerBodyColor }}</code></div></label>
+      <label class="setting-row scale-row"><span><strong>{{ $t("主体透明度") }}</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="bodyOpacity" @input="updateOpacity('mouseVisualizerBodyOpacity', $event)" /><output>{{ bodyOpacity }}%</output></div></label>
+      <label class="setting-row"><span><strong>{{ $t("按键颜色") }}</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerButtonColor" @input="updateColor('mouseVisualizerButtonColor', $event)" /><code>{{ settings.input.mouseVisualizerButtonColor }}</code></div></label>
+      <label class="setting-row scale-row"><span><strong>{{ $t("按键透明度") }}</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="buttonOpacity" @input="updateOpacity('mouseVisualizerButtonOpacity', $event)" /><output>{{ buttonOpacity }}%</output></div></label>
     </article>
 
     <article>
-      <div class="section-heading"><h3>Outline</h3><p>统一控制Body、分隔线、Wheel与侧键线稿。</p></div>
-      <label class="setting-row"><span><strong>Outline Color</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerOutlineColor" @input="updateColor('mouseVisualizerOutlineColor', $event)" /><code>{{ settings.input.mouseVisualizerOutlineColor }}</code></div></label>
-      <label class="setting-row scale-row"><span><strong>Outline Opacity</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="outlineOpacity" @input="updateOpacity('mouseVisualizerOutlineOpacity', $event)" /><output>{{ outlineOpacity }}%</output></div></label>
-      <label class="setting-row scale-row"><span><strong>Outline Width</strong><small>0～4px。</small></span><div class="scale-control"><input type="range" min="0" max="4" step="0.25" :value="settings.input.mouseVisualizerOutlineWidth" @input="updateOutlineWidth" /><output>{{ settings.input.mouseVisualizerOutlineWidth }} px</output></div></label>
+      <div class="section-heading"><h3>{{ $t("轮廓") }}</h3><p>{{ $t("统一控制主体、分隔线、滚轮与侧键线稿。") }}</p></div>
+      <label class="setting-row"><span><strong>{{ $t("轮廓颜色") }}</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerOutlineColor" @input="updateColor('mouseVisualizerOutlineColor', $event)" /><code>{{ settings.input.mouseVisualizerOutlineColor }}</code></div></label>
+      <label class="setting-row scale-row"><span><strong>{{ $t("轮廓透明度") }}</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="outlineOpacity" @input="updateOpacity('mouseVisualizerOutlineOpacity', $event)" /><output>{{ outlineOpacity }}%</output></div></label>
+      <label class="setting-row scale-row"><span><strong>{{ $t("轮廓粗细") }}</strong><small>0～4 px</small></span><div class="scale-control"><input type="range" min="0" max="4" step="0.25" :value="settings.input.mouseVisualizerOutlineWidth" @input="updateOutlineWidth" /><output>{{ settings.input.mouseVisualizerOutlineWidth }} px</output></div></label>
     </article>
 
     <article>
-      <div class="section-heading"><h3>Active</h3><p>Pressed Button与Scroll Pulse共享强调样式。</p></div>
-      <label class="setting-row"><span><strong>Active Color</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerActiveColor" @input="updateColor('mouseVisualizerActiveColor', $event)" /><code>{{ settings.input.mouseVisualizerActiveColor }}</code></div></label>
-      <label class="setting-row scale-row"><span><strong>Active Opacity</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="activeOpacity" @input="updateOpacity('mouseVisualizerActiveOpacity', $event)" /><output>{{ activeOpacity }}%</output></div></label>
-      <div class="setting-row"><span><strong>鼠标窗口位置</strong><small>按 Position 重新放到桌宠四周。</small></span><button type="button" @click="resetPosition">重置鼠标窗口位置</button></div>
+      <div class="section-heading"><h3>{{ $t("激活状态") }}</h3><p>{{ $t("按下按键与滚轮脉冲共享强调样式。") }}</p></div>
+      <label class="setting-row"><span><strong>{{ $t("激活颜色") }}</strong></span><div class="color-control"><input type="color" :value="settings.input.mouseVisualizerActiveColor" @input="updateColor('mouseVisualizerActiveColor', $event)" /><code>{{ settings.input.mouseVisualizerActiveColor }}</code></div></label>
+      <label class="setting-row scale-row"><span><strong>{{ $t("激活透明度") }}</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="activeOpacity" @input="updateOpacity('mouseVisualizerActiveOpacity', $event)" /><output>{{ activeOpacity }}%</output></div></label>
+      <div class="setting-row"><span><strong>{{ $t("鼠标窗口位置") }}</strong><small>{{ $t("按所选方位重新放到当前默认位置。") }}</small></span><button type="button" @click="resetPosition">{{ $t("重置鼠标窗口位置") }}</button></div>
     </article>
   </div>
 </template>

@@ -19,6 +19,7 @@ export const OVERLAY_LABELS = {
 } as const;
 
 export type OverlayLabel = (typeof OVERLAY_LABELS)[keyof typeof OVERLAY_LABELS];
+const PET_POSITION_SAVE_DELAY_MS = 240;
 
 export interface OverlayWindowOptions extends OverlayWindowSize {
   label: OverlayLabel;
@@ -125,6 +126,7 @@ export function useDesktopWindowCoordinator(): void {
   let followRunning = false;
   let followRequested = false;
   let unlistenMoved: UnlistenFn | undefined;
+  let petPositionSaveTimer: ReturnType<typeof setTimeout> | undefined;
 
   async function flushSync(): Promise<void> {
     if (syncing || disposed) {
@@ -189,12 +191,26 @@ export function useDesktopWindowCoordinator(): void {
     void flushFollow();
   }
 
+  function savePetPositionAfterMove(): void {
+    requestFollow();
+    if (petPositionSaveTimer !== undefined) {
+      clearTimeout(petPositionSaveTimer);
+    }
+    petPositionSaveTimer = setTimeout(() => {
+      petPositionSaveTimer = undefined;
+      if (disposed) return;
+      void invoke("save_pet_window_position").catch((error) => {
+        console.error("Failed to save pet window position.", error);
+      });
+    }, PET_POSITION_SAVE_DELAY_MS);
+  }
+
   const stopWatching = watch(
     () => createOverlayWindowOptionsSignature(settingsManager.getSettings()),
     requestSync,
   );
 
-  void getCurrentWindow().onMoved(requestFollow).then((unlisten) => {
+  void getCurrentWindow().onMoved(savePetPositionAfterMove).then((unlisten) => {
     if (disposed) {
       unlisten();
     } else {
@@ -206,6 +222,9 @@ export function useDesktopWindowCoordinator(): void {
 
   function dispose(): void {
     disposed = true;
+    if (petPositionSaveTimer !== undefined) {
+      clearTimeout(petPositionSaveTimer);
+    }
     stopWatching();
     unlistenMoved?.();
   }

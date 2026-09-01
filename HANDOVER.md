@@ -2,14 +2,14 @@
 
 ## 当前发布基线
 
-- 当前版本：`v0.4.4`
+- 当前开发版本：`v0.4.5`（尚未发布）
 - 正式代码分支：`main`
 - 日常开发分支：`develop`
-- 本次发布分支：`codex/v0.4.4`
+- 本次开发分支：`codex/v0.4.5`
 - 版本变化：[CHANGELOG.md](./CHANGELOG.md)
 - 架构说明：[ARCHITECTURE.md](./ARCHITECTURE.md)
 
-v0.4.4 发布时，上述三个分支应指向同一个提交。`codex/v0.4.3`、`v0.4.3-preview` 及更早标签只作为历史快照保留，不应继续追加修改。
+v0.4.5 完成验收并发布后，`main`、`develop` 和本次发布分支应指向同一个发布提交。在此之前不要创建或移动 v0.4.5 标签；旧发布标签只作为历史快照保留。
 
 ## 项目结构
 
@@ -37,7 +37,7 @@ cargo fmt --check --manifest-path src-tauri/Cargo.toml
 
 1. 在开发分支完成修改、文档和上述验证。
 2. 将确认后的提交合并到 `develop` 和 `main`，避免长期分叉。
-3. 创建新的不可移动标签，例如 `v0.4.4`，不要复用或移动已经公开的旧标签。
+3. 验收完成后创建新的不可移动标签 `v0.4.5`，不要复用或移动已经公开的旧标签。
 4. 推送标签后，`Release Build` 自动生成 Windows x64、macOS ARM64 和 macOS x64 安装包。
 5. 等待三个平台构建与 `publish-release` 全部成功，再检查 Release 页面附件和说明。
 

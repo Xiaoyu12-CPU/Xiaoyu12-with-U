@@ -60,7 +60,7 @@ onMounted(() => {
       class="mouse-visualizer-window__status"
       @pointerdown="startDragging"
     >
-      {{ snapshot?.mouseMessage || '鼠标监听未运行' }}
+      {{ snapshot?.mouseMessage || $t("鼠标监听未运行") }}
     </p>
   </main>
 </template>

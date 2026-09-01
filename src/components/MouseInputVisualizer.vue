@@ -121,14 +121,14 @@ onBeforeUnmount(() => controller.dispose());
     v-show="snapshot.visible"
     class="mouse-visualizer"
     :style="visualizerStyle"
-    aria-label="Mouse input visualizer"
+    :aria-label="$t('鼠标输入可视化')"
   >
     <button
       class="mouse-visualizer__drag-handle"
       :class="{ 'mouse-visualizer__drag-handle--dragging': dragging }"
       :style="{ pointerEvents: presentation.handlePointerEvents }"
       type="button"
-      aria-label="拖动鼠标显示位置"
+      :aria-label="$t('拖动鼠标可视化窗口')"
       @pointerdown.stop.prevent="emit('pointerDown', $event)"
       @pointermove.stop.prevent="emit('pointerMove', $event)"
       @pointerup.stop.prevent="emit('pointerUp', $event)"
@@ -143,7 +143,7 @@ onBeforeUnmount(() => controller.dispose());
       :style="{ pointerEvents: presentation.visualPointerEvents }"
       viewBox="0 0 80 100"
       role="img"
-      aria-label="Mouse buttons"
+      :aria-label="$t('鼠标按键')"
     >
       <path
         class="mouse-visualizer__body-fill"

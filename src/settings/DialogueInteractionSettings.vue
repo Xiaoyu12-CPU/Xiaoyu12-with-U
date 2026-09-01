@@ -27,11 +27,11 @@ function updateBoolean(
   <div class="settings-sections" data-settings-category="dialogue">
     <article>
       <div class="section-heading">
-        <h3>Speech Bubble</h3>
-        <p>管理普通对话何时出现与显示多久；具体文本仍在 Dialogue 编辑中维护。</p>
+        <h3>{{ $t("语音气泡") }}</h3>
+        <p>{{ $t("管理普通对话何时出现与显示多久；具体文本仍在对话编辑中维护。") }}</p>
       </div>
       <label class="setting-row">
-        <span><strong>气泡显示时间</strong><small>250 ～ 60000 毫秒</small></span>
+        <span><strong>{{ $t("气泡显示时间") }}</strong><small>250 ～ 60000 ms</small></span>
         <div class="number-control">
           <input type="number" min="250" max="60000" step="250" :value="settings.dialogue.bubbleDurationMs" @change="updateDuration" />
           <span>ms</span>
@@ -41,15 +41,15 @@ function updateBoolean(
 
     <article>
       <div class="section-heading">
-        <h3>Interaction Dialogue</h3>
-        <p>关闭选项只影响气泡文本，不改变交互行为。</p>
+        <h3>{{ $t("交互对话") }}</h3>
+        <p>{{ $t("关闭选项只影响气泡文本，不改变交互行为。") }}</p>
       </div>
       <label class="setting-row">
-        <span><strong>Click Dialogue</strong></span>
+        <span><strong>{{ $t("点击对话") }}</strong></span>
         <input class="toggle" type="checkbox" :checked="settings.dialogue.enableClickDialogue" @change="updateBoolean('enableClickDialogue', $event)" />
       </label>
       <label class="setting-row">
-        <span><strong>Drag Dialogue</strong></span>
+        <span><strong>{{ $t("拖动对话") }}</strong></span>
         <input class="toggle" type="checkbox" :checked="settings.dialogue.enableDragDialogue" @change="updateBoolean('enableDragDialogue', $event)" />
       </label>
     </article>

@@ -91,7 +91,7 @@ onBeforeUnmount(() => controller.dispose());
       `key-history--flow-${actualFlow}`,
     ]"
     aria-live="polite"
-    aria-label="Recent keys"
+    :aria-label="$t('最近按键列表')"
   >
     <KeyDisplayBubble
       v-for="entry in renderedEntries"

@@ -31,7 +31,7 @@ function select(type: PetControlActionType): void {
     class="pet-context-menu"
     :style="menuStyle"
     role="menu"
-    aria-label="桌宠菜单"
+    :aria-label="$t('桌宠菜单')"
     @click.stop
     @pointerdown.stop
     @contextmenu.prevent.stop
@@ -41,7 +41,7 @@ function select(type: PetControlActionType): void {
       role="menuitem"
       @click="select(PET_CONTROL_ACTION_TYPES.OPEN_CONTROL_CENTER)"
     >
-      打开控制中心
+      {{ $t("打开控制中心") }}
     </button>
     <button
       class="pet-context-menu__danger"
@@ -49,7 +49,7 @@ function select(type: PetControlActionType): void {
       role="menuitem"
       @click="select(PET_CONTROL_ACTION_TYPES.EXIT)"
     >
-      退出
+      {{ $t("退出") }}
     </button>
   </div>
 </template>

@@ -15,10 +15,12 @@ try {
   const theme = await vite.ssrLoadModule("/src/settings/controlCenterTheme.ts");
   const background = await vite.ssrLoadModule("/src/settings/controlCenterBackground.ts");
   const references = await vite.ssrLoadModule("/src/settings/controlCenterBackgroundReference.ts");
+  const i18n = await vite.ssrLoadModule("/src/i18n/index.ts");
 
   await testInformationArchitecture(navigation);
   testThemeSettings(normalizeSettings, defaults, theme);
   await testShippingBaseline(normalizeSettings, defaults, references);
+  await testLanguageSettings(normalizeSettings, i18n);
   await testManagedBackground(background, references);
   console.log("Control Center settings tests passed.");
 } finally {
@@ -149,7 +151,10 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
   assert.deepEqual(defaults.DEFAULT_SETTINGS.controlCenter, expectedTheme);
   assert.deepEqual(normalizeSettings({}).controlCenter, expectedTheme);
 
-  // Business defaults and all portable layout offsets remain their existing values.
+  // Fresh installs preserve the captured v0.4.5 appearance and layout while
+  // keeping every optional desktop window and monitor disabled.
+  assert.equal(defaults.DEFAULT_SETTINGS.general.language, "zh-CN");
+  assert.equal(defaults.DEFAULT_SETTINGS.appearance.petScale, 0.8);
   assert.equal(defaults.DEFAULT_SETTINGS.input.keyboardEnabled, false);
   assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayEnabled, false);
   assert.equal(defaults.DEFAULT_SETTINGS.input.mouseEnabled, false);
@@ -177,10 +182,12 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
     normalizeSettings({}).windows,
     defaults.DEFAULT_SETTINGS.windows,
   );
-  assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayOffsetX, 0);
-  assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayOffsetY, 0);
-  assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerOffsetX, 0);
-  assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerOffsetY, 0);
+  assert.equal(defaults.DEFAULT_SETTINGS.systemStatusBubble.offsetX, 19);
+  assert.equal(defaults.DEFAULT_SETTINGS.systemStatusBubble.offsetY, 152);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayOffsetX, 115);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.keyDisplayOffsetY, -175);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerOffsetX, 272);
+  assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerOffsetY, 159);
 
   const existing = normalizeSettings({
     controlCenter: {
@@ -200,6 +207,23 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
   const referenceSource = await readFile(new URL("../src/settings/controlCenterBackgroundReference.ts", import.meta.url), "utf8");
   assert.match(referenceSource, /\.\.\/assets\/control-center\/default-background\.jpg/);
   assert.doesNotMatch(referenceSource, /\/Users\//);
+}
+
+async function testLanguageSettings(normalizeSettings, i18n) {
+  assert.equal(normalizeSettings({}).general.language, "zh-CN");
+  assert.equal(normalizeSettings({ general: { language: "en" } }).general.language, "en");
+  assert.equal(normalizeSettings({ general: { language: "ja" } }).general.language, "ja");
+  assert.equal(normalizeSettings({ general: { language: "invalid" } }).general.language, "zh-CN");
+  assert.equal(i18n.translateForLanguage("zh-CN", "当前状态"), "当前状态");
+  assert.equal(i18n.translateForLanguage("en", "当前状态"), "Current Status");
+  assert.equal(i18n.translateForLanguage("ja", "当前状态"), "現在の状態");
+  assert.equal(i18n.translateForLanguage("en", "项目数量", { count: 3 }), "3 items");
+
+  const controlCenter = await readFile(new URL("../src/settings/ControlCenter.vue", import.meta.url), "utf8");
+  assert.match(controlCenter, /app-icon\.png/);
+  assert.match(controlCenter, /LANGUAGE_OPTIONS/);
+  assert.match(controlCenter, /v0\.4\.5/);
+  assert.doesNotMatch(controlCenter, />\s*12\s*</);
 }
 
 async function testManagedBackground(background, references) {

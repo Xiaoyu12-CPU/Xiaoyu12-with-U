@@ -19,6 +19,8 @@ const MOUSE_VISUALIZER_LABEL: &str = "mouse-visualizer";
 const WINDOW_POSITIONS_FILE: &str = "window-positions.json";
 const MAX_WINDOW_SIZE: f64 = 1600.0;
 const MAX_DEFAULT_OFFSET: f64 = 4000.0;
+const DEFAULT_PET_LEFT_MARGIN_LOGICAL: f64 = 1.0;
+const DEFAULT_PET_BOTTOM_MARGIN_LOGICAL: f64 = 118.0;
 
 static WINDOW_OPERATION_LOCK: Mutex<()> = Mutex::new(());
 
@@ -257,6 +259,75 @@ pub async fn save_overlay_window_position(app: AppHandle, label: String) -> Resu
     write_window_positions(&app, &positions)
 }
 
+/// Persists the desktop pet's absolute position. Overlay windows keep their
+/// own pet-relative records, so restoring the pet first restores the complete
+/// layout without baking one monitor resolution into the application.
+#[tauri::command]
+pub async fn save_pet_window_position(app: AppHandle) -> Result<(), String> {
+    let _guard = lock_window_operations()?;
+    let window = pet_window(&app)?;
+    let position = window
+        .outer_position()
+        .map_err(|error| format!("Failed to read pet window position: {error}"))?;
+    let mut positions = load_window_positions(&app)?;
+    positions.insert(
+        PET_WINDOW_LABEL.to_string(),
+        StoredWindowPosition {
+            x: position.x,
+            y: position.y,
+            relative_x: None,
+            relative_y: None,
+        },
+    );
+    write_window_positions(&app, &positions)
+}
+
+/// Restores the pet before the webview starts coordinating its three overlay
+/// windows. On first launch, place it at the recorded v0.4.5 composition's
+/// portable bottom-left anchor on the primary display.
+pub fn restore_pet_window_position(app: &AppHandle) -> Result<(), String> {
+    let _guard = lock_window_operations()?;
+    let window = pet_window(app)?;
+    let mut positions = load_window_positions(app)?;
+    let monitors = window
+        .available_monitors()
+        .map_err(|error| format!("Failed to read available monitors: {error}"))?;
+
+    let target = positions
+        .get(PET_WINDOW_LABEL)
+        .copied()
+        .filter(|saved| position_is_on_available_monitor(*saved, &monitors))
+        .map(|saved| PhysicalPosition::new(saved.x, saved.y))
+        .or_else(|| {
+            window.primary_monitor().ok().flatten().and_then(|monitor| {
+                let pet_size = window.outer_size().ok()?;
+                Some(default_pet_position(
+                    *monitor.position(),
+                    *monitor.size(),
+                    pet_size,
+                    monitor.scale_factor(),
+                ))
+            })
+        });
+
+    let Some(target) = target else {
+        return Ok(());
+    };
+    window
+        .set_position(target)
+        .map_err(|error| format!("Failed to restore pet window position: {error}"))?;
+    positions.insert(
+        PET_WINDOW_LABEL.to_string(),
+        StoredWindowPosition {
+            x: target.x,
+            y: target.y,
+            relative_x: None,
+            relative_y: None,
+        },
+    );
+    write_window_positions(app, &positions)
+}
+
 #[tauri::command]
 pub async fn reset_overlay_window_position(
     app: AppHandle,
@@ -391,6 +462,36 @@ fn relative_target(
                 .unwrap_or_else(|| f64::from(saved.y - pet_position.y) / pet_scale)
                 * pet_scale)
                 .round() as i32,
+    )
+}
+
+fn position_is_on_available_monitor(
+    saved: StoredWindowPosition,
+    monitors: &[tauri::Monitor],
+) -> bool {
+    monitors.iter().any(|monitor| {
+        let position = monitor.position();
+        let size = monitor.size();
+        let right = i64::from(position.x) + i64::from(size.width);
+        let bottom = i64::from(position.y) + i64::from(size.height);
+        i64::from(saved.x) >= i64::from(position.x)
+            && i64::from(saved.x) < right
+            && i64::from(saved.y) >= i64::from(position.y)
+            && i64::from(saved.y) < bottom
+    })
+}
+
+fn default_pet_position(
+    monitor_position: PhysicalPosition<i32>,
+    monitor_size: tauri::PhysicalSize<u32>,
+    pet_size: tauri::PhysicalSize<u32>,
+    scale_factor: f64,
+) -> PhysicalPosition<i32> {
+    let left_margin = (DEFAULT_PET_LEFT_MARGIN_LOGICAL * scale_factor).round() as i32;
+    let bottom_margin = (DEFAULT_PET_BOTTOM_MARGIN_LOGICAL * scale_factor).round() as i32;
+    PhysicalPosition::new(
+        monitor_position.x + left_margin,
+        monitor_position.y + monitor_size.height as i32 - pet_size.height as i32 - bottom_margin,
     )
 }
 
@@ -560,6 +661,28 @@ mod tests {
         assert_eq!(
             relative_target(PhysicalPosition::new(100, 50), 2.0, saved),
             PhysicalPosition::new(120, 80),
+        );
+    }
+
+    #[test]
+    fn first_launch_pet_anchor_scales_from_the_primary_display() {
+        assert_eq!(
+            default_pet_position(
+                PhysicalPosition::new(0, 0),
+                tauri::PhysicalSize::new(3024, 1964),
+                tauri::PhysicalSize::new(400, 400),
+                2.0,
+            ),
+            PhysicalPosition::new(2, 1328),
+        );
+        assert_eq!(
+            default_pet_position(
+                PhysicalPosition::new(-1920, 40),
+                tauri::PhysicalSize::new(1920, 1080),
+                tauri::PhysicalSize::new(200, 200),
+                1.0,
+            ),
+            PhysicalPosition::new(-1919, 802),
         );
     }
 }

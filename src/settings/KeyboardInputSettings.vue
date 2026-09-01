@@ -5,6 +5,8 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useRemotePetRuntime } from "../pet/runtimeBridge";
 import { OVERLAY_LABELS, resetOverlayPosition } from "../pet/desktopWindows";
 import { settingsManager } from "./settingsManager";
+import { DEFAULT_SETTINGS } from "./defaultSettings";
+import { translate } from "../i18n";
 import type { KeyDisplayFlowDirection, KeyDisplayPosition } from "./settingsTypes";
 
 const settings = settingsManager.settings;
@@ -14,15 +16,15 @@ const keyboardStatus = computed(() => snapshot.value?.keyboardStatus ?? "disable
 const keyboardStatusNote = computed(() => {
   switch (keyboardStatus.value) {
     case "active":
-      return "监听运行中，键位历史可以正常显示。";
+      return translate("监听运行中，键位历史可以正常显示。");
     case "starting":
-      return "正在启动监听…";
+      return translate("正在启动监听…");
     case "permission-required":
-      return "缺少「输入监听」权限，键位历史不会显示。请在 系统设置 → 隐私与安全性 → 输入监控 中允许 withXiaoyu12；若其开关无法打开，先点 − 删除该条目，再点 + 重新选择应用。授权后应用会每 2 秒自动重试，若仍无效请重启应用。";
+      return translate("缺少键盘输入监听权限");
     case "unsupported":
-      return "当前平台暂不支持全局键盘监听。";
+      return translate("当前平台暂不支持全局键盘监听。");
     case "error":
-      return snapshot.value?.keyboardMessage ?? "监听启动失败，请重试。";
+      return snapshot.value?.keyboardMessage ?? translate("监听启动失败，请重试。");
     default:
       return "";
   }
@@ -71,7 +73,16 @@ function updateNumber(key: "keyDisplayMaxItems" | "keyDisplayDurationMs" | "keyD
 }
 
 function updatePosition(event: Event): void {
-  settingsManager.updateSetting("input", "keyDisplayPosition", (event.target as HTMLSelectElement).value as KeyDisplayPosition);
+  settingsManager.update({
+    input: {
+      keyDisplayPosition: (event.target as HTMLSelectElement).value as KeyDisplayPosition,
+      keyDisplayOffsetX: 0,
+      keyDisplayOffsetY: 0,
+    },
+  });
+  void resetOverlayPosition(OVERLAY_LABELS.keyboardHistory).catch((error) => {
+    console.error("Failed to reposition the keyboard history window.", error);
+  });
 }
 
 function updateFlow(event: Event): void {
@@ -87,7 +98,13 @@ function updateLineOpacity(event: Event): void {
 }
 
 function resetPosition(): void {
-  settingsManager.update({ input: { keyDisplayOffsetX: 0, keyDisplayOffsetY: 0 } });
+  settingsManager.update({
+    input: {
+      keyDisplayPosition: DEFAULT_SETTINGS.input.keyDisplayPosition,
+      keyDisplayOffsetX: DEFAULT_SETTINGS.input.keyDisplayOffsetX,
+      keyDisplayOffsetY: DEFAULT_SETTINGS.input.keyDisplayOffsetY,
+    },
+  });
   void resetOverlayPosition(OVERLAY_LABELS.keyboardHistory).catch((error) => {
     console.error("Failed to reset the keyboard history window position.", error);
   });
@@ -98,67 +115,67 @@ function resetPosition(): void {
   <div class="settings-sections" data-input-settings="keyboard">
     <article>
       <div class="section-heading">
-        <h3>Keyboard Monitor</h3>
-        <p>监听全局键盘活动；只维护Runtime状态，不持久化按键内容。</p>
+        <h3>{{ $t("键盘监听") }}</h3>
+        <p>{{ $t("监听全局键盘活动；只维护运行状态，不持久化按键内容。") }}</p>
       </div>
       <label class="setting-row">
-        <span><strong>Keyboard Monitoring</strong><small>macOS可能要求授予输入监听权限。</small></span>
+        <span><strong>{{ $t("启用键盘监听") }}</strong><small>{{ $t("macOS 可能要求授予输入监听权限。") }}</small></span>
         <input class="toggle" type="checkbox" :checked="settings.input.keyboardEnabled" @change="updateBoolean('keyboardEnabled', $event)" />
       </label>
       <p v-if="keyboardStatusNote" class="monitor-status-note" :data-status="keyboardStatus">
         {{ keyboardStatusNote }}
-        <button v-if="showRetry" type="button" class="retry-button" @click="openInputMonitoringSettings">打开系统设置</button>
-        <button v-if="showRetry" type="button" class="retry-button" @click="retryKeyboardMonitor">重新检测</button>
+        <button v-if="showRetry" type="button" class="retry-button" @click="openInputMonitoringSettings">{{ $t("打开系统设置") }}</button>
+        <button v-if="showRetry" type="button" class="retry-button" @click="retryKeyboardMonitor">{{ $t("重新检测") }}</button>
       </p>
       <label class="setting-row">
-        <span><strong>键盘历史窗口</strong><small>显示独立键位历史窗口；关闭不影响键盘活动驱动桌宠状态。</small></span>
+        <span><strong>{{ $t("键盘历史窗口") }}</strong><small>{{ $t("显示独立键位历史窗口；关闭不影响键盘活动驱动桌宠状态。") }}</small></span>
         <input class="toggle" type="checkbox" :checked="settings.input.keyDisplayEnabled && settings.windows.keyboardHistoryWindowEnabled" @change="updateHistoryWindow" />
       </label>
       <label class="setting-row">
-        <span><strong>鼠标穿透</strong><small>开启后不能拖动窗口，可在控制中心关闭。</small></span>
+        <span><strong>{{ $t("点击穿透") }}</strong><small>{{ $t("开启后不能拖动窗口，可在控制中心关闭。") }}</small></span>
         <input class="toggle" type="checkbox" :checked="settings.windows.keyboardHistoryClickThrough" :disabled="!settings.input.keyDisplayEnabled || !settings.windows.keyboardHistoryWindowEnabled" @change="updateWindowBoolean('keyboardHistoryClickThrough', $event)" />
       </label>
     </article>
 
     <article>
-      <div class="section-heading"><h3>Keyboard History</h3><p>当前运行期的Chord与短时记录显示。</p></div>
+      <div class="section-heading"><h3>{{ $t("键盘历史") }}</h3><p>{{ $t("显示当前按键组合与短时记录。") }}</p></div>
       <label class="setting-row scale-row">
-        <span><strong>同时显示数量</strong><small>保留最新1～8条。</small></span>
+        <span><strong>{{ $t("同时显示数量") }}</strong><small>{{ $t("保留最新 1～8 条。") }}</small></span>
         <div class="scale-control"><input type="range" min="1" max="8" step="1" :value="settings.input.keyDisplayMaxItems" @input="updateNumber('keyDisplayMaxItems', $event)" /><output>{{ settings.input.keyDisplayMaxItems }}</output></div>
       </label>
       <label class="setting-row">
-        <span><strong>Permanent</strong><small>本次运行期间保留，仍受数量限制。</small></span>
+        <span><strong>{{ $t("永久显示") }}</strong><small>{{ $t("本次运行期间保留，仍受数量限制。") }}</small></span>
         <input class="toggle" type="checkbox" :checked="settings.input.keyDisplayPersistent" @change="updateBoolean('keyDisplayPersistent', $event)" />
       </label>
       <label class="setting-row scale-row">
-        <span><strong>自动消失时间</strong><small>Permanent开启时暂停计时。</small></span>
+        <span><strong>{{ $t("自动消失时间") }}</strong><small>{{ $t("永久显示开启时暂停计时。") }}</small></span>
         <div class="scale-control"><input type="range" min="500" max="10000" step="500" :value="settings.input.keyDisplayDurationMs" :disabled="settings.input.keyDisplayPersistent" @input="updateNumber('keyDisplayDurationMs', $event)" /><output>{{ durationSeconds }}s</output></div>
       </label>
       <label class="setting-row">
-        <span><strong>Position</strong><small>决定History相对桌宠的基础锚点。</small></span>
-        <select class="select-control" :value="settings.input.keyDisplayPosition" @change="updatePosition"><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option></select>
+        <span><strong>{{ $t("方位") }}</strong><small>{{ $t("决定窗口相对桌宠的基础锚点。") }}</small></span>
+        <select class="select-control" :value="settings.input.keyDisplayPosition" @change="updatePosition"><option value="top">{{ $t("上") }}</option><option value="bottom">{{ $t("下") }}</option><option value="left">{{ $t("左") }}</option><option value="right">{{ $t("右") }}</option></select>
       </label>
       <label class="setting-row">
-        <span><strong>Flow Direction</strong><small>独立控制旧记录被推动的方向。</small></span>
-        <select class="select-control" :value="settings.input.keyDisplayFlowDirection" @change="updateFlow"><option value="auto">Auto（远离桌宠）</option><option value="up">Up ↑</option><option value="down">Down ↓</option><option value="left">Left ←</option><option value="right">Right →</option></select>
+        <span><strong>{{ $t("流动方向") }}</strong><small>{{ $t("独立控制旧记录被推动的方向。") }}</small></span>
+        <select class="select-control" :value="settings.input.keyDisplayFlowDirection" @change="updateFlow"><option value="auto">{{ $t("自动（远离桌宠）") }}</option><option value="up">{{ $t("向上") }}</option><option value="down">{{ $t("向下") }}</option><option value="left">{{ $t("向左") }}</option><option value="right">{{ $t("向右") }}</option></select>
       </label>
     </article>
 
     <article>
-      <div class="section-heading"><h3>Start Line</h3><p>拖动起始线可以调整History原点。</p></div>
+      <div class="section-heading"><h3>{{ $t("起始线") }}</h3><p>{{ $t("拖动起始线可以调整键盘历史原点。") }}</p></div>
       <label class="setting-row scale-row">
-        <span><strong>起始线与键位间距</strong><small>0～80px，只移动Entries。</small></span>
+        <span><strong>{{ $t("起始线与键位间距") }}</strong><small>{{ $t("0～80 px，只移动按键条目。") }}</small></span>
         <div class="scale-control"><input type="range" min="0" max="80" step="1" :value="settings.input.keyDisplayStartLineGapPx" @input="updateNumber('keyDisplayStartLineGapPx', $event)" /><output>{{ settings.input.keyDisplayStartLineGapPx }} px</output></div>
       </label>
       <label class="setting-row">
-        <span><strong>起始线颜色</strong></span>
+        <span><strong>{{ $t("起始线颜色") }}</strong></span>
         <div class="color-control"><input type="color" :value="settings.input.keyDisplayStartLineColor" @input="updateLineColor" /><code>{{ settings.input.keyDisplayStartLineColor }}</code></div>
       </label>
       <label class="setting-row scale-row">
-        <span><strong>起始线透明度</strong><small>0%时透明拖动区域仍然可用。</small></span>
+        <span><strong>{{ $t("起始线透明度") }}</strong><small>{{ $t("透明度为 0% 时拖动区域仍然可用。") }}</small></span>
         <div class="scale-control"><input type="range" min="0" max="100" step="5" :value="lineOpacityPercent" @input="updateLineOpacity" /><output>{{ lineOpacityPercent }}%</output></div>
       </label>
-      <div class="setting-row"><span><strong>键盘窗口位置</strong><small>按 Position 重新放到桌宠四周。</small></span><button type="button" @click="resetPosition">重置键盘窗口位置</button></div>
+      <div class="setting-row"><span><strong>{{ $t("键盘窗口位置") }}</strong><small>{{ $t("按所选方位重新放到当前默认位置。") }}</small></span><button type="button" @click="resetPosition">{{ $t("重置键盘窗口位置") }}</button></div>
     </article>
   </div>
 </template>

@@ -165,8 +165,8 @@ function testSettings(normalizeSettings) {
   const defaults = normalizeSettings({}).input;
   assert.equal(defaults.mouseVisualizerEnabled, false);
   assert.equal(defaults.mouseVisualizerPosition, "left");
-  assert.equal(defaults.mouseVisualizerOffsetX, 0);
-  assert.equal(defaults.mouseVisualizerOffsetY, 0);
+  assert.equal(defaults.mouseVisualizerOffsetX, 272);
+  assert.equal(defaults.mouseVisualizerOffsetY, 159);
   assert.equal(defaults.mouseVisualizerBodyColor, "#F4F0FA");
   assert.equal(defaults.mouseVisualizerBodyOpacity, 0.3);
   assert.equal(defaults.mouseVisualizerButtonColor, "#FFFFFF");
@@ -208,7 +208,12 @@ function testSettings(normalizeSettings) {
   assert.equal(
     normalizeSettings({ input: { mouseVisualizerOffsetX: Number.NaN } })
       .input.mouseVisualizerOffsetX,
-    0,
+      272,
+  );
+  assert.equal(
+    normalizeSettings({ input: { mouseVisualizerOffsetY: Number.NaN } })
+      .input.mouseVisualizerOffsetY,
+    159,
   );
   assert.equal(
     normalizeSettings({ input: { mouseVisualizerBodyOpacity: Number.NaN } })

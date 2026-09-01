@@ -4,6 +4,7 @@ import type { PetRuntimeSnapshot } from "../pet/runtimeStatus";
 import { formatNetworkRate } from "../system/formatNetworkRate";
 import { formatBytes } from "../system/formatBytes";
 import type { InputSettingsTabId, SettingsTabId } from "./settingsNavigation";
+import { currentLocaleTag, translate } from "../i18n";
 
 const props = defineProps<{
   snapshot?: PetRuntimeSnapshot;
@@ -38,7 +39,7 @@ const storageUsage = computed(() =>
 );
 const batteryCharge = computed(() => {
   if (props.snapshot?.batteryState === "unavailable") {
-    return "No Battery";
+    return translate("没有电池");
   }
   return props.snapshot?.batteryPercent === undefined
     ? "—"
@@ -46,68 +47,68 @@ const batteryCharge = computed(() => {
 });
 const batteryStateText = computed(() => {
   const state = props.snapshot?.batteryState ?? "disabled";
-  const labels: Record<typeof state, string> = {
-    disabled: "Disabled",
-    charging: "Charging",
-    discharging: "Discharging",
-    full: "Full",
-    unknown: "Unknown",
-    unavailable: "No Battery",
-    error: "Error",
+  const labels: Record<typeof state, Parameters<typeof translate>[0]> = {
+    disabled: "已停用",
+    charging: "充电中",
+    discharging: "放电中",
+    full: "已充满",
+    unknown: "未知",
+    unavailable: "没有电池",
+    error: "错误",
   };
-  return labels[state];
+  return translate(labels[state]);
 });
 const cpuLifecycleStatus = computed(() =>
-  props.snapshot?.cpuMonitoring ? "Active" : "Disabled",
+  translate(props.snapshot?.cpuMonitoring ? "已启用" : "已停用"),
 );
 const memoryLifecycleStatus = computed(() =>
-  props.snapshot?.memoryMonitoring ? "Active" : "Disabled",
+  translate(props.snapshot?.memoryMonitoring ? "已启用" : "已停用"),
 );
 const networkLifecycleStatus = computed(() => {
   switch (props.snapshot?.networkStatus) {
     case "active":
-      return "Active";
+      return translate("已启用");
     case "warming":
-      return "Warming";
+      return translate("等待首次采样");
     case "error":
-      return "Error";
+      return translate("错误");
     default:
-      return "Disabled";
+      return translate("已停用");
   }
 });
 const storageLifecycleStatus = computed(() => {
   switch (props.snapshot?.storageStatus) {
     case "active":
-      return "Active";
+      return translate("已启用");
     case "error":
-      return "Error";
+      return translate("错误");
     default:
-      return "Disabled";
+      return translate("已停用");
   }
 });
 const batteryLifecycleStatus = computed(() => {
   switch (props.snapshot?.batteryState) {
     case "unavailable":
-      return "Unavailable";
+      return translate("不可用");
     case "error":
-      return "Error";
+      return translate("错误");
     case "disabled":
     case undefined:
-      return "Disabled";
+      return translate("已停用");
     default:
-      return props.snapshot?.batteryMonitoring ? "Active" : "Disabled";
+      return translate(props.snapshot?.batteryMonitoring ? "已启用" : "已停用");
   }
 });
 const keyboardLifecycleStatus = computed(() => {
-  const labels: Record<NonNullable<PetRuntimeSnapshot["keyboardStatus"]>, string> = {
-    disabled: "Disabled",
-    starting: "Starting",
-    "permission-required": "Permission Required",
-    active: "Active",
-    error: "Error",
-    unsupported: "Unsupported",
+  const labels: Record<NonNullable<PetRuntimeSnapshot["keyboardStatus"]>, Parameters<typeof translate>[0]> = {
+    disabled: "已停用",
+    starting: "正在启动",
+    "permission-required": "需要权限",
+    active: "已启用",
+    error: "错误",
+    unsupported: "不支持",
   };
-  return labels[props.snapshot?.keyboardStatus ?? "disabled"];
+  return translate(labels[props.snapshot?.keyboardStatus ?? "disabled"]);
 });
 const pressedKeysText = computed(() =>
   props.snapshot?.pressedKeys.length
@@ -119,19 +120,19 @@ const lastKeyboardActivity = computed(() => {
   if (timestamp === undefined) {
     return "—";
   }
-  return new Intl.DateTimeFormat(undefined, { timeStyle: "medium" })
+  return new Intl.DateTimeFormat(currentLocaleTag.value, { timeStyle: "medium" })
     .format(new Date(timestamp));
 });
 const mouseLifecycleStatus = computed(() => {
-  const labels: Record<NonNullable<PetRuntimeSnapshot["mouseStatus"]>, string> = {
-    disabled: "Disabled",
-    starting: "Starting",
-    "permission-required": "Permission Required",
-    active: "Active",
-    error: "Error",
-    unsupported: "Unsupported",
+  const labels: Record<NonNullable<PetRuntimeSnapshot["mouseStatus"]>, Parameters<typeof translate>[0]> = {
+    disabled: "已停用",
+    starting: "正在启动",
+    "permission-required": "需要权限",
+    active: "已启用",
+    error: "错误",
+    unsupported: "不支持",
   };
-  return labels[props.snapshot?.mouseStatus ?? "disabled"];
+  return translate(labels[props.snapshot?.mouseStatus ?? "disabled"]);
 });
 const pressedMouseButtonsText = computed(() =>
   props.snapshot?.pressedMouseButtons.length
@@ -144,8 +145,8 @@ const lastMouseInput = computed(() => {
     && props.snapshot.lastScrollAt === props.snapshot.lastMouseActivityAt
   ) {
     return props.snapshot.lastScrollDirection
-      ? `Scroll ${capitalize(props.snapshot.lastScrollDirection)}`
-      : "Scroll";
+      ? `${translate("滚轮")} ${formatDirection(props.snapshot.lastScrollDirection)}`
+      : translate("滚轮");
   }
   return props.snapshot?.lastMouseButton
     ? formatMouseButton(props.snapshot.lastMouseButton)
@@ -156,24 +157,48 @@ const lastMouseActivity = computed(() => {
   if (timestamp === undefined) {
     return "—";
   }
-  return new Intl.DateTimeFormat(undefined, { timeStyle: "medium" })
+  return new Intl.DateTimeFormat(currentLocaleTag.value, { timeStyle: "medium" })
     .format(new Date(timestamp));
 });
 
-function capitalize(value: string): string {
-  return `${value.slice(0, 1).toUpperCase()}${value.slice(1)}`;
+function formatDirection(value: string): string {
+  const labels: Record<string, Parameters<typeof translate>[0]> = {
+    up: "向上",
+    down: "向下",
+    left: "向左",
+    right: "向右",
+  };
+  return labels[value] ? translate(labels[value]) : value;
 }
 
 function formatMouseButton(button: string): string {
-  const labels: Record<string, string> = {
-    left: "Left",
-    right: "Right",
-    middle: "Middle",
-    mouse4: "Mouse4",
-    mouse5: "Mouse5",
-    other: "Other",
+  const labels: Record<string, Parameters<typeof translate>[0]> = {
+    left: "左键",
+    right: "右键",
+    middle: "中键",
+    mouse4: "鼠标侧键 4",
+    mouse5: "鼠标侧键 5",
+    other: "其他",
   };
-  return labels[button] ?? button;
+  return labels[button] ? translate(labels[button]) : button;
+}
+
+function formatRuntimeState(value: string | undefined): string {
+  const labels: Record<string, Parameters<typeof translate>[0]> = {
+    idle: "空闲",
+    happy: "开心",
+    sleep: "睡眠",
+    tired: "疲惫",
+    alert: "警觉",
+    working: "工作中",
+    dragging: "拖动中",
+    playing: "播放中",
+    paused: "已暂停",
+    normal: "正常",
+    high: "高负载",
+    disabled: "已停用",
+  };
+  return value && labels[value] ? translate(labels[value]) : value ?? "—";
 }
 
 </script>
@@ -182,61 +207,61 @@ function formatMouseButton(button: string): string {
   <section class="status-page">
     <header>
       <div>
-        <p class="eyebrow">Desktop Pet</p>
-        <h2>当前状态</h2>
+        <p class="eyebrow">{{ $t("桌宠") }}</p>
+        <h2>{{ $t("当前状态") }}</h2>
       </div>
       <span class="connection" :class="{ connected }">
-        {{ connected ? "已连接桌宠" : "等待桌宠窗口" }}
+        {{ connected ? $t("已连接桌宠") : $t("等待桌宠窗口") }}
       </span>
     </header>
 
     <div class="status-grid">
       <article>
-        <span>当前状态</span>
-        <strong>{{ snapshot?.state ?? "—" }}</strong>
+        <span>{{ $t("当前状态") }}</span>
+        <strong>{{ formatRuntimeState(snapshot?.state) }}</strong>
       </article>
       <article>
-        <span>动画状态</span>
-        <strong>{{ snapshot?.animationStatus ?? "—" }}</strong>
+        <span>{{ $t("动画状态") }}</span>
+        <strong>{{ formatRuntimeState(snapshot?.animationStatus) }}</strong>
       </article>
       <article class="wide">
-        <span>最近显示文本</span>
-        <strong>{{ snapshot?.lastText || "尚未显示" }}</strong>
+        <span>{{ $t("最近显示文本") }}</span>
+        <strong>{{ snapshot?.lastText || $t("尚未显示") }}</strong>
       </article>
     </div>
 
     <section class="cpu-panel monitor-panel">
       <div class="monitor-panel__heading">
         <div>
-          <p class="eyebrow">System Monitor / CPU</p>
-          <h3>真实系统 CPU</h3>
+          <p class="eyebrow">{{ $t("系统监控") }} / CPU</p>
+          <h3>{{ $t("真实系统 CPU") }}</h3>
         </div>
         <button
-          v-if="cpuLifecycleStatus === 'Disabled'"
+          v-if="!snapshot?.cpuMonitoring"
           class="secondary"
           type="button"
           @click="emit('openSettings', 'system')"
         >
-          前往设置
+          {{ $t("前往设置") }}
         </button>
       </div>
       <div class="cpu-grid">
         <article>
-          <span>CPU Usage</span>
+          <span>CPU {{ $t("使用率") }}</span>
           <strong>{{ cpuUsage }}</strong>
         </article>
         <article>
-          <span>CPU Condition</span>
+          <span>CPU {{ $t("状态") }}</span>
           <strong :class="{ high: snapshot?.cpuStatus === 'high' }">
-            {{ snapshot?.cpuStatus ?? "disabled" }}
+            {{ formatRuntimeState(snapshot?.cpuStatus) }}
           </strong>
         </article>
         <article>
-          <span>CPU Threshold</span>
+          <span>CPU {{ $t("阈值") }}</span>
           <strong>{{ snapshot?.cpuHighThreshold ?? 80 }}%</strong>
         </article>
         <article>
-          <span>Status</span>
+          <span>{{ $t("状态") }}</span>
           <strong>{{ cpuLifecycleStatus }}</strong>
         </article>
       </div>
@@ -245,47 +270,47 @@ function formatMouseButton(button: string): string {
     <section class="memory-panel monitor-panel">
       <div class="monitor-panel__heading">
         <div>
-          <p class="eyebrow">System Monitor / Memory</p>
-          <h3>真实系统内存</h3>
+          <p class="eyebrow">{{ $t("系统监控") }} / {{ $t("内存") }}</p>
+          <h3>{{ $t("真实系统内存") }}</h3>
         </div>
         <button
-          v-if="memoryLifecycleStatus === 'Disabled'"
+          v-if="!snapshot?.memoryMonitoring"
           class="secondary"
           type="button"
           @click="emit('openSettings', 'system')"
         >
-          前往设置
+          {{ $t("前往设置") }}
         </button>
       </div>
       <div class="memory-grid">
         <article>
-          <span>Memory Usage</span>
+          <span>{{ $t("内存") }} {{ $t("使用率") }}</span>
           <strong>{{ memoryUsage }}</strong>
         </article>
         <article>
-          <span>Used</span>
+          <span>{{ $t("已使用") }}</span>
           <strong>{{ formatBytes(snapshot?.memoryUsedBytes) }}</strong>
         </article>
         <article>
-          <span>Available</span>
+          <span>{{ $t("可用") }}</span>
           <strong>{{ formatBytes(snapshot?.memoryAvailableBytes) }}</strong>
         </article>
         <article>
-          <span>Total</span>
+          <span>{{ $t("总计") }}</span>
           <strong>{{ formatBytes(snapshot?.memoryTotalBytes) }}</strong>
         </article>
         <article>
-          <span>Memory Condition</span>
+          <span>{{ $t("内存") }} {{ $t("状态") }}</span>
           <strong :class="{ high: snapshot?.memoryStatus === 'high' }">
-            {{ snapshot?.memoryStatus ?? "disabled" }}
+            {{ formatRuntimeState(snapshot?.memoryStatus) }}
           </strong>
         </article>
         <article>
-          <span>Memory Threshold</span>
+          <span>{{ $t("内存") }} {{ $t("阈值") }}</span>
           <strong>{{ snapshot?.memoryHighThreshold ?? 85 }}%</strong>
         </article>
         <article>
-          <span>Status</span>
+          <span>{{ $t("状态") }}</span>
           <strong>{{ memoryLifecycleStatus }}</strong>
         </article>
       </div>
@@ -294,29 +319,29 @@ function formatMouseButton(button: string): string {
     <section class="network-panel monitor-panel">
       <div class="monitor-panel__heading">
         <div>
-          <p class="eyebrow">System Monitor / Network</p>
-          <h3>真实系统网络吞吐</h3>
+          <p class="eyebrow">{{ $t("系统监控") }} / {{ $t("网络") }}</p>
+          <h3>{{ $t("真实系统网络吞吐") }}</h3>
         </div>
         <button
-          v-if="networkLifecycleStatus === 'Disabled'"
+          v-if="snapshot?.networkStatus !== 'active'"
           class="secondary"
           type="button"
           @click="emit('openSettings', 'system')"
         >
-          前往设置
+          {{ $t("前往设置") }}
         </button>
       </div>
       <div class="network-grid">
         <article>
-          <span>Download</span>
+          <span>{{ $t("下载") }}</span>
           <strong>{{ networkDownload }}</strong>
         </article>
         <article>
-          <span>Upload</span>
+          <span>{{ $t("上传") }}</span>
           <strong>{{ networkUpload }}</strong>
         </article>
         <article>
-          <span>Status</span>
+          <span>{{ $t("状态") }}</span>
           <strong>{{ networkLifecycleStatus }}</strong>
         </article>
       </div>
@@ -325,37 +350,37 @@ function formatMouseButton(button: string): string {
     <section class="storage-panel monitor-panel">
       <div class="monitor-panel__heading">
         <div>
-          <p class="eyebrow">System Monitor / Storage</p>
-          <h3>真实系统卷储存空间</h3>
+          <p class="eyebrow">{{ $t("系统监控") }} / {{ $t("储存") }}</p>
+          <h3>{{ $t("真实系统卷储存空间") }}</h3>
         </div>
         <button
-          v-if="storageLifecycleStatus === 'Disabled'"
+          v-if="snapshot?.storageStatus !== 'active'"
           class="secondary"
           type="button"
           @click="emit('openSettings', 'system')"
         >
-          前往设置
+          {{ $t("前往设置") }}
         </button>
       </div>
       <div class="storage-grid">
         <article>
-          <span>Usage</span>
+          <span>{{ $t("使用率") }}</span>
           <strong>{{ storageUsage }}</strong>
         </article>
         <article>
-          <span>Used</span>
+          <span>{{ $t("已使用") }}</span>
           <strong>{{ formatBytes(snapshot?.storageUsedBytes) }}</strong>
         </article>
         <article>
-          <span>Available</span>
+          <span>{{ $t("可用") }}</span>
           <strong>{{ formatBytes(snapshot?.storageAvailableBytes) }}</strong>
         </article>
         <article>
-          <span>Total</span>
+          <span>{{ $t("总计") }}</span>
           <strong>{{ formatBytes(snapshot?.storageTotalBytes) }}</strong>
         </article>
         <article>
-          <span>Status</span>
+          <span>{{ $t("状态") }}</span>
           <strong>{{ storageLifecycleStatus }}</strong>
         </article>
       </div>
@@ -364,33 +389,33 @@ function formatMouseButton(button: string): string {
     <section class="battery-panel monitor-panel">
       <div class="monitor-panel__heading">
         <div>
-          <p class="eyebrow">System Monitor / Battery</p>
-          <h3>真实系统电池</h3>
+          <p class="eyebrow">{{ $t("系统监控") }} / {{ $t("电池") }}</p>
+          <h3>{{ $t("真实系统电池") }}</h3>
         </div>
         <button
-          v-if="batteryLifecycleStatus === 'Disabled'"
+          v-if="!snapshot?.batteryMonitoring"
           class="secondary"
           type="button"
           @click="emit('openSettings', 'system')"
         >
-          前往设置
+          {{ $t("前往设置") }}
         </button>
       </div>
       <div class="battery-grid">
         <article>
-          <span>Charge</span>
+          <span>{{ $t("电量") }}</span>
           <strong>{{ batteryCharge }}</strong>
         </article>
         <article>
-          <span>State</span>
+          <span>{{ $t("电池状态") }}</span>
           <strong>{{ batteryStateText }}</strong>
         </article>
         <article>
-          <span>Present</span>
-          <strong>{{ snapshot?.batteryPresent ? "Yes" : "No" }}</strong>
+          <span>{{ $t("是否存在") }}</span>
+          <strong>{{ snapshot?.batteryPresent ? $t("是") : $t("否") }}</strong>
         </article>
         <article>
-          <span>Status</span>
+          <span>{{ $t("状态") }}</span>
           <strong>{{ batteryLifecycleStatus }}</strong>
         </article>
       </div>
@@ -399,40 +424,40 @@ function formatMouseButton(button: string): string {
     <section class="keyboard-panel monitor-panel">
       <div class="monitor-panel__heading">
         <div>
-          <p class="eyebrow">Input Monitor / Keyboard</p>
-          <h3>全局键盘监听</h3>
+          <p class="eyebrow">{{ $t("输入感知") }} / {{ $t("键盘") }}</p>
+          <h3>{{ $t("全局键盘监听") }}</h3>
         </div>
         <div class="monitor-panel__actions">
           <strong>{{ keyboardLifecycleStatus }}</strong>
-          <button v-if="snapshot?.keyboardStatus !== 'active'" class="secondary" type="button" @click="emit('openSettings', 'input', 'keyboard')">前往设置</button>
+          <button v-if="snapshot?.keyboardStatus !== 'active'" class="secondary" type="button" @click="emit('openSettings', 'input', 'keyboard')">{{ $t("前往设置") }}</button>
         </div>
       </div>
       <p
         v-if="snapshot?.keyboardStatus === 'permission-required'"
         class="permission-note"
       >
-        需要在 macOS 系统设置 → 隐私与安全性 → 输入监听中允许 withXiaoyu12。
+        {{ $t("需要在 macOS 系统设置中允许输入监听。") }}
       </p>
       <p v-else-if="snapshot?.keyboardMessage" class="permission-note">
         {{ snapshot.keyboardMessage }}
       </p>
       <div class="keyboard-grid">
         <article>
-          <span>Pressed Keys</span>
+          <span>{{ $t("当前按键") }}</span>
           <strong>{{ pressedKeysText }}</strong>
         </article>
         <article>
-          <span>Last Key</span>
+          <span>{{ $t("最近按键") }}</span>
           <strong>{{ snapshot?.lastKey ?? "—" }}</strong>
         </article>
         <article>
-          <span>Last Activity</span>
+          <span>{{ $t("最近活动") }}</span>
           <strong>{{ lastKeyboardActivity }}</strong>
         </article>
         <article>
-          <span>Activity State</span>
+          <span>{{ $t("活动状态") }}</span>
           <strong>
-            {{ snapshot?.keyboardActivityStatus === "active" ? "Active" : "Idle" }}
+            {{ snapshot?.keyboardActivityStatus === "active" ? $t("活跃") : $t("空闲") }}
           </strong>
         </article>
       </div>
@@ -441,39 +466,39 @@ function formatMouseButton(button: string): string {
     <section class="keyboard-panel monitor-panel">
       <div class="monitor-panel__heading">
         <div>
-          <p class="eyebrow">Input Monitor / Mouse</p>
-          <h3>全局鼠标监听</h3>
+          <p class="eyebrow">{{ $t("输入感知") }} / {{ $t("鼠标") }}</p>
+          <h3>{{ $t("全局鼠标监听") }}</h3>
         </div>
         <div class="monitor-panel__actions">
           <strong>{{ mouseLifecycleStatus }}</strong>
-          <button v-if="snapshot?.mouseStatus !== 'active'" class="secondary" type="button" @click="emit('openSettings', 'input', 'mouse')">前往设置</button>
+          <button v-if="snapshot?.mouseStatus !== 'active'" class="secondary" type="button" @click="emit('openSettings', 'input', 'mouse')">{{ $t("前往设置") }}</button>
         </div>
       </div>
       <p
         v-if="snapshot?.mouseStatus === 'permission-required'"
         class="permission-note"
       >
-        需要在 macOS 系统设置 → 隐私与安全性 → 输入监听中允许 withXiaoyu12。
+        {{ $t("需要在 macOS 系统设置中允许输入监听。") }}
       </p>
       <p v-else-if="snapshot?.mouseMessage" class="permission-note">
         {{ snapshot.mouseMessage }}
       </p>
       <div class="keyboard-grid">
         <article>
-          <span>Pressed Buttons</span>
+          <span>{{ $t("当前按键按钮") }}</span>
           <strong>{{ pressedMouseButtonsText }}</strong>
         </article>
         <article>
-          <span>Last Mouse Input</span>
+          <span>{{ $t("最近鼠标输入") }}</span>
           <strong>{{ lastMouseInput }}</strong>
         </article>
         <article>
-          <span>Last Activity</span>
+          <span>{{ $t("最近活动") }}</span>
           <strong>{{ lastMouseActivity }}</strong>
         </article>
         <article>
-          <span>Tracking</span>
-          <strong>Buttons + Scroll Only</strong>
+          <span>{{ $t("监听范围") }}</span>
+          <strong>{{ $t("仅按键与滚轮") }}</strong>
         </article>
       </div>
     </section>

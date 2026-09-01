@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import appIconUrl from "../../src-tauri/icons/app-icon.png";
+import {
+  currentLanguage,
+  LANGUAGE_OPTIONS,
+  setLanguage,
+  translate,
+} from "../i18n";
+import type { AppLanguage } from "./settingsTypes";
 import type { PetControlAction } from "../pet/petControl";
 import {
   CONTROL_CENTER_DESTINATIONS,
@@ -79,7 +87,7 @@ function canLeaveActivePage(): boolean {
   if (!(page in dirtyPages) || !dirtyPages[page as keyof typeof dirtyPages]) {
     return true;
   }
-  if (!window.confirm("当前页面有未保存修改，确定离开并放弃修改吗？")) {
+  if (!window.confirm(translate("当前页面有未保存修改，确定离开并放弃修改吗？"))) {
     return false;
   }
   dirtyPages[page as keyof typeof dirtyPages] = false;
@@ -110,6 +118,10 @@ function scrollContentToTop(): void {
   requestAnimationFrame(() => contentElement.value?.scrollTo({ top: 0 }));
 }
 
+function updateLanguage(event: Event): void {
+  setLanguage((event.target as HTMLSelectElement).value as AppLanguage);
+}
+
 </script>
 
 <template>
@@ -118,51 +130,63 @@ function scrollContentToTop(): void {
     <div class="control-center__background-image" :style="backgroundImageStyle" />
     <aside>
       <div class="brand">
-        <span class="brand__mark">12</span>
+        <img class="brand__mark" :src="appIconUrl" alt="withXiaoyu12" />
         <div>
           <strong>withXiaoyu12</strong>
-          <small>控制中心</small>
+          <small>v0.4.5</small>
         </div>
       </div>
 
-      <nav aria-label="控制中心页面">
+      <nav :aria-label="$t('控制中心页面')">
         <button
           type="button"
           :class="{ active: activePage === 'status' }"
           @click="navigatePage('status')"
         >
-          当前状态
+          {{ $t("当前状态") }}
         </button>
         <button
           type="button"
           :class="{ active: activePage === 'states' }"
           @click="navigatePage('states')"
         >
-          状态与动画
+          {{ $t("状态与动画") }}
         </button>
         <button
           type="button"
           :class="{ active: activePage === 'dialogue' }"
           @click="navigatePage('dialogue')"
         >
-          Dialogue 编辑
+          {{ $t("对话编辑") }}
         </button>
         <button
           type="button"
           :class="{ active: activePage === 'reminders' }"
           @click="navigatePage('reminders')"
         >
-          提醒
+          {{ $t("提醒") }}
         </button>
         <button
           type="button"
           :class="{ active: activePage === 'settings' }"
           @click="openSettings('general')"
         >
-          设置
+          {{ $t("设置") }}
         </button>
       </nav>
 
+      <label class="language-picker">
+        <span>{{ $t("语言") }}</span>
+        <select :value="currentLanguage" @change="updateLanguage">
+          <option
+            v-for="option in LANGUAGE_OPTIONS"
+            :key="option.value"
+            :value="option.value"
+          >
+            {{ option.label }}
+          </option>
+        </select>
+      </label>
     </aside>
 
     <div ref="contentElement" class="control-center__content">
@@ -242,14 +266,11 @@ aside {
 }
 
 .brand__mark {
-  display: grid;
   width: 38px;
   height: 38px;
-  font-size: 12px;
-  font-weight: 800;
-  background: var(--cc-accent);
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 11px;
-  place-items: center;
 }
 
 .brand > div {
@@ -287,6 +308,32 @@ nav button:hover,
 nav button.active {
   color: var(--cc-sidebar-active-text);
   background: var(--cc-sidebar-active-background);
+}
+
+.language-picker {
+  display: grid;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.language-picker span {
+  color: var(--cc-sidebar-text);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.language-picker select {
+  width: 100%;
+  padding: 8px 10px;
+  color: var(--cc-sidebar-active-text);
+  font: inherit;
+  font-size: 12px;
+  background: color-mix(in srgb, var(--cc-sidebar-active-background) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cc-sidebar-active-text) 22%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .control-center__content {

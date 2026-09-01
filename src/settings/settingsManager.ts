@@ -7,6 +7,7 @@ import { settingsStorage } from "./settingsStorage";
 import { SYSTEM_STATUS_ITEM_IDS } from "../system/statusItems";
 import type { SystemStatusItemId } from "../system/statusItems";
 import type {
+  AppLanguage,
   DesktopPetSettings,
   SettingsPatch,
   SettingsSection,
@@ -86,6 +87,7 @@ function updateSetting<
 function update(patch: SettingsPatch): void {
   settings.value = normalizeSettings({
     ...settings.value,
+    general: { ...settings.value.general, ...patch.general },
     appearance: { ...settings.value.appearance, ...patch.appearance },
     dialogue: { ...settings.value.dialogue, ...patch.dialogue },
     animation: { ...settings.value.animation, ...patch.animation },
@@ -164,6 +166,7 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
   }
 
   const appearance = isRecord(value.appearance) ? value.appearance : {};
+  const general = isRecord(value.general) ? value.general : {};
   const dialogue = isRecord(value.dialogue) ? value.dialogue : {};
   const animation = isRecord(value.animation) ? value.animation : {};
   const systemMonitor = isRecord(value.systemMonitor) ? value.systemMonitor : {};
@@ -180,6 +183,12 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
 
   return {
     schemaVersion: 1,
+    general: {
+      language: languageOrDefault(
+        general.language,
+        DEFAULT_SETTINGS.general.language,
+      ),
+    },
     appearance: {
       petScale: clampNumber(
         appearance.petScale,
@@ -630,6 +639,12 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
       ),
     },
   };
+}
+
+function languageOrDefault(value: unknown, fallback: AppLanguage): AppLanguage {
+  return value === "zh-CN" || value === "en" || value === "ja"
+    ? value
+    : fallback;
 }
 
 function backgroundReferenceOrDefault(value: unknown): string | null {

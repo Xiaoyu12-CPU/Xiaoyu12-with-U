@@ -97,10 +97,10 @@ function createDrafts(
   <section class="dialogue-editor">
     <header>
       <div>
-        <p class="eyebrow">Dialogue Manager</p>
-        <h2>Dialogue 编辑</h2>
+        <p class="eyebrow">{{ $t("对话管理") }}</p>
+        <h2>{{ $t("对话编辑") }}</h2>
       </div>
-      <span>保存为本地 JSON</span>
+      <span>{{ $t("保存为本地 JSON") }}</span>
     </header>
 
     <p v-if="storageError" class="error">{{ storageError }}</p>
@@ -110,10 +110,10 @@ function createDrafts(
         <div class="event-heading">
           <div>
             <code>{{ eventType }}</code>
-            <small>{{ drafts[eventType].length }} 条候选文本</small>
+            <small>{{ $t("候选文本数量", { count: drafts[eventType].length }) }}</small>
           </div>
           <button class="secondary" type="button" @click="testEvent(eventType)">
-            测试
+            {{ $t("测试") }}
           </button>
         </div>
 
@@ -126,34 +126,34 @@ function createDrafts(
             <input
               v-model="drafts[eventType][index]"
               type="text"
-              :aria-label="`${eventType} 候选文本 ${index + 1}`"
+              :aria-label="$t('候选文本标签', { event: eventType, index: index + 1 })"
             />
             <button
               class="remove"
               type="button"
-              aria-label="删除候选文本"
+              :aria-label="$t('删除候选文本')"
               @click="removeText(eventType, index)"
             >
-              删除
+              {{ $t("删除") }}
             </button>
           </div>
           <p v-if="drafts[eventType].length === 0" class="empty">
-            当前事件不会显示文本。
+            {{ $t("当前事件不会显示文本。") }}
           </p>
         </div>
 
         <footer>
           <button class="secondary" type="button" @click="addText(eventType)">
-            新增文本
+            {{ $t("新增文本") }}
           </button>
           <button
             type="button"
             :disabled="savingEvent === eventType"
             @click="saveEvent(eventType)"
           >
-            {{ savingEvent === eventType ? "保存中…" : "保存" }}
+            {{ savingEvent === eventType ? $t("保存中…") : $t("保存") }}
           </button>
-          <span v-if="savedEvent === eventType">已保存</span>
+          <span v-if="savedEvent === eventType">{{ $t("已保存") }}</span>
         </footer>
       </article>
     </div>

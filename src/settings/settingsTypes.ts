@@ -1,6 +1,7 @@
 import type { SystemStatusItemId } from "../system/statusItems";
 
 export type DesktopDisplayMode = "pet-only" | "status-only" | "both";
+export type AppLanguage = "zh-CN" | "en" | "ja";
 
 export interface DesktopWindowSettings {
   systemStatusWindowEnabled: boolean;
@@ -28,6 +29,9 @@ export type KeyDisplayFlowDirection =
 
 export interface DesktopPetSettings {
   schemaVersion: 1;
+  general: {
+    language: AppLanguage;
+  };
   appearance: {
     petScale: number;
     alwaysOnTop: boolean;

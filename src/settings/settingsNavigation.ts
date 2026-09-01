@@ -1,7 +1,7 @@
 export const SETTINGS_TABS = [
-  { id: "general", label: "常规" },
-  { id: "system", label: "系统状态" },
-  { id: "input", label: "输入监控" },
+  { id: "general", label: "通用" },
+  { id: "system", label: "系统与状态窗口" },
+  { id: "input", label: "输入感知" },
   { id: "dialogue", label: "对话与交互" },
   { id: "appearance", label: "控制中心外观" },
 ] as const;

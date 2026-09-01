@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from "vue";
+import { translate } from "../i18n";
 import ControlCenterAppearanceSettings from "./ControlCenterAppearanceSettings.vue";
 import { controlCenterBackgroundManager } from "./controlCenterBackground";
 import DialogueInteractionSettings from "./DialogueInteractionSettings.vue";
@@ -24,7 +25,7 @@ onMounted(() => { void settingsManager.initialize(); });
 function selectTab(tab: SettingsTabId): void { activeTab.value = tab; emit("navigate"); }
 
 async function resetAllSettings(): Promise<void> {
-  if (!window.confirm("恢复应用设置默认值？不会删除提醒、Dialogue、动画资源或已保存的窗口位置。")) {
+  if (!window.confirm(translate("恢复应用设置默认值？不会删除提醒、对话、动画资源或已保存的窗口位置。"))) {
     return;
   }
   const previousBackground = settingsManager.settings.value.controlCenter.backgroundImage;
@@ -40,19 +41,19 @@ async function resetAllSettings(): Promise<void> {
 <template>
   <section class="settings-page">
     <header class="settings-page__header">
-      <div><p class="eyebrow">Application Settings</p><h2>设置</h2></div>
-      <div class="save-state"><span v-if="settingsManager.isSaving.value">自动保存中…</span><span v-else-if="settingsManager.lastSavedAt.value">已自动保存</span><span v-else>加载完成后自动保存</span></div>
+      <div><p class="eyebrow">{{ $t("应用设置") }}</p><h2>{{ $t("设置") }}</h2></div>
+      <div class="save-state"><span v-if="settingsManager.isSaving.value">{{ $t("自动保存中…") }}</span><span v-else-if="settingsManager.lastSavedAt.value">{{ $t("已自动保存") }}</span><span v-else>{{ $t("加载完成后自动保存") }}</span></div>
     </header>
     <p v-if="settingsManager.lastError.value" class="error">{{ settingsManager.lastError.value }}</p>
-    <nav class="settings-tabs" aria-label="设置分类">
-      <button v-for="tab in SETTINGS_TABS" :key="tab.id" type="button" :class="{ active: activeTab === tab.id }" @click="selectTab(tab.id)">{{ tab.label }}</button>
+    <nav class="settings-tabs" :aria-label="$t('设置分类')">
+      <button v-for="tab in SETTINGS_TABS" :key="tab.id" type="button" :class="{ active: activeTab === tab.id }" @click="selectTab(tab.id)">{{ $t(tab.label) }}</button>
     </nav>
     <GeneralSettings v-if="activeTab === 'general'" />
     <SystemSettings v-else-if="activeTab === 'system'" />
     <InputSettings v-else-if="activeTab === 'input'" :initial-tab="props.initialInputTab" :navigation-request="props.navigationRequest" @navigate="emit('navigate')" />
     <DialogueInteractionSettings v-else-if="activeTab === 'dialogue'" />
     <ControlCenterAppearanceSettings v-else />
-    <footer class="settings-page__footer"><p>恢复操作只重置应用设置；不会删除提醒、Dialogue、动画资源或已保存的窗口位置。</p><button type="button" @click="resetAllSettings">恢复应用设置默认值</button></footer>
+    <footer class="settings-page__footer"><p>{{ $t("恢复操作只重置应用设置；不会删除提醒、对话、动画资源或已保存的窗口位置。") }}</p><button type="button" @click="resetAllSettings">{{ $t("恢复应用设置默认值") }}</button></footer>
   </section>
 </template>
 

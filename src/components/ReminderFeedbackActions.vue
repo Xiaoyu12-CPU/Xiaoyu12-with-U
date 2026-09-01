@@ -20,12 +20,12 @@ const showsSnoozeOptions = ref(false);
     @pointerup.stop
   >
     <div class="reminder-actions__primary">
-      <button type="button" @click="emit('dismiss')">完成</button>
+      <button type="button" @click="emit('dismiss')">{{ $t("完成") }}</button>
       <button
         type="button"
         @click="showsSnoozeOptions = !showsSnoozeOptions"
       >
-        稍后提醒
+        {{ $t("稍后提醒") }}
       </button>
     </div>
     <div v-if="showsSnoozeOptions" class="reminder-actions__snooze">
@@ -35,7 +35,7 @@ const showsSnoozeOptions = ref(false);
         type="button"
         @click="emit('snooze', minutes)"
       >
-        {{ minutes }}分钟
+        {{ $t("分钟", { minutes }) }}
       </button>
     </div>
   </div>

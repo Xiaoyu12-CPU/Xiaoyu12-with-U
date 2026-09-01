@@ -4,6 +4,7 @@ import type { PetRuntimeSnapshot } from "../pet/runtimeStatus";
 import type { SystemStatusItemId } from "../system/statusItems";
 import { formatNetworkRate } from "../system/formatNetworkRate";
 import { formatBytePair } from "../system/formatBytes";
+import { translate } from "../i18n";
 
 const props = defineProps<{
   snapshot: PetRuntimeSnapshot;
@@ -69,16 +70,16 @@ const visibleItemSet = computed(() => new Set(props.visibleItems));
 
 const cpuUsageText = computed(() =>
   !props.snapshot.cpuMonitoring
-    ? "未启用"
+    ? translate("未启用")
     : props.snapshot.cpuUsagePercent === undefined
-      ? "采样中…"
+      ? translate("采样中…")
       : `${props.snapshot.cpuUsagePercent.toFixed(1)}%`,
 );
 const memoryUsageText = computed(() =>
   !props.snapshot.memoryMonitoring
-    ? "未启用"
+    ? translate("未启用")
     : props.snapshot.memoryUsagePercent === undefined
-      ? "采样中…"
+      ? translate("采样中…")
       : `${props.snapshot.memoryUsagePercent.toFixed(1)}%`,
 );
 const memoryBytesText = computed(() => {
@@ -98,26 +99,28 @@ const memoryBytesText = computed(() => {
 const networkStatusText = computed(() => {
   switch (props.snapshot.networkStatus) {
     case "warming":
-      return "采样中…";
+      return translate("采样中…");
     case "error":
-      return "读取失败";
+      return translate("读取失败");
     case "active":
       return "";
     default:
-      return "未启用";
+      return translate("未启用");
   }
 });
 const storageUsageText = computed(() => {
   if (props.snapshot.storageStatus === "error") {
-    return "读取失败";
+    return translate("读取失败");
   }
   if (!props.snapshot.storageMonitoring) {
-    return "未启用";
+    return translate("未启用");
   }
   if (props.snapshot.storageUsagePercent === undefined) {
-    return "读取中…";
+    return translate("读取中…");
   }
-  return `${props.snapshot.storageUsagePercent.toFixed(1)}% 已使用`;
+  return translate("使用比例", {
+    percent: props.snapshot.storageUsagePercent.toFixed(1),
+  });
 });
 const storageBytesText = computed(() =>
   formatBytePair(
@@ -127,28 +130,28 @@ const storageBytesText = computed(() =>
 );
 const batteryValueText = computed(() => {
   if (props.snapshot.batteryState === "unavailable") {
-    return "无电池";
+    return translate("无电池");
   }
   if (props.snapshot.batteryState === "error") {
-    return "读取失败";
+    return translate("读取失败");
   }
   if (!props.snapshot.batteryMonitoring) {
-    return "未启用";
+    return translate("未启用");
   }
   return props.snapshot.batteryPercent === undefined
-    ? "读取中…"
+    ? translate("读取中…")
     : `${Math.round(props.snapshot.batteryPercent)}%`;
 });
 const batteryStateText = computed(() => {
   switch (props.snapshot.batteryState) {
     case "charging":
-      return "充电中";
+      return translate("充电中");
     case "discharging":
-      return "使用电池";
+      return translate("使用电池");
     case "full":
-      return "已充满";
+      return translate("已充满");
     case "unknown":
-      return "状态未知";
+      return translate("状态未知");
     default:
       return "";
   }
@@ -207,7 +210,7 @@ function toRgba(hexColor: string, opacity: number): string {
     class="system-status-bubble"
     :class="{ 'system-status-bubble--window-drag': windowDragHandle }"
     :style="panelStyle"
-    aria-label="系统状态"
+    :aria-label="$t('系统状态')"
     @pointerdown.stop.prevent="emit('pointerDown', $event)"
     @pointermove.stop.prevent="emit('pointerMove', $event)"
     @pointerup.stop.prevent="emit('pointerUp', $event)"
@@ -216,7 +219,7 @@ function toRgba(hexColor: string, opacity: number): string {
     @contextmenu.stop.prevent="emit('contextMenu', $event)"
   >
     <header>
-      <span>System Status</span>
+      <span>{{ $t("系统状态") }}</span>
       <i aria-hidden="true"></i>
     </header>
 
@@ -236,13 +239,13 @@ function toRgba(hexColor: string, opacity: number): string {
         @pointerup.stop
         @click.stop="emit('openSystemMonitorSettings')"
       >
-        前往设置
+        {{ $t("前往设置") }}
       </button>
     </div>
 
     <div v-if="isVisible('memory')" class="metric">
       <div class="metric__heading">
-        <strong>内存</strong>
+        <strong>{{ $t("内存") }}</strong>
         <span :class="`metric__value--${snapshot.memoryStatus}`">{{ memoryUsageText }}</span>
       </div>
       <small v-if="memoryBytesText">{{ memoryBytesText }}</small>
@@ -257,13 +260,13 @@ function toRgba(hexColor: string, opacity: number): string {
         @pointerup.stop
         @click.stop="emit('openSystemMonitorSettings')"
       >
-        前往设置
+        {{ $t("前往设置") }}
       </button>
     </div>
 
     <div v-if="isVisible('network')" class="metric">
       <div class="metric__heading">
-        <strong>网络</strong>
+        <strong>{{ $t("网络") }}</strong>
         <span v-if="snapshot.networkStatus !== 'active'" class="metric__value--disabled">
           {{ networkStatusText }}
         </span>
@@ -280,13 +283,13 @@ function toRgba(hexColor: string, opacity: number): string {
         @pointerup.stop
         @click.stop="emit('openSystemMonitorSettings')"
       >
-        前往设置
+        {{ $t("前往设置") }}
       </button>
     </div>
 
     <div v-if="isVisible('storage')" class="metric">
       <div class="metric__heading metric__heading--storage">
-        <strong>储存</strong>
+        <strong>{{ $t("储存") }}</strong>
         <span :class="{ 'metric__value--disabled': snapshot.storageStatus !== 'active' }">
           {{ storageUsageText }}
         </span>
@@ -316,13 +319,13 @@ function toRgba(hexColor: string, opacity: number): string {
         @pointerup.stop
         @click.stop="emit('openSystemMonitorSettings')"
       >
-        前往设置
+        {{ $t("前往设置") }}
       </button>
     </div>
 
     <div v-if="isVisible('battery')" class="metric">
       <div class="metric__heading">
-        <strong>电池</strong>
+        <strong>{{ $t("电池") }}</strong>
         <span :class="{ 'metric__value--disabled': !snapshot.batteryPresent }">
           {{ batteryValueText }}
         </span>
@@ -350,7 +353,7 @@ function toRgba(hexColor: string, opacity: number): string {
         @pointerup.stop
         @click.stop="emit('openSystemMonitorSettings')"
       >
-        前往设置
+        {{ $t("前往设置") }}
       </button>
     </div>
   </section>

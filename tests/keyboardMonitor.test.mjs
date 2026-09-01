@@ -87,7 +87,7 @@ try {
   const settingsSource = await readFile(new URL("../src/settings/KeyboardInputSettings.vue", import.meta.url), "utf8");
   assert.match(monitorSource, /KEYBOARD_PERMISSION_RETRY_INTERVAL_MS/);
   assert.doesNotMatch(settingsSource, /setInterval/);
-  assert.match(settingsSource, /<strong>键盘历史窗口<\/strong>/);
+  assert.match(settingsSource, /\$t\("键盘历史窗口"\)/);
   assert.doesNotMatch(settingsSource, /Show Keyboard History/);
 
   // Stuck-key GC: a lost "up" must not block the next "down" of the same key.

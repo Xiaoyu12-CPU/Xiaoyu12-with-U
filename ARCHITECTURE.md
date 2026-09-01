@@ -4,7 +4,7 @@
 
 withXiaoyu12（内部代号 DesktopPet）是一个以 macOS 为首要平台、后续支持 Windows 的像素桌宠应用。项目采用 Tauri 2 作为桌面运行时，Vue 3 + TypeScript 构建界面与交互，Rust 负责桌面窗口、系统能力和平台相关逻辑。对外产品名自 v0.4.0-preview 起锁定为 `withXiaoyu12`，源码层命名约定见第 28 节。
 
-当前仓库已完成透明桌宠窗口、PetState、资源加载、逐帧动画、交互、Dialogue、拖动、控制中心、State & Animation Editor、Behavior Manager、CPU / Memory / Network / Storage / Battery 系统监控、Reminder & Alarm，以及 Phase 5 Input Awareness。v0.4.3 将桌面表现重建为四个独立功能窗口，v0.4.4 在该基础上清理控制中心、统一设置语义并加固窗口并发。核心纯逻辑由 `tests/` 下四类测试套件覆盖（提醒、输入感知、控制中心设置、桌面窗口），使用 Node 原生 test runner 运行，见第 6.4 节。自定义皮肤和 AI 仍按路线图留待后续阶段。
+当前仓库已完成透明桌宠窗口、PetState、资源加载、逐帧动画、交互、Dialogue、拖动、控制中心、State & Animation Editor、Behavior Manager、CPU / Memory / Network / Storage / Battery 系统监控、Reminder & Alarm，以及 Phase 5 Input Awareness。v0.4.3 将桌面表现重建为四个独立功能窗口，v0.4.4 在该基础上清理控制中心、统一设置语义并加固窗口并发，v0.4.5 新增中英日界面并让桌宠主窗口加入位置持久化。核心纯逻辑由 `tests/` 下四类测试套件覆盖（提醒、输入感知、控制中心设置、桌面窗口），使用 Node 原生 test runner 运行，见第 6.4 节。自定义皮肤和 AI 仍按路线图留待后续阶段。
 
 Phase 2-D Application Settings System 也已完成：全局用户偏好通过统一 Settings Manager 管理，保存到 Tauri 应用数据目录，并向所有桌面窗口与控制中心实时广播。
 
@@ -40,7 +40,7 @@ Phase 2-D Application Settings System 也已完成：全局用户偏好通过统
 4. 平台差异收敛在 Rust 平台实现层，上层业务尽量保持跨平台。
 5. 先保证 macOS 体验，再通过统一接口补充 Windows 实现，避免在业务代码中散布平台判断。
 
-### 2.1 v0.4.4 当前窗口拓扑
+### 2.1 v0.4.5 当前窗口拓扑
 
 桌面功能由四个互相独立的原生窗口组成；控制中心是按需打开的第五个管理窗口：
 
@@ -52,22 +52,25 @@ main（桌宠，唯一 Runtime owner）
   └─ desktop-pet://status-updated ─→ control-center
 
 settings.json ── desktop-pet://settings-updated ─→ 所有窗口
-main onMoved ── follow_overlay_windows ─→ 三个可见浮层
+main onMoved ─┬─ follow_overlay_windows ─→ 三个可见浮层
+              └─ save_pet_window_position ─→ window-positions.json
 ```
 
 - `main` 只渲染桌宠、对话与右键菜单，并独占系统采样、提醒调度和全局键鼠 Runtime。
 - `system-status`、`keyboard-history`、`mouse-visualizer` 只渲染主窗口广播的权威 Runtime Snapshot，不创建第二套 Monitor 或输入 reducer。
 - `desktopWindows.ts` 是前端生命周期 owner：它串行合并设置变更，向 Rust 提交 allow-list 窗口配置，避免创建、点击穿透和关闭之间的竞态。
 - Rust `commands/app.rs` 创建透明窗口、校验尺寸、持久化位置，并从桌宠当前绝对坐标计算跟随目标；不累加移动 delta，因此 Retina 和跨显示器移动不会产生累计漂移。
-- `app_data_dir()/window-positions.json` 同时保存自由模式绝对物理坐标与跟随模式逻辑相对坐标。写入使用临时文件原子替换；v0.4.2 只有 `x/y` 的记录会在首次跟随时补齐相对坐标。
+- `app_data_dir()/window-positions.json` 保存桌宠的绝对物理坐标，以及三个浮层的自由模式绝对物理坐标和跟随模式逻辑相对坐标。写入使用临时文件原子替换；v0.4.2 只有 `x/y` 的记录会在首次跟随时补齐相对坐标。
+- 启动时先恢复 `main`；若保存坐标已不在任何当前显示器上，则回退到主显示器左下角的便携默认锚点。前端在拖动停止后防抖保存，避免移动过程中高频写盘。
 - 三个浮层各自拥有显示开关和点击穿透开关，共享 `followPet`。原 `displayMode` 与输入 offset 仅作为旧设置兼容和首次默认锚点保留。
 - 首次安装默认只开启 `main` 桌宠窗口；三个浮层、系统采样和键鼠监听均默认关闭。旧设置缺少新版 `windows` 段时也不再从 `displayMode` 或输入开关推断开启浮层，只有新版明确保存的窗口开关会被保留。
 - v0.4.4 移除 Settings Schema 中已经失效的 `displayMode` 与启动开发提示字段；键盘和鼠标窗口的显示状态分别由成对的功能开关与窗口开关共同决定，控制中心使用单一操作同时更新两者。
+- v0.4.5 的 `general.language` 支持 `zh-CN`、`en`、`ja`。`src/i18n/index.ts` 以中文键维护内置界面文案，语言变化通过统一 Settings 广播到所有窗口；用户对话和提醒内容保持原文，不做自动翻译。
 - `desktopWindows.ts` 只监听实际传给 Rust 的窗口配置签名。打字反馈、提醒和对话等无关设置不会触发窗口同步。
 - 所有会取得全局窗口操作锁的 Tauri command 均以异步命令运行，避免 macOS 主线程等待锁时与工作线程派发的窗口调用形成循环等待。
 - macOS 输入权限自动重试归属主桌宠 Runtime；控制中心只负责显示状态和提供手动重试入口，关闭设置窗口不会停止恢复流程。
 
-第 15 节及 Phase 5 中关于“所有组件位于 main 的单窗口 Bounding Box”描述记录的是 v0.4.1 以前的历史实现；v0.4.4 运行时以本节为准。
+第 15 节及 Phase 5 中关于“所有组件位于 main 的单窗口 Bounding Box”描述记录的是 v0.4.1 以前的历史实现；v0.4.5 运行时以本节为准。
 
 ## 3. 技术分层
 

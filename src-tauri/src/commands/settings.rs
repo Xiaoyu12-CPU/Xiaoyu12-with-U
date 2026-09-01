@@ -76,6 +76,7 @@ fn validate_settings(contents: &str) -> Result<(), String> {
     }
 
     for section in [
+        "general",
         "appearance",
         "dialogue",
         "animation",

@@ -7,7 +7,7 @@
 - 权限、隐私、资源占用和可恢复性属于每个相关阶段的完成条件。
 - 本路线图描述目标，不代表对应功能当前已经实现。
 
-当前实现进度：Phase 1、Phase 1.5、Phase 2-A 至 Phase 2-E、Phase 3-A 至 Phase 3-G、Phase 4 提醒系统和 Phase 5 输入感知均已完成；CPU、Memory、Network、Storage、Battery 使用真实采样。v0.4.4 已完成四窗口桌面重建后的 UI 与稳定性收尾。Phase 6 自定义皮肤包与 Phase 7 AI 互动仍属于后续规划。
+当前实现进度：Phase 1、Phase 1.5、Phase 2-A 至 Phase 2-E、Phase 3-A 至 Phase 3-G、Phase 4 提醒系统和 Phase 5 输入感知均已完成；CPU、Memory、Network、Storage、Battery 使用真实采样。v0.4.4 已完成四窗口桌面重建后的 UI 与稳定性收尾，v0.4.5 正在完成中英日界面、品牌信息和默认布局固化。Phase 6 自定义皮肤包与 Phase 7 AI 互动仍属于后续规划。
 
 Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标交互调整为 Click + Drag。
 
@@ -360,6 +360,14 @@ Phase 1～5 Feature Development 已完成，项目进入 Feature Freeze。当前
 - macOS 输入权限重试由主桌宠 Runtime 持有，不再依赖控制中心页面生命周期。
 - 窗口同步只响应真正影响窗口的设置；持有全局窗口锁的命令改为异步调度，修复控制中心设置变更引发的主线程死锁。
 - `main`、`develop` 与 v0.4.4 发布分支在发布时统一到同一代码树；旧 v0.4.2 实验窗口实现仅保留为历史。
+
+### v0.4.5：多语言与默认桌面布局
+
+- 控制中心左下角支持中文、English、日本語切换，并跨窗口、跨启动保存。
+- 控制中心使用正式应用图标和 `v0.4.5` 副标题。
+- 固化当前确认的桌宠、三个浮层和控制中心视觉默认值；可选浮层与监听仍默认关闭。
+- 桌宠本体与三个浮层都能在拖动后保存位置；启动先恢复桌宠，再按保存的相对位置恢复浮层。
+- 对失效的显示器坐标提供安全回退，避免更换屏幕后窗口留在屏幕外。
 
 ## Phase 6：自定义皮肤
 

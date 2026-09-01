@@ -48,7 +48,7 @@ onMounted(() => {
       @open-system-monitor-settings="handleOpenSettings"
     />
     <p v-else class="overlay-loading" @pointerdown="startDragging">
-      正在连接桌宠运行状态…
+      {{ $t("正在连接桌宠运行状态…") }}
     </p>
   </main>
 </template>

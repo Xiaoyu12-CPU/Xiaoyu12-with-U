@@ -25,7 +25,7 @@ const presentation = computed(() =>
     class="key-history-start-line"
     :class="{ 'key-history-start-line--dragging': dragging }"
     :style="presentation.handleStyle"
-    aria-label="拖动键位显示位置"
+    :aria-label="$t('拖动键盘历史窗口')"
     @pointerdown.stop.prevent="emit('pointerDown', $event)"
     @pointermove.stop.prevent="emit('pointerMove', $event)"
     @pointerup.stop.prevent="emit('pointerUp', $event)"

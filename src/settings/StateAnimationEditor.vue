@@ -18,6 +18,7 @@ import type {
   UserAnimationConfig,
   UserPetFrameReference,
 } from "../pet/userAssetTypes";
+import { translate } from "../i18n";
 
 interface EditorFrame extends UserPetFrameReference {
   src: string;
@@ -136,7 +137,7 @@ function loadDraft(): void {
 
 function selectState(state: PetState): void {
   if (state === selectedState.value) return;
-  if (isDirty.value && !window.confirm("当前状态有未保存修改，确定切换并放弃修改吗？")) {
+  if (isDirty.value && !window.confirm(translate("当前状态有未保存修改，确定切换并放弃修改吗？"))) {
     return;
   }
   selectedState.value = state;
@@ -160,11 +161,11 @@ async function handleUpload(event: Event): Promise<void> {
       const frame = await userAssetManager.uploadPng(selectedState.value, file);
       const src = userAssetManager.getFrameUrl(frame);
       if (!src) {
-        throw new Error(`无法加载上传后的 PNG：${file.name}`);
+        throw new Error(translate("无法加载上传后的 PNG：{file}", { file: file.name }));
       }
       frames.value.push({ ...frame, src });
     }
-    message.value = `已上传 ${files.length} 个 PNG，请保存动画配置。`;
+    message.value = translate("已上传 {count} 个 PNG，请保存动画配置。", { count: files.length });
   } catch (uploadError) {
     error.value = toErrorMessage(uploadError);
   } finally {
@@ -185,7 +186,7 @@ function moveFrame(index: number, direction: -1 | 1): void {
 
 function removeFrame(index: number): void {
   if (selectedState.value === "idle" && frames.value.length === 1) {
-    error.value = "idle 状态必须至少保留一个有效帧。";
+    error.value = translate("idle 状态必须至少保留一个有效帧。");
     return;
   }
   frames.value.splice(index, 1);
@@ -197,7 +198,7 @@ async function deleteFrame(index: number): Promise<void> {
     return;
   }
   if (selectedState.value === "idle" && frames.value.length === 1) {
-    error.value = "idle 状态必须至少保留一个有效帧。";
+    error.value = translate("idle 状态必须至少保留一个有效帧。");
     return;
   }
 
@@ -215,15 +216,15 @@ async function save(): Promise<void> {
   message.value = "";
 
   if (selectedState.value === "idle" && frames.value.length === 0) {
-    error.value = "idle 状态必须至少保留一个有效帧。";
+    error.value = translate("idle 状态必须至少保留一个有效帧。");
     return;
   }
   if (frames.value.some((frame) => !Number.isFinite(frame.durationMs) || frame.durationMs < 0)) {
-    error.value = "每帧 duration 必须是大于或等于 0 的毫秒数。";
+    error.value = translate("每帧时长必须是大于或等于 0 的毫秒数。");
     return;
   }
   if (loop.value && replayMode.value === "random" && randomDelayOptions.value.length === 0) {
-    error.value = "Random Delay 至少需要一个有效的毫秒值。";
+    error.value = translate("随机延迟至少需要一个有效的毫秒值。");
     return;
   }
 
@@ -241,7 +242,7 @@ async function save(): Promise<void> {
       },
     });
     savedDraftSignature.value = draftSignature.value;
-    message.value = "已保存并通知桌宠热重载。";
+    message.value = translate("已保存并通知桌宠热重载。");
   } catch (saveError) {
     error.value = toErrorMessage(saveError);
   } finally {
@@ -263,12 +264,12 @@ async function readImageDimensions(frame: EditorFrame): Promise<void> {
 
 function animationMode(info: ReturnType<typeof getPetStateAssetInfo>): string {
   if (!info.animation.loop) {
-    return "Non-loop";
+    return translate("非循环");
   }
   const labels = {
-    continuous: "Continuous",
-    fixed: "Fixed Delay",
-    random: "Random Delay",
+    continuous: translate("连续"),
+    fixed: translate("固定延迟"),
+    random: translate("随机延迟"),
   } as const;
   return labels[info.animation.replay.mode];
 }
@@ -282,10 +283,10 @@ function toErrorMessage(value: unknown): string {
   <section class="state-editor">
     <header class="page-heading">
       <div>
-        <p class="eyebrow">State & Animation Editor</p>
-        <h2>状态与动画</h2>
+        <p class="eyebrow">{{ $t("状态与动画编辑器") }}</p>
+        <h2>{{ $t("状态与动画") }}</h2>
       </div>
-      <span>Built-in 只读 · User Assets 优先</span>
+      <span>{{ $t("内置资源只读 · 用户资源优先") }}</span>
     </header>
 
     <div class="workspace">
@@ -299,19 +300,19 @@ function toErrorMessage(value: unknown): string {
         >
           <div>
             <strong>{{ entry.metadata.id }}</strong>
-            <small v-if="runtimeState === entry.metadata.id">Runtime</small>
+            <small v-if="runtimeState === entry.metadata.id">{{ $t("运行中") }}</small>
           </div>
           <span :class="{ configured: entry.asset.isConfigured }">
-            {{ entry.asset.isConfigured ? "已配置" : "未配置" }}
+            {{ entry.asset.isConfigured ? $t("已配置") : $t("未配置") }}
           </span>
           <p>
-            {{ entry.asset.frames.length }} frames ·
+            {{ $t("帧数量", { count: entry.asset.frames.length }) }} ·
             {{ animationMode(entry.asset) }}
           </p>
           <p v-if="!entry.asset.isConfigured">
-            fallback → {{ entry.asset.fallbackState }}
+            {{ $t("回退") }} → {{ entry.asset.fallbackState }}
           </p>
-          <p v-if="entry.asset.errors.length" class="state-error">资源异常</p>
+          <p v-if="entry.asset.errors.length" class="state-error">{{ $t("资源异常") }}</p>
         </button>
       </div>
 
@@ -320,8 +321,8 @@ function toErrorMessage(value: unknown): string {
           <div>
             <h3>{{ selectedState }}</h3>
             <p>
-              {{ selectedInfo.isConfigured ? "已配置专属资源" : "未配置专属资源" }}
-              · fallback → {{ selectedInfo.fallbackState }}
+              {{ selectedInfo.isConfigured ? $t("已配置专属资源") : $t("未配置专属资源") }}
+              · {{ $t("回退") }} → {{ selectedInfo.fallbackState }}
             </p>
           </div>
           <span class="source">{{ selectedInfo.source }}</span>
@@ -331,33 +332,33 @@ function toErrorMessage(value: unknown): string {
           {{ item }}
         </p>
         <p v-if="dimensionsWarning" class="warning">
-          当前动画帧尺寸不一致，可能导致动画跳动。
+          {{ $t("当前动画帧尺寸不一致，可能导致动画跳动。") }}
         </p>
         <p v-if="error" class="error">{{ error }}</p>
         <p v-if="message" class="success">{{ message }}</p>
 
         <section class="preview-panel">
           <div>
-            <h4>预览</h4>
-            <p>独立播放器，不修改桌宠 Runtime State。</p>
+            <h4>{{ $t("预览") }}</h4>
+            <p>{{ $t("独立播放器，不修改桌宠运行状态。") }}</p>
           </div>
-          <img :src="preview.currentFrame.value" alt="动画预览" />
+          <img :src="preview.currentFrame.value" :alt="$t('动画预览')" />
           <button
             type="button"
             @click="preview.isPaused.value ? preview.resume() : preview.pause()"
           >
-            {{ preview.isPaused.value ? "播放预览" : "暂停预览" }}
+            {{ preview.isPaused.value ? $t("播放预览") : $t("暂停预览") }}
           </button>
         </section>
 
         <section>
           <div class="section-heading">
             <div>
-              <h4>动画帧</h4>
-              <p>Animation Duration：{{ animationDuration }} ms</p>
+              <h4>{{ $t("动画帧") }}</h4>
+              <p>{{ $t("动画时长", { duration: animationDuration }) }}</p>
             </div>
             <label class="upload">
-              {{ isUploading ? "上传中…" : "上传 PNG" }}
+              {{ isUploading ? $t("上传中…") : $t("上传 PNG") }}
               <input
                 type="file"
                 accept="image/png,.png"
@@ -375,7 +376,7 @@ function toErrorMessage(value: unknown): string {
               <div class="frame-meta">
                 <strong>{{ frame.fileName }}</strong>
                 <span>
-                  {{ frame.width && frame.height ? `${frame.width}×${frame.height}` : "读取尺寸中" }}
+                  {{ frame.width && frame.height ? `${frame.width}×${frame.height}` : $t("读取尺寸中") }}
                   · {{ frame.source }}
                 </span>
               </div>
@@ -385,46 +386,46 @@ function toErrorMessage(value: unknown): string {
               <div class="frame-actions">
                 <button type="button" :disabled="index === 0" @click="moveFrame(index, -1)">↑</button>
                 <button type="button" :disabled="index === frames.length - 1" @click="moveFrame(index, 1)">↓</button>
-                <button type="button" @click="removeFrame(index)">移除</button>
+                <button type="button" @click="removeFrame(index)">{{ $t("移除") }}</button>
                 <button
                   v-if="frame.source === 'user'"
                   class="danger"
                   type="button"
                   @click="deleteFrame(index)"
                 >
-                  删除文件
+                  {{ $t("删除文件") }}
                 </button>
               </div>
             </article>
           </div>
-          <p v-else class="empty">暂无专属帧；Runtime 将使用 fallback。</p>
+          <p v-else class="empty">{{ $t("暂无专属帧；运行时将使用回退资源。") }}</p>
         </section>
 
         <section class="playback">
-          <h4>播放设置</h4>
-          <label class="check"><input v-model="loop" type="checkbox" /> Loop</label>
+          <h4>{{ $t("播放设置") }}</h4>
+          <label class="check"><input v-model="loop" type="checkbox" /> {{ $t("循环播放") }}</label>
           <label v-if="loop">
-            Replay Delay
+            {{ $t("重播延迟") }}
             <select v-model="replayMode">
-              <option value="continuous">Continuous</option>
-              <option value="fixed">Fixed Delay</option>
-              <option value="random">Random Delay</option>
+              <option value="continuous">{{ $t("连续") }}</option>
+              <option value="fixed">{{ $t("固定延迟") }}</option>
+              <option value="random">{{ $t("随机延迟") }}</option>
             </select>
           </label>
           <label v-if="loop && replayMode === 'fixed'">
-            Fixed Delay (ms)
+            {{ $t("固定延迟（毫秒）") }}
             <input v-model.number="fixedDelayMs" type="number" min="0" />
           </label>
           <label v-if="loop && replayMode === 'random'">
-            Random Delay 数组（毫秒，换行或逗号分隔）
+            {{ $t("随机延迟数组（毫秒，换行或逗号分隔）") }}
             <textarea v-model="randomDelaysText" rows="4" />
           </label>
-          <p v-if="!loop" class="playback-note">非循环动画播放一次后停留在末帧，不使用 Replay Delay。</p>
+          <p v-if="!loop" class="playback-note">{{ $t("非循环动画播放一次后停留在末帧，不使用重播延迟。") }}</p>
         </section>
 
         <footer class="save-bar">
           <button type="button" :disabled="isSaving" @click="save">
-            {{ isSaving ? "保存中…" : "保存并热重载" }}
+            {{ isSaving ? $t("保存中…") : $t("保存并热重载") }}
           </button>
         </footer>
       </div>

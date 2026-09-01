@@ -14,6 +14,7 @@ import type {
 } from "../reminder/reminderTypes";
 import type { PetRuntimeSnapshot } from "../pet/runtimeStatus";
 import { settingsManager } from "./settingsManager";
+import { currentLocaleTag, translate } from "../i18n";
 
 defineProps<{
   runtime?: PetRuntimeSnapshot;
@@ -57,7 +58,7 @@ function beginCreate(): void {
 }
 
 function beginEdit(reminder: Reminder): void {
-  if (isEditing.value && !window.confirm("当前提醒有未保存修改，确定放弃并编辑另一条提醒吗？")) {
+  if (isEditing.value && !window.confirm(translate("当前提醒有未保存修改，确定放弃并编辑另一条提醒吗？"))) {
     return;
   }
   editingId.value = reminder.id;
@@ -76,7 +77,7 @@ function beginEdit(reminder: Reminder): void {
 }
 
 function cancelEdit(confirmDiscard = true): void {
-  if (confirmDiscard && isEditing.value && !window.confirm("确定放弃当前提醒的未保存修改吗？")) {
+  if (confirmDiscard && isEditing.value && !window.confirm(translate("确定放弃当前提醒的未保存修改吗？"))) {
     return;
   }
   isEditing.value = false;
@@ -199,10 +200,19 @@ function today(): string {
 }
 
 function formatRuntimeDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
+  return new Intl.DateTimeFormat(currentLocaleTag.value, {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function soundLabel(id: string): string {
+  const labels = {
+    default: "默认提醒音",
+    soft: "柔和",
+    digital: "电子",
+  } as const;
+  return translate(labels[id as keyof typeof labels] ?? "默认提醒音");
 }
 </script>
 
@@ -210,55 +220,55 @@ function formatRuntimeDate(value: string): string {
   <section class="reminder-page">
     <header>
       <div>
-        <p class="eyebrow">Reminder Management</p>
-        <h2>提醒</h2>
-        <p class="subtitle">Scheduler 按本机当前时区调度，并提供 ALERT、文本与可选内置声音反馈。</p>
+        <p class="eyebrow">{{ $t("提醒管理") }}</p>
+        <h2>{{ $t("提醒") }}</h2>
+        <p class="subtitle">{{ $t("提醒系统按本机当前时区调度，并提供警觉状态、文本与可选内置声音反馈。") }}</p>
       </div>
       <button v-if="!isEditing" class="primary" type="button" @click="beginCreate">
-        新增提醒
+        {{ $t("新增提醒") }}
       </button>
     </header>
 
     <p v-if="reminderManager.lastError.value" class="error">
-      读取提醒失败，当前使用安全空列表：{{ reminderManager.lastError.value }}
+      {{ $t("读取提醒失败，当前使用安全空列表：{error}", { error: reminderManager.lastError.value }) }}
     </p>
     <p v-if="formError" class="error">{{ formError }}</p>
 
     <article class="reminder-system-settings" data-reminder-settings>
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Reminder System</p>
-          <h3>提醒系统</h3>
+          <p class="eyebrow">{{ $t("提醒系统") }}</p>
+          <h3>{{ $t("提醒系统") }}</h3>
         </div>
       </div>
       <label class="system-setting-row">
-        <span><strong>Enable Reminder System</strong><small>关闭只暂停Scheduler，保留Reminder与Pending Snooze。</small></span>
+        <span><strong>{{ $t("启用提醒系统") }}</strong><small>{{ $t("关闭只暂停调度，保留提醒与稍后提醒。") }}</small></span>
         <input class="toggle" type="checkbox" :checked="settingsManager.settings.value.reminder.enabled" @change="updateReminderEnabled" />
       </label>
       <label class="system-setting-row">
-        <span><strong>Reminder Sound Volume</strong><small>作用于之后触发或试听的内置提醒声音。</small></span>
+        <span><strong>{{ $t("提醒声音音量") }}</strong><small>{{ $t("作用于之后触发或试听的内置提醒声音。") }}</small></span>
         <div class="volume-control"><input type="range" min="0" max="100" step="5" :value="reminderSoundVolumePercent" @input="updateReminderSoundVolume" /><output>{{ reminderSoundVolumePercent }}%</output></div>
       </label>
       <div class="reminder-runtime">
         <div class="runtime-detail">
-          <span>Scheduler</span>
-          <strong v-if="runtime">{{ runtime.reminderSchedulerStatus === "enabled" ? "Active" : "Paused" }}</strong>
-          <strong v-else>连接中…</strong>
+          <span>{{ $t("调度器") }}</span>
+          <strong v-if="runtime">{{ runtime.reminderSchedulerStatus === "enabled" ? $t("已启用") : $t("暂停") }}</strong>
+          <strong v-else>{{ $t("连接中…") }}</strong>
         </div>
         <div class="runtime-detail">
-          <span>Next Reminder</span>
+          <span>{{ $t("下一个提醒") }}</span>
           <strong v-if="runtime?.nextReminder">{{ runtime.nextReminder.text }}</strong>
           <small v-if="runtime?.nextReminder">
-            {{ runtime.nextReminder.occurrenceType === "snooze" ? "稍后提醒" : runtime.nextReminder.scheduleType === "once" ? "一次" : "每日" }} ·
+            {{ runtime.nextReminder.occurrenceType === "snooze" ? $t("稍后提醒") : runtime.nextReminder.scheduleType === "once" ? $t("一次") : $t("每日") }} ·
             {{ formatRuntimeDate(runtime.nextReminder.nextTriggerAt) }}
           </small>
-          <small v-else>暂无待触发提醒</small>
+          <small v-else>{{ $t("暂无待触发提醒") }}</small>
         </div>
         <div class="runtime-detail">
-          <span>Last Trigger</span>
+          <span>{{ $t("上次触发") }}</span>
           <strong v-if="runtime?.lastReminderTrigger">{{ runtime.lastReminderTrigger.text }}</strong>
           <small v-if="runtime?.lastReminderTrigger">{{ formatRuntimeDate(runtime.lastReminderTrigger.triggeredAt) }}</small>
-          <small v-else>暂无触发记录</small>
+          <small v-else>{{ $t("暂无触发记录") }}</small>
         </div>
       </div>
     </article>
@@ -266,10 +276,10 @@ function formatRuntimeDate(value: string): string {
     <section class="pending-snoozes">
       <div class="pending-snoozes__heading">
         <div>
-          <p class="eyebrow">Pending Snooze</p>
-          <h3>稍后提醒</h3>
+          <p class="eyebrow">{{ $t("待处理的稍后提醒") }}</p>
+          <h3>{{ $t("稍后提醒") }}</h3>
         </div>
-        <span>{{ pendingSnoozes.length }} 项</span>
+        <span>{{ $t("项目数量", { count: pendingSnoozes.length }) }}</span>
       </div>
       <div
         v-for="snooze in pendingSnoozes"
@@ -285,33 +295,33 @@ function formatRuntimeDate(value: string): string {
           :disabled="cancelingSnoozeId === snooze.id"
           @click="cancelSnooze(snooze.id)"
         >
-          {{ cancelingSnoozeId === snooze.id ? "取消中…" : "取消" }}
+          {{ cancelingSnoozeId === snooze.id ? $t("取消中…") : $t("取消") }}
         </button>
       </div>
       <p v-if="pendingSnoozes.length === 0" class="pending-snoozes__empty">
-        暂无稍后提醒
+        {{ $t("暂无稍后提醒") }}
       </p>
     </section>
 
     <form v-if="isEditing" class="editor" @submit.prevent="saveReminder">
       <div class="editor-heading">
         <div>
-          <p class="eyebrow">{{ editingId ? "Edit Reminder" : "New Reminder" }}</p>
-          <h3>{{ editingId ? "编辑提醒" : "新增提醒" }}</h3>
+          <p class="eyebrow">{{ editingId ? $t("编辑提醒") : $t("新增提醒") }}</p>
+          <h3>{{ editingId ? $t("编辑提醒") : $t("新增提醒") }}</h3>
         </div>
         <label class="enabled-control">
-          <span>启用</span>
+          <span>{{ $t("启用") }}</span>
           <input v-model="form.enabled" type="checkbox" />
         </label>
       </div>
 
       <label class="field field--wide">
-        <span>提醒内容</span>
-        <input v-model="form.text" type="text" maxlength="500" placeholder="例如：开会时间到了" />
+        <span>{{ $t("提醒内容") }}</span>
+        <input v-model="form.text" type="text" maxlength="500" :placeholder="$t('提醒内容示例')" />
       </label>
 
       <fieldset>
-        <legend>类型</legend>
+        <legend>{{ $t("类型") }}</legend>
         <label>
           <input
             type="radio"
@@ -319,7 +329,7 @@ function formatRuntimeDate(value: string): string {
             :checked="form.scheduleType === 'once'"
             @change="setScheduleType('once')"
           />
-          一次
+          {{ $t("一次") }}
         </label>
         <label>
           <input
@@ -328,24 +338,24 @@ function formatRuntimeDate(value: string): string {
             :checked="form.scheduleType === 'daily'"
             @change="setScheduleType('daily')"
           />
-          每日
+          {{ $t("每日") }}
         </label>
       </fieldset>
 
       <div class="date-time-fields">
         <label v-if="form.scheduleType === 'once'" class="field">
-          <span>日期</span>
+          <span>{{ $t("日期") }}</span>
           <input v-model="form.date" type="date" required />
         </label>
         <label class="field">
-          <span>时间</span>
+          <span>{{ $t("时间") }}</span>
           <input v-model="form.time" type="time" required />
         </label>
       </div>
 
       <div class="sound-fields">
         <label class="enabled-control">
-          <span>播放声音</span>
+          <span>{{ $t("播放声音") }}</span>
           <input
             type="checkbox"
             :checked="form.soundEnabled"
@@ -353,14 +363,14 @@ function formatRuntimeDate(value: string): string {
           />
         </label>
         <label v-if="form.soundEnabled" class="field sound-select">
-          <span>声音</span>
+          <span>{{ $t("声音") }}</span>
           <select v-model="selectedSoundId">
             <option
               v-for="sound in REMINDER_SOUNDS"
               :key="sound.id"
               :value="sound.id"
             >
-              {{ sound.label }}
+              {{ soundLabel(sound.id) }}
             </option>
           </select>
         </label>
@@ -369,22 +379,22 @@ function formatRuntimeDate(value: string): string {
           type="button"
           @click="previewSound"
         >
-          试听
+          {{ $t("试听") }}
         </button>
       </div>
 
       <div class="editor-actions">
-        <button type="button" @click="cancelEdit()">取消</button>
+        <button type="button" @click="cancelEdit()">{{ $t("取消") }}</button>
         <button class="primary" type="submit" :disabled="reminderManager.isSaving.value">
-          {{ reminderManager.isSaving.value ? "保存中…" : "保存" }}
+          {{ reminderManager.isSaving.value ? $t("保存中…") : $t("保存") }}
         </button>
       </div>
     </form>
 
-    <div v-if="!reminderManager.isLoaded.value" class="empty-state">正在读取提醒…</div>
+    <div v-if="!reminderManager.isLoaded.value" class="empty-state">{{ $t("正在读取提醒…") }}</div>
     <div v-else-if="reminderManager.reminders.value.length === 0" class="empty-state">
-      <strong>还没有提醒</strong>
-      <span>可以创建一次性或每日提醒，并按需启用内置声音。</span>
+      <strong>{{ $t("还没有提醒") }}</strong>
+      <span>{{ $t("可以创建一次性或每日提醒，并按需启用内置声音。") }}</span>
     </div>
     <div v-else class="reminder-list">
       <article v-for="reminder in reminderManager.reminders.value" :key="reminder.id">
@@ -394,27 +404,27 @@ function formatRuntimeDate(value: string): string {
             <strong>{{ reminder.text }}</strong>
           </div>
           <div class="schedule">
-            <span>{{ reminder.scheduleType === "once" ? "一次" : "每日" }}</span>
+            <span>{{ reminder.scheduleType === "once" ? $t("一次") : $t("每日") }}</span>
             <time v-if="reminder.date">{{ reminder.date }}</time>
             <time>{{ reminder.time }}</time>
-            <span>{{ reminder.enabled ? "已启用" : "已停用" }}</span>
-            <span v-if="reminder.soundEnabled">声音</span>
+            <span>{{ reminder.enabled ? $t("已启用") : $t("已停用") }}</span>
+            <span v-if="reminder.soundEnabled">{{ $t("声音") }}</span>
           </div>
         </div>
 
         <div v-if="pendingDeleteId !== reminder.id" class="row-actions">
-          <button type="button" @click="beginEdit(reminder)">编辑</button>
+          <button type="button" @click="beginEdit(reminder)">{{ $t("编辑") }}</button>
           <button type="button" @click="toggleReminder(reminder)">
-            {{ reminder.enabled ? "停用" : "启用" }}
+            {{ reminder.enabled ? $t("停用") : $t("启用") }}
           </button>
           <button class="danger" type="button" @click="pendingDeleteId = reminder.id">
-            删除
+            {{ $t("删除") }}
           </button>
         </div>
         <div v-else class="delete-confirmation">
-          <span>确认删除？</span>
-          <button class="danger" type="button" @click="confirmDelete(reminder.id)">确认</button>
-          <button type="button" @click="pendingDeleteId = undefined">取消</button>
+          <span>{{ $t("确认删除？") }}</span>
+          <button class="danger" type="button" @click="confirmDelete(reminder.id)">{{ $t("确认") }}</button>
+          <button type="button" @click="pendingDeleteId = undefined">{{ $t("取消") }}</button>
         </div>
       </article>
     </div>

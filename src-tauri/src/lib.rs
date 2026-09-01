@@ -12,6 +12,12 @@ pub fn run() {
         .manage(commands::network::NetworkSampler::default())
         .manage(commands::storage::StorageSampler::default())
         .manage(input::monitor::InputMonitor::default())
+        .setup(|app| {
+            if let Err(error) = commands::app::restore_pet_window_position(app.handle()) {
+                eprintln!("Unable to restore the pet window position; using the platform default: {error}");
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             commands::app::open_control_center,
             commands::app::exit_app,
@@ -20,6 +26,7 @@ pub fn run() {
             commands::app::resize_overlay_window,
             commands::app::follow_overlay_windows,
             commands::app::save_overlay_window_position,
+            commands::app::save_pet_window_position,
             commands::app::reset_overlay_window_position,
             commands::battery::sample_battery_status,
             commands::cpu::sample_cpu_usage,
