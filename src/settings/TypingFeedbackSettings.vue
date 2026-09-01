@@ -17,6 +17,9 @@ function updateText(key: "typingBusyText" | "typingSpeedText", event: Event): vo
 
 <template>
   <div class="settings-sections" data-input-settings="typing">
+    <p v-if="!settings.input.keyboardEnabled" class="settings-notice">
+      Keyboard Monitoring 当前已关闭。这些规则会保留，但在开启键盘监听前不会触发。
+    </p>
     <article>
       <div class="section-heading"><h3>Busy Typing</h3><p>Rolling Window达到设定次数时请求Low Priority Dialogue。</p></div>
       <label class="setting-row"><span><strong>Enabled</strong></span><input class="toggle" type="checkbox" :checked="settings.input.typingBusyEnabled" @change="updateEnabled('typingBusyEnabled', $event)" /></label>
@@ -36,3 +39,14 @@ function updateText(key: "typingBusyText" | "typingSpeedText", event: Event): vo
     </article>
   </div>
 </template>
+
+<style scoped>
+.settings-notice {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--control-center-accent) 35%, transparent);
+  border-radius: 10px;
+  color: var(--control-center-text);
+  background: color-mix(in srgb, var(--control-center-accent) 10%, transparent);
+}
+</style>

@@ -7,10 +7,14 @@ import GeneralSettings from "./GeneralSettings.vue";
 import InputSettings from "./InputSettings.vue";
 import { settingsManager } from "./settingsManager";
 import { SETTINGS_TABS } from "./settingsNavigation";
-import type { SettingsTabId } from "./settingsNavigation";
+import type { InputSettingsTabId, SettingsTabId } from "./settingsNavigation";
 import SystemSettings from "./SystemSettings.vue";
 
-const props = withDefaults(defineProps<{ initialTab?: SettingsTabId; navigationRequest?: number }>(), { initialTab: "general", navigationRequest: 0 });
+const props = withDefaults(defineProps<{
+  initialTab?: SettingsTabId;
+  initialInputTab?: InputSettingsTabId;
+  navigationRequest?: number;
+}>(), { initialTab: "general", initialInputTab: "keyboard", navigationRequest: 0 });
 const emit = defineEmits<{ navigate: [] }>();
 const activeTab = ref<SettingsTabId>(props.initialTab);
 
@@ -20,6 +24,9 @@ onMounted(() => { void settingsManager.initialize(); });
 function selectTab(tab: SettingsTabId): void { activeTab.value = tab; emit("navigate"); }
 
 async function resetAllSettings(): Promise<void> {
+  if (!window.confirm("恢复应用设置默认值？不会删除提醒、Dialogue、动画资源或已保存的窗口位置。")) {
+    return;
+  }
   const previousBackground = settingsManager.settings.value.controlCenter.backgroundImage;
   settingsManager.resetDefaults();
   try {
@@ -42,10 +49,10 @@ async function resetAllSettings(): Promise<void> {
     </nav>
     <GeneralSettings v-if="activeTab === 'general'" />
     <SystemSettings v-else-if="activeTab === 'system'" />
-    <InputSettings v-else-if="activeTab === 'input'" @navigate="emit('navigate')" />
+    <InputSettings v-else-if="activeTab === 'input'" :initial-tab="props.initialInputTab" :navigation-request="props.navigationRequest" @navigate="emit('navigate')" />
     <DialogueInteractionSettings v-else-if="activeTab === 'dialogue'" />
     <ControlCenterAppearanceSettings v-else />
-    <footer class="settings-page__footer"><p>所有分类继续共享同一份settings.json，并保持自动保存与跨窗口同步。</p><button type="button" @click="resetAllSettings">恢复全部默认设置</button></footer>
+    <footer class="settings-page__footer"><p>恢复操作只重置应用设置；不会删除提醒、Dialogue、动画资源或已保存的窗口位置。</p><button type="button" @click="resetAllSettings">恢复应用设置默认值</button></footer>
   </section>
 </template>
 
@@ -59,7 +66,7 @@ async function resetAllSettings(): Promise<void> {
 .settings-tabs, .settings-subtabs { position: sticky; z-index: 4; top: -1px; display: flex; flex-wrap: wrap; gap: 7px; padding: 8px; background: var(--cc-card-bg, #faf9fd); border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e8e4f0); border-radius: 11px; backdrop-filter: blur(10px); }
 .settings-subtabs { z-index: 3; top: 54px; margin-bottom: 14px; }
 .settings-tabs button, .settings-subtabs button { padding: 8px 12px; color: var(--cc-text-secondary, #857c91); font: inherit; font-size: 12px; font-weight: 650; background: transparent; border: 0; border-radius: 8px; cursor: pointer; }
-.settings-tabs button.active, .settings-subtabs button.active { color: #fff; background: var(--cc-accent, #745bc9); }
+.settings-tabs button.active, .settings-subtabs button.active { color: var(--cc-on-accent, #fff); background: var(--cc-accent, #745bc9); }
 .settings-sections { display: grid; gap: 14px; }
 .settings-page article { display: grid; gap: 4px; padding: 17px; background: var(--cc-card-bg, #faf9fd); border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e8e4f0); border-radius: 13px; }
 .settings-page .section-heading { padding-bottom: 12px; }
@@ -78,16 +85,16 @@ async function resetAllSettings(): Promise<void> {
 .settings-page .number-control input { width: 100px; }
 .settings-page .text-control { width: min(250px, 48%); }
 .settings-page .select-control { min-width: 170px; }
-.settings-page .display-mode-options, .settings-page .item-options, .settings-page .inline-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.settings-page .display-mode-options label, .settings-page .item-options label { display: flex; align-items: center; gap: 5px; padding: 7px 9px; color: var(--cc-text-secondary, #5c5267); font-size: 11px; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #ded8e8); border-radius: 8px; cursor: pointer; }
-.settings-page .display-mode-options label:has(input:checked), .settings-page .item-options label:has(input:checked) { color: var(--cc-accent, #5d48a6); border-color: var(--cc-accent, #b9aae4); }
+.settings-page .item-options, .settings-page .inline-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.settings-page .item-options label { display: flex; align-items: center; gap: 5px; padding: 7px 9px; color: var(--cc-text-secondary, #5c5267); font-size: 11px; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #ded8e8); border-radius: 8px; cursor: pointer; }
+.settings-page .item-options label:has(input:checked) { color: var(--cc-accent, #5d48a6); border-color: var(--cc-accent, #b9aae4); }
 .settings-page .color-control { display: flex; align-items: center; gap: 8px; }
 .settings-page .color-control input { width: 36px; height: 28px; padding: 2px; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #dcd6e7); border-radius: 7px; cursor: pointer; }
 .settings-page .color-control code { color: var(--cc-text-secondary, #706579); font-size: 11px; }
 .settings-page .toggle { width: 18px; height: 18px; accent-color: var(--cc-accent, #745bc9); cursor: pointer; }
 .settings-page :is(.toggle, input, select):disabled { cursor: default; opacity: .5; }
 .settings-page .file-input { display: none; }
-.settings-page .error { padding: 10px 12px; color: #9d3f4b; font-size: 12px; background: #fff0f2; border-radius: 9px; }
+.settings-page .error { padding: 10px 12px; color: var(--cc-danger, #9d3f4b); font-size: 12px; background: var(--cc-danger-bg, #fff0f2); border-radius: 9px; }
 .settings-page__footer { align-items: flex-end; padding-top: 2px; }
 .settings-page__footer p { max-width: 430px; }
 .settings-page button { padding: 8px 11px; color: var(--cc-accent, #5d48a6); font: inherit; font-size: 12px; font-weight: 650; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #d9d1ef); border-radius: 8px; cursor: pointer; }

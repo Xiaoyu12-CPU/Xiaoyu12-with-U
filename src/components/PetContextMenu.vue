@@ -9,7 +9,6 @@ const props = defineProps<{
   visible: boolean;
   x: number;
   y: number;
-  isPaused: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -18,7 +17,7 @@ const emit = defineEmits<{
 
 const menuStyle = computed(() => ({
   left: `${Math.min(Math.max(props.x, 4), Math.max(4, window.innerWidth - 136))}px`,
-  top: `${Math.min(Math.max(props.y, 4), Math.max(4, window.innerHeight - 152))}px`,
+  top: `${Math.min(Math.max(props.y, 4), Math.max(4, window.innerHeight - 94))}px`,
 }));
 
 function select(type: PetControlActionType): void {
@@ -43,29 +42,6 @@ function select(type: PetControlActionType): void {
       @click="select(PET_CONTROL_ACTION_TYPES.OPEN_CONTROL_CENTER)"
     >
       打开控制中心
-    </button>
-    <button
-      type="button"
-      role="menuitem"
-      @click="select(PET_CONTROL_ACTION_TYPES.TEST_EVENT)"
-    >
-      测试事件
-    </button>
-    <button
-      type="button"
-      role="menuitem"
-      :disabled="isPaused"
-      @click="select(PET_CONTROL_ACTION_TYPES.PAUSE_ANIMATION)"
-    >
-      暂停动画
-    </button>
-    <button
-      type="button"
-      role="menuitem"
-      :disabled="!isPaused"
-      @click="select(PET_CONTROL_ACTION_TYPES.RESUME_ANIMATION)"
-    >
-      恢复动画
     </button>
     <button
       class="pet-context-menu__danger"

@@ -8,6 +8,7 @@ import { PET_CONTROL_ACTION_TYPES } from "../pet/petControl";
 
 const emit = defineEmits<{
   action: [action: PetControlAction];
+  dirtyChange: [dirty: boolean];
 }>();
 
 const drafts = ref<Record<DialogueEventType, string[]>>(
@@ -20,13 +21,30 @@ const localError = ref("");
 const storageError = computed(
   () => localError.value || dialogueManager.lastStorageError.value || "",
 );
+const isDirty = computed(() =>
+  JSON.stringify(drafts.value)
+    !== JSON.stringify(createDrafts(dialogueManager.catalog.value)),
+);
+
+watch(isDirty, (dirty) => emit("dirtyChange", dirty), { immediate: true });
 
 watch(
   dialogueManager.catalog,
-  (catalog) => {
-    drafts.value = createDrafts(catalog);
+  (catalog, previousCatalog) => {
+    for (const eventType of ACTIVE_DIALOGUE_EVENT_TYPE_LIST) {
+      const draft = drafts.value[eventType];
+      const previous = previousCatalog?.[eventType] ?? [];
+      const next = catalog[eventType] ?? [];
+      const wasDirty = JSON.stringify(draft) !== JSON.stringify(previous);
+      if (
+        !wasDirty
+        || savingEvent.value === eventType
+        || JSON.stringify(draft) === JSON.stringify(next)
+      ) {
+        drafts.value[eventType] = [...next];
+      }
+    }
   },
-  { deep: true },
 );
 
 onMounted(() => {
@@ -204,7 +222,7 @@ article {
 }
 
 code {
-  color: #54416f;
+  color: var(--cc-text-primary, #54416f);
   font-size: 13px;
   font-weight: 700;
 }
@@ -233,7 +251,7 @@ input {
 
 input:focus {
   border-color: var(--cc-accent, #8c75dc);
-  box-shadow: 0 0 0 3px rgba(140, 117, 220, 0.13);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cc-accent, #8c75dc) 13%, transparent);
 }
 
 footer {
@@ -242,7 +260,7 @@ footer {
 
 button {
   padding: 7px 11px;
-  color: #fff;
+  color: var(--cc-on-accent, #fff);
   font: inherit;
   font-size: 12px;
   font-weight: 650;
@@ -259,7 +277,7 @@ button.secondary {
 }
 
 button.remove {
-  color: #a64e5b;
+  color: var(--cc-danger, #a64e5b);
   background: transparent;
   border-color: transparent;
 }
@@ -271,16 +289,16 @@ button:disabled {
 
 .empty {
   margin: 0;
-  color: #938b9f;
+  color: var(--cc-text-secondary, #938b9f);
   font-size: 12px;
 }
 
 .error {
   margin: 0;
   padding: 10px 12px;
-  color: #9d3f4b;
+  color: var(--cc-danger, #9d3f4b);
   font-size: 12px;
-  background: #fff0f2;
+  background: var(--cc-danger-bg, #fff0f2);
   border-radius: 9px;
 }
 </style>

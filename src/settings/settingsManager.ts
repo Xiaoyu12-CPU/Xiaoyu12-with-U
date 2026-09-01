@@ -199,10 +199,6 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         60000,
         DEFAULT_SETTINGS.dialogue.bubbleDurationMs,
       ),
-      showDevelopmentMessageOnStartup: booleanOrDefault(
-        dialogue.showDevelopmentMessageOnStartup,
-        DEFAULT_SETTINGS.dialogue.showDevelopmentMessageOnStartup,
-      ),
       enableClickDialogue: booleanOrDefault(
         dialogue.enableClickDialogue,
         DEFAULT_SETTINGS.dialogue.enableClickDialogue,
@@ -267,10 +263,6 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
       ),
     },
     systemStatusBubble: {
-      displayMode: displayModeOrDefault(
-        systemStatusBubble.displayMode,
-        DEFAULT_SETTINGS.systemStatusBubble.displayMode,
-      ),
       offsetX: clampNumber(
         systemStatusBubble.offsetX,
         -500,
@@ -691,15 +683,6 @@ function nonEmptyTextOrDefault(value: unknown, fallback: string): string {
   }
 
   return value.trim() || fallback;
-}
-
-function displayModeOrDefault(
-  value: unknown,
-  fallback: DesktopPetSettings["systemStatusBubble"]["displayMode"],
-): DesktopPetSettings["systemStatusBubble"]["displayMode"] {
-  return value === "pet-only" || value === "status-only" || value === "both"
-    ? value
-    : fallback;
 }
 
 function keyDisplayPositionOrDefault(

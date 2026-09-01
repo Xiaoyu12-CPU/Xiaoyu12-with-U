@@ -33,6 +33,10 @@ async function testInformationArchitecture(navigation) {
 
   const settingsPage = await readFile(new URL("../src/settings/SettingsPage.vue", import.meta.url), "utf8");
   const reminderPage = await readFile(new URL("../src/settings/ReminderPage.vue", import.meta.url), "utf8");
+  const controlCenter = await readFile(new URL("../src/settings/ControlCenter.vue", import.meta.url), "utf8");
+  const systemSettings = await readFile(new URL("../src/settings/SystemSettings.vue", import.meta.url), "utf8");
+  const dialogueSettings = await readFile(new URL("../src/settings/DialogueInteractionSettings.vue", import.meta.url), "utf8");
+  const stateEditor = await readFile(new URL("../src/settings/StateAnimationEditor.vue", import.meta.url), "utf8");
   assert.match(settingsPage, /GeneralSettings v-if/);
   assert.match(settingsPage, /SystemSettings v-else-if/);
   assert.match(settingsPage, /InputSettings v-else-if/);
@@ -42,6 +46,13 @@ async function testInformationArchitecture(navigation) {
   assert.match(reminderPage, /data-reminder-settings/);
   assert.match(reminderPage, /reminder\.enabled/);
   assert.match(reminderPage, /reminder\.soundVolume/);
+  assert.doesNotMatch(reminderPage, /class="scheduler-status"/);
+  assert.match(controlCenter, /beforeunload/);
+  assert.match(controlCenter, /dirty-change/);
+  assert.doesNotMatch(controlCenter, /<p>withXiaoyu12<\/p>/);
+  assert.doesNotMatch(systemSettings, /displayMode/);
+  assert.doesNotMatch(dialogueSettings, /showDevelopmentMessageOnStartup/);
+  assert.match(stateEditor, /v-if="loop"/);
 }
 
 function testThemeSettings(normalizeSettings, defaults, theme) {
@@ -145,6 +156,14 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
   assert.equal(defaults.DEFAULT_SETTINGS.input.mouseVisualizerEnabled, false);
   assert.equal(defaults.DEFAULT_SETTINGS.reminder.enabled, false);
   assert.equal(defaults.DEFAULT_SETTINGS.systemMonitor.enabled, false);
+  assert.equal("showDevelopmentMessageOnStartup" in defaults.DEFAULT_SETTINGS.dialogue, false);
+  assert.equal("displayMode" in defaults.DEFAULT_SETTINGS.systemStatusBubble, false);
+  const withoutRemovedFields = normalizeSettings({
+    dialogue: { showDevelopmentMessageOnStartup: true },
+    systemStatusBubble: { displayMode: "both" },
+  });
+  assert.equal("showDevelopmentMessageOnStartup" in withoutRemovedFields.dialogue, false);
+  assert.equal("displayMode" in withoutRemovedFields.systemStatusBubble, false);
   assert.deepEqual(defaults.DEFAULT_SETTINGS.windows, {
     systemStatusWindowEnabled: false,
     keyboardHistoryWindowEnabled: false,

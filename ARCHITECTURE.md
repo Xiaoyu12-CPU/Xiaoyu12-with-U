@@ -4,7 +4,7 @@
 
 withXiaoyu12（内部代号 DesktopPet）是一个以 macOS 为首要平台、后续支持 Windows 的像素桌宠应用。项目采用 Tauri 2 作为桌面运行时，Vue 3 + TypeScript 构建界面与交互，Rust 负责桌面窗口、系统能力和平台相关逻辑。对外产品名自 v0.4.0-preview 起锁定为 `withXiaoyu12`，源码层命名约定见第 28 节。
 
-当前仓库已完成透明桌宠窗口、PetState、资源加载、逐帧动画、交互、Dialogue、拖动、控制中心、State & Animation Editor、Behavior Manager、CPU / Memory / Network / Storage / Battery 系统监控、Reminder & Alarm，以及 Phase 5 Input Awareness。v0.4.3 将桌面表现重建为四个独立功能窗口。核心纯逻辑由 `tests/` 下四类测试套件覆盖（提醒、输入感知、控制中心设置、桌面窗口），使用 Node 原生 test runner 运行，见第 6.4 节。自定义皮肤和 AI 仍按路线图留待后续阶段。
+当前仓库已完成透明桌宠窗口、PetState、资源加载、逐帧动画、交互、Dialogue、拖动、控制中心、State & Animation Editor、Behavior Manager、CPU / Memory / Network / Storage / Battery 系统监控、Reminder & Alarm，以及 Phase 5 Input Awareness。v0.4.3 将桌面表现重建为四个独立功能窗口，v0.4.4 在该基础上清理控制中心、统一设置语义并加固窗口并发。核心纯逻辑由 `tests/` 下四类测试套件覆盖（提醒、输入感知、控制中心设置、桌面窗口），使用 Node 原生 test runner 运行，见第 6.4 节。自定义皮肤和 AI 仍按路线图留待后续阶段。
 
 Phase 2-D Application Settings System 也已完成：全局用户偏好通过统一 Settings Manager 管理，保存到 Tauri 应用数据目录，并向所有桌面窗口与控制中心实时广播。
 
@@ -40,7 +40,7 @@ Phase 2-D Application Settings System 也已完成：全局用户偏好通过统
 4. 平台差异收敛在 Rust 平台实现层，上层业务尽量保持跨平台。
 5. 先保证 macOS 体验，再通过统一接口补充 Windows 实现，避免在业务代码中散布平台判断。
 
-### 2.1 v0.4.3 当前窗口拓扑
+### 2.1 v0.4.4 当前窗口拓扑
 
 桌面功能由四个互相独立的原生窗口组成；控制中心是按需打开的第五个管理窗口：
 
@@ -62,8 +62,12 @@ main onMoved ── follow_overlay_windows ─→ 三个可见浮层
 - `app_data_dir()/window-positions.json` 同时保存自由模式绝对物理坐标与跟随模式逻辑相对坐标。写入使用临时文件原子替换；v0.4.2 只有 `x/y` 的记录会在首次跟随时补齐相对坐标。
 - 三个浮层各自拥有显示开关和点击穿透开关，共享 `followPet`。原 `displayMode` 与输入 offset 仅作为旧设置兼容和首次默认锚点保留。
 - 首次安装默认只开启 `main` 桌宠窗口；三个浮层、系统采样和键鼠监听均默认关闭。旧设置缺少新版 `windows` 段时也不再从 `displayMode` 或输入开关推断开启浮层，只有新版明确保存的窗口开关会被保留。
+- v0.4.4 移除 Settings Schema 中已经失效的 `displayMode` 与启动开发提示字段；键盘和鼠标窗口的显示状态分别由成对的功能开关与窗口开关共同决定，控制中心使用单一操作同时更新两者。
+- `desktopWindows.ts` 只监听实际传给 Rust 的窗口配置签名。打字反馈、提醒和对话等无关设置不会触发窗口同步。
+- 所有会取得全局窗口操作锁的 Tauri command 均以异步命令运行，避免 macOS 主线程等待锁时与工作线程派发的窗口调用形成循环等待。
+- macOS 输入权限自动重试归属主桌宠 Runtime；控制中心只负责显示状态和提供手动重试入口，关闭设置窗口不会停止恢复流程。
 
-第 15 节及 Phase 5 中关于“所有组件位于 main 的单窗口 Bounding Box”描述记录的是 v0.4.1 以前的历史实现；v0.4.3 运行时以本节为准。
+第 15 节及 Phase 5 中关于“所有组件位于 main 的单窗口 Bounding Box”描述记录的是 v0.4.1 以前的历史实现；v0.4.4 运行时以本节为准。
 
 ## 3. 技术分层
 
@@ -482,7 +486,7 @@ Settings schemaVersion 保持为 1，并向 `systemMonitor` 增加带默认值�
 
 Runtime Snapshot 增加 Memory Usage、Used / Available / Total bytes、disabled/normal/high、Monitoring 与 Threshold。Control Center 只将字节格式化为人类可读单位，仍不创建第二个采样源。内置 Dialogue Catalog 包含 Memory High / Normal 事件，用户可在现有 Dialogue Editor 修改候选文本。
 
-## 15. Phase 3-C：System Status Bubble（v0.4.1 历史设计，v0.4.3 已由 2.1 节取代）
+## 15. Phase 3-C：System Status Bubble（v0.4.1 历史设计，v0.4.4 已由 2.1 节取代）
 
 System Status Bubble 是与临时 `SpeechBubble` 完全分离的长期桌面面板。它和 Pet 仍渲染在 label 为 `main` 的同一个透明 Tauri Window 中，不创建第二个窗口，也不启动新的 CPU / Memory 采样器：
 

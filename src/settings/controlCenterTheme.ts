@@ -5,6 +5,7 @@ type ControlCenterTheme = DesktopPetSettings["controlCenter"];
 export function createControlCenterThemeVariables(
   theme: ControlCenterTheme,
 ): Record<string, string> {
+  const cardBackground = hexToRgba(theme.cardBackgroundColor, theme.cardBackgroundOpacity);
   return {
     "--cc-background": hexToRgba(theme.backgroundColor, theme.backgroundOpacity),
     "--cc-sidebar-background": hexToRgba(theme.sidebarBackgroundColor, theme.sidebarBackgroundOpacity),
@@ -13,10 +14,19 @@ export function createControlCenterThemeVariables(
     "--cc-sidebar-active-text": theme.sidebarActiveTextColor,
     "--cc-text-primary": theme.primaryTextColor,
     "--cc-text-secondary": theme.secondaryTextColor,
-    "--cc-card-bg": hexToRgba(theme.cardBackgroundColor, theme.cardBackgroundOpacity),
+    "--cc-card-bg": cardBackground,
     "--cc-card-border": hexToRgba(theme.cardBorderColor, theme.cardBorderOpacity),
     "--cc-card-border-width": `${theme.cardBorderWidth}px`,
     "--cc-accent": theme.accentColor,
+    "--cc-on-accent": theme.sidebarActiveTextColor,
+    "--cc-accent-hover": `color-mix(in srgb, ${theme.accentColor} 84%, #000000)`,
+    "--cc-muted-surface": `color-mix(in srgb, ${theme.accentColor} 8%, ${cardBackground})`,
+    "--cc-danger": `color-mix(in srgb, #C94F64 72%, ${theme.primaryTextColor})`,
+    "--cc-danger-bg": `color-mix(in srgb, #C94F64 13%, ${cardBackground})`,
+    "--cc-success": `color-mix(in srgb, #3C946B 72%, ${theme.primaryTextColor})`,
+    "--cc-success-bg": `color-mix(in srgb, #3C946B 13%, ${cardBackground})`,
+    "--cc-warning": `color-mix(in srgb, #B07828 72%, ${theme.primaryTextColor})`,
+    "--cc-warning-bg": `color-mix(in srgb, #D99A37 14%, ${cardBackground})`,
     "--cc-input-bg": hexToRgba(theme.cardBackgroundColor, Math.max(theme.cardBackgroundOpacity, 0.78)),
   };
 }

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const vite = await createServer({
@@ -38,6 +39,12 @@ try {
     behavior,
   );
   testSettings(normalizeSettings);
+
+  const monitorSource = await readFile(new URL("../src/input/mouseMonitor.ts", import.meta.url), "utf8");
+  const settingsSource = await readFile(new URL("../src/settings/MouseInputSettings.vue", import.meta.url), "utf8");
+  assert.match(monitorSource, /MOUSE_PERMISSION_RETRY_INTERVAL_MS/);
+  assert.doesNotMatch(settingsSource, /setInterval/);
+  assert.doesNotMatch(settingsSource, /Show Mouse Visualizer/);
 
   // Scroll coalescing: bursts of scroll events publish at most once per
   // window, carrying the latest direction; button events flush immediately.

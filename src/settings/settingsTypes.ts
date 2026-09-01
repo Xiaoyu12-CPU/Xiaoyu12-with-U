@@ -34,7 +34,6 @@ export interface DesktopPetSettings {
   };
   dialogue: {
     bubbleDurationMs: number;
-    showDevelopmentMessageOnStartup: boolean;
     enableClickDialogue: boolean;
     /** @deprecated Hover is no longer an active runtime interaction. */
     enableHoverDialogue: boolean;
@@ -55,7 +54,6 @@ export interface DesktopPetSettings {
     batteryEnabled: boolean;
   };
   systemStatusBubble: {
-    displayMode: DesktopDisplayMode;
     offsetX: number;
     offsetY: number;
     panelWidth: number;

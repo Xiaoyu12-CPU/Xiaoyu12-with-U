@@ -134,7 +134,11 @@ pub fn request_permission() {}
 
 extern "system" fn keyboard_hook_proc(code: i32, w_param: usize, l_param: isize) -> isize {
     if code >= 0 {
-        if let Some(sink) = EVENT_SINK.lock().unwrap_or_else(|error| error.into_inner()).as_ref() {
+        if let Some(sink) = EVENT_SINK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .as_ref()
+        {
             let info = unsafe { &*(l_param as *const KbdLlHookStruct) };
             if info.flags & LLKHF_INJECTED == 0 {
                 if let Some(event) = map_keyboard_event(w_param as u32, info.vk_code) {
@@ -148,7 +152,11 @@ extern "system" fn keyboard_hook_proc(code: i32, w_param: usize, l_param: isize)
 
 extern "system" fn mouse_hook_proc(code: i32, w_param: usize, l_param: isize) -> isize {
     if code >= 0 {
-        if let Some(sink) = EVENT_SINK.lock().unwrap_or_else(|error| error.into_inner()).as_ref() {
+        if let Some(sink) = EVENT_SINK
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .as_ref()
+        {
             let info = unsafe { &*(l_param as *const MsLlHookStruct) };
             if info.flags & LLKHF_INJECTED == 0 {
                 if let Some(event) = map_mouse_event(w_param as u32, info.mouse_data) {
@@ -172,9 +180,7 @@ fn map_mouse_event(message: u32, mouse_data: u32) -> Option<MouseInputEvent> {
         WM_RBUTTONUP => MouseInputEvent::button(MouseEventType::Up, MouseButton::Right),
         WM_MBUTTONDOWN => MouseInputEvent::button(MouseEventType::Down, MouseButton::Middle),
         WM_MBUTTONUP => MouseInputEvent::button(MouseEventType::Up, MouseButton::Middle),
-        WM_XBUTTONDOWN => {
-            MouseInputEvent::button(MouseEventType::Down, x_button(mouse_data))
-        }
+        WM_XBUTTONDOWN => MouseInputEvent::button(MouseEventType::Down, x_button(mouse_data)),
         WM_XBUTTONUP => MouseInputEvent::button(MouseEventType::Up, x_button(mouse_data)),
         WM_MOUSEWHEEL => {
             let delta = wheel_delta(mouse_data);
@@ -233,9 +239,7 @@ pub fn start(
     let (thread_id_sender, thread_id_receiver) = mpsc::channel::<u32>();
 
     {
-        let mut sink_slot = EVENT_SINK
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let mut sink_slot = EVENT_SINK.lock().unwrap_or_else(|error| error.into_inner());
         if sink_slot.is_some() {
             return Err("Input monitor is already running.".to_string());
         }

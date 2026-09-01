@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, watch } from "vue";
 import KeyboardInputSettings from "./KeyboardInputSettings.vue";
 import MouseInputSettings from "./MouseInputSettings.vue";
 import TypingFeedbackSettings from "./TypingFeedbackSettings.vue";
@@ -7,7 +7,15 @@ import { INPUT_SETTINGS_TABS } from "./settingsNavigation";
 import type { InputSettingsTabId } from "./settingsNavigation";
 
 const emit = defineEmits<{ navigate: [] }>();
-const activeTab = ref<InputSettingsTabId>("keyboard");
+const props = withDefaults(defineProps<{
+  initialTab?: InputSettingsTabId;
+  navigationRequest?: number;
+}>(), { initialTab: "keyboard", navigationRequest: 0 });
+const activeTab = ref<InputSettingsTabId>(props.initialTab);
+
+watch(() => props.navigationRequest, () => {
+  activeTab.value = props.initialTab;
+});
 
 function selectTab(tab: InputSettingsTabId): void {
   activeTab.value = tab;

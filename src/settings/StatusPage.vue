@@ -1,15 +1,9 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import {
-  PET_CONTROL_ACTION_TYPES,
-} from "../pet/petControl";
-import type {
-  PetControlAction,
-  PetControlActionType,
-} from "../pet/petControl";
 import type { PetRuntimeSnapshot } from "../pet/runtimeStatus";
 import { formatNetworkRate } from "../system/formatNetworkRate";
 import { formatBytes } from "../system/formatBytes";
+import type { InputSettingsTabId, SettingsTabId } from "./settingsNavigation";
 
 const props = defineProps<{
   snapshot?: PetRuntimeSnapshot;
@@ -17,18 +11,8 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  action: [action: PetControlAction];
-  openSystemMonitorSettings: [];
+  openSettings: [tab: SettingsTabId, inputTab?: InputSettingsTabId];
 }>();
-
-const frameName = computed(() => {
-  if (!props.snapshot?.currentFrame) {
-    return "—";
-  }
-
-  const path = props.snapshot.currentFrame.split("?")[0];
-  return decodeURIComponent(path.split("/").pop() ?? path);
-});
 
 const cpuUsage = computed(() =>
   props.snapshot?.cpuUsagePercent === undefined
@@ -192,16 +176,13 @@ function formatMouseButton(button: string): string {
   return labels[button] ?? button;
 }
 
-function execute(type: PetControlActionType): void {
-  emit("action", { type });
-}
 </script>
 
 <template>
   <section class="status-page">
     <header>
       <div>
-        <p class="eyebrow">Runtime Inspector</p>
+        <p class="eyebrow">Desktop Pet</p>
         <h2>当前状态</h2>
       </div>
       <span class="connection" :class="{ connected }">
@@ -211,34 +192,12 @@ function execute(type: PetControlActionType): void {
 
     <div class="status-grid">
       <article>
-        <span>PetState</span>
+        <span>当前状态</span>
         <strong>{{ snapshot?.state ?? "—" }}</strong>
-      </article>
-      <article>
-        <span>Effective State</span>
-        <strong>{{ snapshot?.effectiveState ?? "—" }}</strong>
-      </article>
-      <article class="wide">
-        <span>Winning Source</span>
-        <strong>{{ snapshot?.winningSource ?? "无（idle）" }}</strong>
       </article>
       <article>
         <span>动画状态</span>
         <strong>{{ snapshot?.animationStatus ?? "—" }}</strong>
-      </article>
-      <article>
-        <span>当前帧序号</span>
-        <strong>
-          {{ snapshot ? snapshot.currentFrameIndex + 1 : "—" }}
-        </strong>
-      </article>
-      <article>
-        <span>当前显示帧</span>
-        <strong class="frame-name">{{ frameName }}</strong>
-      </article>
-      <article class="wide">
-        <span>最近触发事件</span>
-        <strong>{{ snapshot?.lastEvent ?? "尚未触发" }}</strong>
       </article>
       <article class="wide">
         <span>最近显示文本</span>
@@ -256,7 +215,7 @@ function execute(type: PetControlActionType): void {
           v-if="cpuLifecycleStatus === 'Disabled'"
           class="secondary"
           type="button"
-          @click="emit('openSystemMonitorSettings')"
+          @click="emit('openSettings', 'system')"
         >
           前往设置
         </button>
@@ -293,7 +252,7 @@ function execute(type: PetControlActionType): void {
           v-if="memoryLifecycleStatus === 'Disabled'"
           class="secondary"
           type="button"
-          @click="emit('openSystemMonitorSettings')"
+          @click="emit('openSettings', 'system')"
         >
           前往设置
         </button>
@@ -342,7 +301,7 @@ function execute(type: PetControlActionType): void {
           v-if="networkLifecycleStatus === 'Disabled'"
           class="secondary"
           type="button"
-          @click="emit('openSystemMonitorSettings')"
+          @click="emit('openSettings', 'system')"
         >
           前往设置
         </button>
@@ -373,7 +332,7 @@ function execute(type: PetControlActionType): void {
           v-if="storageLifecycleStatus === 'Disabled'"
           class="secondary"
           type="button"
-          @click="emit('openSystemMonitorSettings')"
+          @click="emit('openSettings', 'system')"
         >
           前往设置
         </button>
@@ -412,7 +371,7 @@ function execute(type: PetControlActionType): void {
           v-if="batteryLifecycleStatus === 'Disabled'"
           class="secondary"
           type="button"
-          @click="emit('openSystemMonitorSettings')"
+          @click="emit('openSettings', 'system')"
         >
           前往设置
         </button>
@@ -443,7 +402,10 @@ function execute(type: PetControlActionType): void {
           <p class="eyebrow">Input Monitor / Keyboard</p>
           <h3>全局键盘监听</h3>
         </div>
-        <strong>{{ keyboardLifecycleStatus }}</strong>
+        <div class="monitor-panel__actions">
+          <strong>{{ keyboardLifecycleStatus }}</strong>
+          <button v-if="snapshot?.keyboardStatus !== 'active'" class="secondary" type="button" @click="emit('openSettings', 'input', 'keyboard')">前往设置</button>
+        </div>
       </div>
       <p
         v-if="snapshot?.keyboardStatus === 'permission-required'"
@@ -482,7 +444,10 @@ function execute(type: PetControlActionType): void {
           <p class="eyebrow">Input Monitor / Mouse</p>
           <h3>全局鼠标监听</h3>
         </div>
-        <strong>{{ mouseLifecycleStatus }}</strong>
+        <div class="monitor-panel__actions">
+          <strong>{{ mouseLifecycleStatus }}</strong>
+          <button v-if="snapshot?.mouseStatus !== 'active'" class="secondary" type="button" @click="emit('openSettings', 'input', 'mouse')">前往设置</button>
+        </div>
       </div>
       <p
         v-if="snapshot?.mouseStatus === 'permission-required'"
@@ -513,104 +478,6 @@ function execute(type: PetControlActionType): void {
       </div>
     </section>
 
-    <section class="behavior-panel">
-      <div class="behavior-panel__heading">
-        <div>
-          <p class="eyebrow">Development / Debug</p>
-          <h3>Active Behavior Requests</h3>
-        </div>
-        <button
-          class="secondary"
-          type="button"
-          @click="execute(PET_CONTROL_ACTION_TYPES.DEBUG_CLEAR_BEHAVIORS)"
-        >
-          清除测试请求
-        </button>
-      </div>
-
-      <div
-        v-if="snapshot?.activeBehaviorRequests?.length"
-        class="behavior-list"
-      >
-        <article
-          v-for="request in snapshot?.activeBehaviorRequests ?? []"
-          :key="`${request.source}-${request.sequence}`"
-          class="behavior-request"
-        >
-          <strong>{{ request.source }}</strong>
-          <span>
-            {{ request.state }} · priority {{ request.priority }} ·
-            {{ request.durationMs ? `${request.durationMs}ms transient` : "held" }}
-          </span>
-        </article>
-      </div>
-      <p v-else class="empty">当前没有 Behavior Request，状态回退为 idle。</p>
-
-      <div class="debug-actions">
-        <button
-          type="button"
-          @click="execute(PET_CONTROL_ACTION_TYPES.DEBUG_REQUEST_TIRED)"
-        >
-          Request tired
-        </button>
-        <button
-          class="secondary"
-          type="button"
-          @click="execute(PET_CONTROL_ACTION_TYPES.DEBUG_RELEASE_TIRED)"
-        >
-          Release tired
-        </button>
-        <button
-          type="button"
-          @click="execute(PET_CONTROL_ACTION_TYPES.DEBUG_REQUEST_WORKING)"
-        >
-          Request working
-        </button>
-        <button
-          class="secondary"
-          type="button"
-          @click="execute(PET_CONTROL_ACTION_TYPES.DEBUG_RELEASE_WORKING)"
-        >
-          Release working
-        </button>
-        <button
-          type="button"
-          @click="execute(PET_CONTROL_ACTION_TYPES.DEBUG_REQUEST_ALERT)"
-        >
-          Alert 5s
-        </button>
-        <button
-          class="secondary"
-          type="button"
-          @click="execute(PET_CONTROL_ACTION_TYPES.DEBUG_RELEASE_ALERT)"
-        >
-          Release alert
-        </button>
-      </div>
-    </section>
-
-    <div class="actions">
-      <button
-        type="button"
-        @click="execute(PET_CONTROL_ACTION_TYPES.TEST_EVENT)"
-      >
-        测试下一个事件
-      </button>
-      <button
-        type="button"
-        :disabled="snapshot?.animationStatus === 'paused'"
-        @click="execute(PET_CONTROL_ACTION_TYPES.PAUSE_ANIMATION)"
-      >
-        暂停动画
-      </button>
-      <button
-        type="button"
-        :disabled="snapshot?.animationStatus !== 'paused'"
-        @click="execute(PET_CONTROL_ACTION_TYPES.RESUME_ANIMATION)"
-      >
-        恢复动画
-      </button>
-    </div>
   </section>
 </template>
 
@@ -644,15 +511,15 @@ h2 {
 
 .connection {
   padding: 6px 10px;
-  color: #8a5960;
+  color: var(--cc-danger, #8a5960);
   font-size: 12px;
-  background: #fff0f1;
+  background: var(--cc-danger-bg, #fff0f1);
   border-radius: 999px;
 }
 
 .connection.connected {
-  color: #3f735a;
-  background: #e9f8ef;
+  color: var(--cc-success, #3f735a);
+  background: var(--cc-success-bg, #e9f8ef);
 }
 
 .status-grid {
@@ -684,17 +551,6 @@ article strong {
   color: var(--cc-text-primary, #2b2438);
   font-size: 15px;
   overflow-wrap: anywhere;
-}
-
-.frame-name {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 13px;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 9px;
 }
 
 .cpu-panel {
@@ -734,39 +590,20 @@ article strong {
   gap: 16px;
 }
 
-.cpu-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px;
+.monitor-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.memory-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.network-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.storage-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px;
-}
-
-.battery-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 9px;
-}
-
+.cpu-grid,
+.memory-grid,
+.network-grid,
+.storage-grid,
+.battery-grid,
 .keyboard-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 9px;
 }
 
@@ -803,9 +640,9 @@ article strong {
 .permission-note {
   margin: 0;
   padding: 10px 12px;
-  color: #7a5a35;
+  color: var(--cc-text-primary, #7a5a35);
   font-size: 12px;
-  background: #fff7e7;
+  background: color-mix(in srgb, var(--cc-accent, #8d78db) 10%, var(--cc-card-bg, #fff));
   border-radius: 9px;
 }
 
@@ -830,27 +667,11 @@ article strong {
 }
 
 .cpu-grid strong.high {
-  color: #b34152;
+  color: var(--cc-danger, #b34152);
 }
 
 .memory-grid strong.high {
-  color: #b34152;
-}
-
-.behavior-panel {
-  display: grid;
-  gap: 13px;
-  padding: 16px;
-  background: var(--cc-card-bg, #f7f5fb);
-  border: 1px dashed #cfc7df;
-  border-radius: 13px;
-}
-
-.behavior-panel__heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
+  color: var(--cc-danger, #b34152);
 }
 
 h3 {
@@ -859,38 +680,9 @@ h3 {
   font-size: 16px;
 }
 
-.behavior-list {
-  display: grid;
-  gap: 7px;
-}
-
-.behavior-request {
-  min-height: 0;
-  padding: 10px 12px;
-  background: var(--cc-input-bg, #fff);
-}
-
-.behavior-request strong {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-}
-
-.behavior-request span,
-.empty {
-  margin: 0;
-  color: var(--cc-text-secondary, #81798f);
-  font-size: 11px;
-}
-
-.debug-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
 button {
   padding: 9px 13px;
-  color: #fff;
+  color: var(--cc-on-accent, #fff);
   font: inherit;
   font-size: 13px;
   font-weight: 650;
@@ -901,43 +693,22 @@ button {
 }
 
 button:hover:not(:disabled) {
-  background: #5d47b2;
+  background: var(--cc-accent-hover, #5d47b2);
 }
 
 button.secondary {
-  color: #5c4a73;
-  background: #e9e4f2;
+  color: var(--cc-text-primary, #5c4a73);
+  background: var(--cc-muted-surface, #e9e4f2);
 }
 
 button.secondary:hover:not(:disabled) {
-  background: #ddd5ea;
+  background: color-mix(in srgb, var(--cc-accent, #6f57c8) 15%, var(--cc-card-bg, #fff));
 }
 
 button:disabled {
-  color: #9b94a8;
-  background: #e8e5ed;
+  color: var(--cc-text-secondary, #9b94a8);
+  background: var(--cc-muted-surface, #e8e5ed);
   cursor: default;
 }
 
-@media (max-width: 760px) {
-  .cpu-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .memory-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .network-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .storage-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .battery-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 </style>

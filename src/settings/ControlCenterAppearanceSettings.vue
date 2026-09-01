@@ -54,6 +54,9 @@ async function removeBackground(): Promise<void> {
 }
 
 async function resetAppearance(): Promise<void> {
+  if (!window.confirm("恢复控制中心默认视觉？当前托管背景图片会被清除。")) {
+    return;
+  }
   operationError.value = "";
   const previous = appearance.value.backgroundImage;
   settingsManager.update({ controlCenter: createDefaultControlCenterAppearance() });

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onScopeDispose, watch } from "vue";
+import { computed } from "vue";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useRemotePetRuntime } from "../pet/runtimeBridge";
@@ -47,26 +47,6 @@ function openInputMonitoringSettings(): void {
   }
 }
 
-// 授权后无需手动点「重新检测」：每 2 秒重试一次，直到状态离开 permission-required。
-let permissionPollTimer: ReturnType<typeof setInterval> | undefined;
-watch(mouseStatus, (status) => {
-  if (status === "permission-required") {
-    if (permissionPollTimer === undefined) {
-      permissionPollTimer = setInterval(() => {
-        retryMouseMonitor();
-      }, 2000);
-    }
-  } else if (permissionPollTimer !== undefined) {
-    clearInterval(permissionPollTimer);
-    permissionPollTimer = undefined;
-  }
-}, { immediate: true });
-onScopeDispose(() => {
-  if (permissionPollTimer !== undefined) {
-    clearInterval(permissionPollTimer);
-    permissionPollTimer = undefined;
-  }
-});
 const bodyOpacity = computed(() => Math.round(settings.value.input.mouseVisualizerBodyOpacity * 100));
 const buttonOpacity = computed(() => Math.round(settings.value.input.mouseVisualizerButtonOpacity * 100));
 const outlineOpacity = computed(() => Math.round(settings.value.input.mouseVisualizerOutlineOpacity * 100));
@@ -77,11 +57,21 @@ type OpacityKey = "mouseVisualizerBodyOpacity" | "mouseVisualizerButtonOpacity" 
 function updateBoolean(key: "mouseEnabled" | "mouseVisualizerEnabled", event: Event): void {
   settingsManager.updateSetting("input", key, (event.target as HTMLInputElement).checked);
 }
-function updateWindowBoolean(key: "mouseVisualizerWindowEnabled" | "mouseVisualizerClickThrough", event: Event): void {
+function updateWindowBoolean(key: "mouseVisualizerClickThrough", event: Event): void {
   settingsManager.updateSetting("windows", key, (event.target as HTMLInputElement).checked);
+}
+function updateVisualizerWindow(event: Event): void {
+  const enabled = (event.target as HTMLInputElement).checked;
+  settingsManager.update({
+    input: { mouseVisualizerEnabled: enabled },
+    windows: { mouseVisualizerWindowEnabled: enabled },
+  });
 }
 function updatePosition(event: Event): void {
   settingsManager.updateSetting("input", "mouseVisualizerPosition", (event.target as HTMLSelectElement).value as MouseVisualizerPosition);
+  void resetOverlayPosition(OVERLAY_LABELS.mouseVisualizer).catch((error) => {
+    console.error("Failed to reposition the mouse visualizer window.", error);
+  });
 }
 function updateColor(key: ColorKey, event: Event): void {
   settingsManager.updateSetting("input", key, (event.target as HTMLInputElement).value);
@@ -110,9 +100,8 @@ function resetPosition(): void {
         <button v-if="showRetry" type="button" class="retry-button" @click="openInputMonitoringSettings">打开系统设置</button>
         <button v-if="showRetry" type="button" class="retry-button" @click="retryMouseMonitor">重新检测</button>
       </p>
-      <label class="setting-row"><span><strong>Show Mouse Visualizer</strong><small>只隐藏UI，不停止Mouse Runtime。</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseVisualizerEnabled" @change="updateBoolean('mouseVisualizerEnabled', $event)" /></label>
-      <label class="setting-row"><span><strong>鼠标可视化窗口</strong><small>独立于桌宠和键盘历史窗口。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.mouseVisualizerWindowEnabled" @change="updateWindowBoolean('mouseVisualizerWindowEnabled', $event)" /></label>
-      <label class="setting-row"><span><strong>鼠标穿透</strong><small>开启后不能拖动窗口，可在控制中心关闭。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.mouseVisualizerClickThrough" @change="updateWindowBoolean('mouseVisualizerClickThrough', $event)" /></label>
+      <label class="setting-row"><span><strong>鼠标可视化窗口</strong><small>显示独立鼠标按键与滚轮窗口；关闭不停止鼠标监听。</small></span><input class="toggle" type="checkbox" :checked="settings.input.mouseVisualizerEnabled && settings.windows.mouseVisualizerWindowEnabled" @change="updateVisualizerWindow" /></label>
+      <label class="setting-row"><span><strong>鼠标穿透</strong><small>开启后不能拖动窗口，可在控制中心关闭。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.mouseVisualizerClickThrough" :disabled="!settings.input.mouseVisualizerEnabled || !settings.windows.mouseVisualizerWindowEnabled" @change="updateWindowBoolean('mouseVisualizerClickThrough', $event)" /></label>
       <label class="setting-row"><span><strong>Mouse Visualizer Position</strong><small>选择相对桌宠的Base Anchor。</small></span><select class="select-control" :value="settings.input.mouseVisualizerPosition" @change="updatePosition"><option value="top">Top</option><option value="bottom">Bottom</option><option value="left">Left</option><option value="right">Right</option></select></label>
     </article>
 
@@ -150,17 +139,17 @@ function resetPosition(): void {
   border-radius: 8px;
   font-size: 12px;
   line-height: 1.6;
-  background: rgba(96, 165, 250, 0.12);
+  background: var(--cc-muted-surface, rgba(96, 165, 250, 0.12));
   color: var(--control-center-text, inherit);
 }
 
 .monitor-status-note[data-status="permission-required"],
 .monitor-status-note[data-status="error"] {
-  background: rgba(248, 113, 113, 0.16);
+  background: var(--cc-danger-bg, rgba(248, 113, 113, 0.16));
 }
 
 .monitor-status-note[data-status="active"] {
-  background: rgba(74, 222, 128, 0.14);
+  background: var(--cc-success-bg, rgba(74, 222, 128, 0.14));
 }
 
 .retry-button {

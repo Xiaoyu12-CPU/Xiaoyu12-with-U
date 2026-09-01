@@ -7,7 +7,7 @@
 - 权限、隐私、资源占用和可恢复性属于每个相关阶段的完成条件。
 - 本路线图描述目标，不代表对应功能当前已经实现。
 
-当前实现进度：Phase 1、Phase 1.5、Phase 2-A、Phase 2-B、Phase 2-C1 至 Phase 2-C6、Phase 2-D、Phase 2-E、Phase 3-A CPU Monitor、Phase 3-B Memory Monitor、Phase 3-C System Status Bubble 已完成；Phase 3 的 Battery、Network / Storage 真实采样及之后能力尚未接入。
+当前实现进度：Phase 1、Phase 1.5、Phase 2-A 至 Phase 2-E、Phase 3-A 至 Phase 3-G、Phase 4 提醒系统和 Phase 5 输入感知均已完成；CPU、Memory、Network、Storage、Battery 使用真实采样。v0.4.4 已完成四窗口桌面重建后的 UI 与稳定性收尾。Phase 6 自定义皮肤包与 Phase 7 AI 互动仍属于后续规划。
 
 Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标交互调整为 Click + Drag。
 
@@ -351,6 +351,15 @@ Phase 1～5 Feature Development 已完成，项目进入 Feature Freeze。当前
 - 当前确认的Control Center Appearance字段已冻结为新安装环境的Shipping Defaults；业务开关、Reminder数据、Monitor状态和跨设备不安全的各类Offset没有复制。
 - 当前托管背景已复制为`src/assets/control-center/default-background.jpg`，通过Vite Asset URL跨平台打包；默认Settings保存`builtin:shipping-default`，不包含用户绝对路径或Base64。
 - Built-in Shipping Background与用户Managed Background继续共存：existing settings优先，fresh install使用builtin，Reset Appearance恢复本次Shipping Theme并清理其后选择的Managed副本。
+
+### v0.4.4：Control Center 与多窗口稳定性收尾
+
+- 删除生产界面中的开发测试入口、启动开发提示和已经失效的旧 `displayMode` 设置。
+- 合并重复的键盘历史/鼠标可视化开关，并为系统、键盘和鼠标状态增加直达设置导航。
+- 动画、对话和提醒编辑器增加未保存修改保护；设置、主题和三个浮层位置提供范围明确的恢复入口。
+- macOS 输入权限重试由主桌宠 Runtime 持有，不再依赖控制中心页面生命周期。
+- 窗口同步只响应真正影响窗口的设置；持有全局窗口锁的命令改为异步调度，修复控制中心设置变更引发的主线程死锁。
+- `main`、`develop` 与 v0.4.4 发布分支在发布时统一到同一代码树；旧 v0.4.2 实验窗口实现仅保留为历史。
 
 ## Phase 6：自定义皮肤
 

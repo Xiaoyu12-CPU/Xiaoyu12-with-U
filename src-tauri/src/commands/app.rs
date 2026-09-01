@@ -192,7 +192,7 @@ pub async fn sync_overlay_window(
 }
 
 #[tauri::command]
-pub fn resize_overlay_window(
+pub async fn resize_overlay_window(
     app: AppHandle,
     label: String,
     width: f64,
@@ -212,7 +212,7 @@ pub fn resize_overlay_window(
 /// Aligns following overlays from the pet's current absolute position. Using
 /// absolute targets avoids cumulative delta and mixed-DPI drift.
 #[tauri::command]
-pub fn follow_overlay_windows(app: AppHandle, labels: Vec<String>) -> Result<(), String> {
+pub async fn follow_overlay_windows(app: AppHandle, labels: Vec<String>) -> Result<(), String> {
     let _guard = lock_window_operations()?;
     let pet = pet_window(&app)?;
     let pet_position = pet
@@ -245,7 +245,7 @@ pub fn follow_overlay_windows(app: AppHandle, labels: Vec<String>) -> Result<(),
 /// Saves both an absolute position (free mode) and a logical pet-relative
 /// offset (follow mode). This is called after native dragging settles.
 #[tauri::command]
-pub fn save_overlay_window_position(app: AppHandle, label: String) -> Result<(), String> {
+pub async fn save_overlay_window_position(app: AppHandle, label: String) -> Result<(), String> {
     let _guard = lock_window_operations()?;
     validate_overlay_label(&label)?;
     let window = app
@@ -258,7 +258,7 @@ pub fn save_overlay_window_position(app: AppHandle, label: String) -> Result<(),
 }
 
 #[tauri::command]
-pub fn reset_overlay_window_position(
+pub async fn reset_overlay_window_position(
     app: AppHandle,
     label: String,
     default_offset_x: f64,

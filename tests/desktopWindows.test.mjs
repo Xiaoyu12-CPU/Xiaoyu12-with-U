@@ -21,6 +21,7 @@ try {
 
   testSettingsMigration(normalizeSettings, defaults);
   testWindowOptions(windows, defaults);
+  testWindowSettingsSignature(windows, defaults);
   testKeyboardLayout(layout);
   testDefaultAnchors(layout);
   await testArchitectureSources();
@@ -29,6 +30,19 @@ try {
   await vite.close();
   delete globalThis.window;
   delete globalThis.localStorage;
+}
+
+function testWindowSettingsSignature(windows, defaults) {
+  const settings = defaults.createDefaultSettings();
+  const baseline = windows.createOverlayWindowOptionsSignature(settings);
+
+  settings.input.typingBusyWindowSeconds += 30;
+  settings.dialogue.bubbleDurationMs += 250;
+  settings.reminder.enabled = !settings.reminder.enabled;
+  assert.equal(windows.createOverlayWindowOptionsSignature(settings), baseline);
+
+  settings.windows.systemStatusWindowEnabled = true;
+  assert.notEqual(windows.createOverlayWindowOptionsSignature(settings), baseline);
 }
 
 function testSettingsMigration(normalizeSettings, defaults) {
@@ -92,9 +106,18 @@ function testWindowOptions(windows, defaults) {
     ["system-status", "keyboard-history", "mouse-visualizer"],
   );
   assert.ok(options.every(({ width, height }) => width > 0 && height > 0));
+  assert.equal(options[0].visible, true);
+  assert.equal(options[1].visible, false);
+  assert.equal(options[2].visible, false);
   assert.equal(options[1].clickThrough, true);
   assert.equal(options[2].clickThrough, false);
   assert.ok(options.every(({ followPet }) => followPet));
+
+  settings.input.keyDisplayEnabled = true;
+  settings.input.mouseVisualizerEnabled = true;
+  const enabledOptions = windows.buildOverlayWindowOptions(settings);
+  assert.equal(enabledOptions[1].visible, true);
+  assert.equal(enabledOptions[2].visible, true);
 }
 
 function testKeyboardLayout(layout) {
@@ -148,6 +171,14 @@ async function testArchitectureSources() {
     new URL("../src/components/SystemStatusWindow.vue", import.meta.url),
     "utf8",
   );
+  const statusPage = await readFile(
+    new URL("../src/settings/StatusPage.vue", import.meta.url),
+    "utf8",
+  );
+  const contextMenu = await readFile(
+    new URL("../src/components/PetContextMenu.vue", import.meta.url),
+    "utf8",
+  );
   const tauriConfig = JSON.parse(await readFile(
     new URL("../src-tauri/tauri.conf.json", import.meta.url),
     "utf8",
@@ -164,7 +195,17 @@ async function testArchitectureSources() {
   assert.match(backend, /directory\.join\(WINDOW_POSITIONS_FILE\)/);
   assert.match(backend, /relative_target/);
   assert.doesNotMatch(backend, /delta_x|delta_y/);
+  for (const command of [
+    "resize_overlay_window",
+    "follow_overlay_windows",
+    "save_overlay_window_position",
+    "reset_overlay_window_position",
+  ]) {
+    assert.match(backend, new RegExp(`pub async fn ${command}`));
+  }
   assert.doesNotMatch(statusWindow, /<main[^>]*@pointer-down=/s);
-  assert.equal(tauriConfig.version, "0.4.3");
+  assert.doesNotMatch(statusPage, /Development \/ Debug|DEBUG_REQUEST|测试下一个事件|暂停动画|恢复动画/);
+  assert.doesNotMatch(contextMenu, /测试事件|暂停动画|恢复动画/);
+  assert.equal(tauriConfig.version, "0.4.4");
   assert.equal(tauriConfig.bundle.macOS.signingIdentity, "-");
 }

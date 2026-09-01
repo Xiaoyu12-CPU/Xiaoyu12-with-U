@@ -89,7 +89,8 @@ export function buildOverlayWindowOptions(
       width: keyboardSize.width,
       height: keyboardSize.height,
       label: OVERLAY_LABELS.keyboardHistory,
-      visible: settings.windows.keyboardHistoryWindowEnabled,
+      visible: settings.windows.keyboardHistoryWindowEnabled
+        && settings.input.keyDisplayEnabled,
       clickThrough: settings.windows.keyboardHistoryClickThrough,
       defaultOffsetX: keyboardOffset.x,
       defaultOffsetY: keyboardOffset.y,
@@ -98,12 +99,19 @@ export function buildOverlayWindowOptions(
       ...common,
       ...mouseSize,
       label: OVERLAY_LABELS.mouseVisualizer,
-      visible: settings.windows.mouseVisualizerWindowEnabled,
+      visible: settings.windows.mouseVisualizerWindowEnabled
+        && settings.input.mouseVisualizerEnabled,
       clickThrough: settings.windows.mouseVisualizerClickThrough,
       defaultOffsetX: mouseOffset.x,
       defaultOffsetY: mouseOffset.y,
     },
   ];
+}
+
+export function createOverlayWindowOptionsSignature(
+  settings: DesktopPetSettings,
+): string {
+  return JSON.stringify(buildOverlayWindowOptions(settings));
 }
 
 export function useDesktopWindowCoordinator(): void {
@@ -182,9 +190,8 @@ export function useDesktopWindowCoordinator(): void {
   }
 
   const stopWatching = watch(
-    settingsManager.settings,
+    () => createOverlayWindowOptionsSignature(settingsManager.getSettings()),
     requestSync,
-    { deep: true },
   );
 
   void getCurrentWindow().onMoved(requestFollow).then((unlisten) => {

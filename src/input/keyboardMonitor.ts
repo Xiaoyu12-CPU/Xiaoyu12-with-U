@@ -15,6 +15,7 @@ import type {
 
 const KEYBOARD_INPUT_EVENT = "desktop-pet://keyboard-input";
 const KEYBOARD_STATUS_EVENT = "desktop-pet://keyboard-status";
+export const KEYBOARD_PERMISSION_RETRY_INTERVAL_MS = 2000;
 
 export interface KeyboardNativeAdapter {
   start: () => Promise<NativeKeyboardMonitorSnapshot>;
@@ -157,6 +158,21 @@ export function useKeyboardMonitor(): void {
   let unlistenInput: UnlistenFn | undefined;
   let unlistenStatus: UnlistenFn | undefined;
   let stopWatching: (() => void) | undefined;
+  let permissionRetryTimer: ReturnType<typeof setInterval> | undefined;
+
+  function reconcilePermissionRetry(): void {
+    const shouldRetry = !disposed
+      && settingsManager.settings.value.input.keyboardEnabled
+      && runtime.getSnapshot().status === "permission-required";
+    if (shouldRetry && permissionRetryTimer === undefined) {
+      permissionRetryTimer = setInterval(() => {
+        void controller.start().then(reconcilePermissionRetry);
+      }, KEYBOARD_PERMISSION_RETRY_INTERVAL_MS);
+    } else if (!shouldRetry && permissionRetryTimer !== undefined) {
+      clearInterval(permissionRetryTimer);
+      permissionRetryTimer = undefined;
+    }
+  }
 
   async function initialize(): Promise<void> {
     if (!isTauri()) {
@@ -170,6 +186,7 @@ export function useKeyboardMonitor(): void {
       }),
       listen<NativeKeyboardMonitorSnapshot>(KEYBOARD_STATUS_EVENT, ({ payload }) => {
         controller.applyNativeStatus(payload);
+        reconcilePermissionRetry();
       }),
     ]);
 
@@ -183,7 +200,9 @@ export function useKeyboardMonitor(): void {
     stopWatching = watch(
       () => settingsManager.settings.value.input.keyboardEnabled,
       (enabled) => {
-        void (enabled ? controller.start() : controller.stop());
+        reconcilePermissionRetry();
+        void (enabled ? controller.start() : controller.stop())
+          .then(reconcilePermissionRetry);
       },
       { immediate: true },
     );
@@ -199,6 +218,10 @@ export function useKeyboardMonitor(): void {
   function dispose(): void {
     disposed = true;
     stopWatching?.();
+    if (permissionRetryTimer !== undefined) {
+      clearInterval(permissionRetryTimer);
+      permissionRetryTimer = undefined;
+    }
     unlistenInput?.();
     unlistenStatus?.();
     void controller.stop();

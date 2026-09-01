@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import type { PetControlAction } from "../pet/petControl";
 import {
   CONTROL_CENTER_DESTINATIONS,
@@ -14,7 +14,7 @@ import StatusPage from "./StatusPage.vue";
 import SettingsPage from "./SettingsPage.vue";
 import { controlCenterBackgroundManager } from "./controlCenterBackground";
 import { settingsManager } from "./settingsManager";
-import type { SettingsTabId } from "./settingsNavigation";
+import type { InputSettingsTabId, SettingsTabId } from "./settingsNavigation";
 import {
   createControlCenterBackgroundStyle,
   createControlCenterThemeVariables,
@@ -25,7 +25,13 @@ type ControlCenterPage = "status" | "states" | "dialogue" | "reminders" | "setti
 const activePage = ref<ControlCenterPage>("status");
 const contentElement = ref<HTMLElement>();
 const settingsInitialTab = ref<SettingsTabId>("general");
+const settingsInitialInputTab = ref<InputSettingsTabId>("keyboard");
 const settingsNavigationRequest = ref(0);
+const dirtyPages = reactive<Record<"states" | "dialogue" | "reminders", boolean>>({
+  states: false,
+  dialogue: false,
+  reminders: false,
+});
 const { snapshot, isConnected, executeAction } = useRemotePetRuntime();
 useControlCenterNavigation(handleExternalNavigation);
 
@@ -46,7 +52,11 @@ watch(
   { immediate: true },
 );
 
-onMounted(() => { void settingsManager.initialize(); });
+onMounted(() => {
+  void settingsManager.initialize();
+  window.addEventListener("beforeunload", handleBeforeUnload);
+});
+onBeforeUnmount(() => window.removeEventListener("beforeunload", handleBeforeUnload));
 
 function handleAction(action: PetControlAction): void {
   executeAction(action);
@@ -54,19 +64,46 @@ function handleAction(action: PetControlAction): void {
 
 function handleExternalNavigation(destination: ControlCenterDestination): void {
   if (destination === CONTROL_CENTER_DESTINATIONS.SYSTEM_MONITOR_SETTINGS) {
-    openSystemMonitorSettings();
+    openSettings("system");
   }
 }
 
-function openSystemMonitorSettings(): void {
-  openSettings("system");
+function handleBeforeUnload(event: BeforeUnloadEvent): void {
+  if (!Object.values(dirtyPages).some(Boolean)) return;
+  event.preventDefault();
+  event.returnValue = "";
 }
 
-function openSettings(tab: SettingsTabId): void {
-  settingsInitialTab.value = tab;
-  settingsNavigationRequest.value += 1;
-  activePage.value = "settings";
+function canLeaveActivePage(): boolean {
+  const page = activePage.value;
+  if (!(page in dirtyPages) || !dirtyPages[page as keyof typeof dirtyPages]) {
+    return true;
+  }
+  if (!window.confirm("当前页面有未保存修改，确定离开并放弃修改吗？")) {
+    return false;
+  }
+  dirtyPages[page as keyof typeof dirtyPages] = false;
+  return true;
+}
+
+function navigatePage(page: ControlCenterPage): boolean {
+  if (page === activePage.value) return true;
+  if (!canLeaveActivePage()) return false;
+  activePage.value = page;
   scrollContentToTop();
+  return true;
+}
+
+function openSettings(tab: SettingsTabId, inputTab: InputSettingsTabId = "keyboard"): void {
+  if (!navigatePage("settings")) return;
+  settingsInitialTab.value = tab;
+  settingsInitialInputTab.value = inputTab;
+  settingsNavigationRequest.value += 1;
+  scrollContentToTop();
+}
+
+function setPageDirty(page: keyof typeof dirtyPages, dirty: boolean): void {
+  dirtyPages[page] = dirty;
 }
 
 function scrollContentToTop(): void {
@@ -92,28 +129,28 @@ function scrollContentToTop(): void {
         <button
           type="button"
           :class="{ active: activePage === 'status' }"
-          @click="activePage = 'status'"
+          @click="navigatePage('status')"
         >
           当前状态
         </button>
         <button
           type="button"
           :class="{ active: activePage === 'states' }"
-          @click="activePage = 'states'"
+          @click="navigatePage('states')"
         >
           状态与动画
         </button>
         <button
           type="button"
           :class="{ active: activePage === 'dialogue' }"
-          @click="activePage = 'dialogue'"
+          @click="navigatePage('dialogue')"
         >
           Dialogue 编辑
         </button>
         <button
           type="button"
           :class="{ active: activePage === 'reminders' }"
-          @click="activePage = 'reminders'"
+          @click="navigatePage('reminders')"
         >
           提醒
         </button>
@@ -126,7 +163,6 @@ function scrollContentToTop(): void {
         </button>
       </nav>
 
-      <p>withXiaoyu12</p>
     </aside>
 
     <div ref="contentElement" class="control-center__content">
@@ -134,21 +170,23 @@ function scrollContentToTop(): void {
         v-if="activePage === 'status'"
         :snapshot="snapshot"
         :connected="isConnected"
-        @action="handleAction"
-        @open-system-monitor-settings="openSystemMonitorSettings"
+        @open-settings="openSettings"
       />
       <StateAnimationEditor
         v-else-if="activePage === 'states'"
         :runtime-state="snapshot?.state"
+        @dirty-change="setPageDirty('states', $event)"
       />
-      <DialogueEditor v-else-if="activePage === 'dialogue'" @action="handleAction" />
+      <DialogueEditor v-else-if="activePage === 'dialogue'" @action="handleAction" @dirty-change="setPageDirty('dialogue', $event)" />
       <ReminderPage
         v-else-if="activePage === 'reminders'"
         :runtime="snapshot"
+        @dirty-change="setPageDirty('reminders', $event)"
       />
       <SettingsPage
         v-else
         :initial-tab="settingsInitialTab"
+        :initial-input-tab="settingsInitialInputTab"
         :navigation-request="settingsNavigationRequest"
         @navigate="scrollContentToTop"
       />
@@ -251,12 +289,6 @@ nav button.active {
   background: var(--cc-sidebar-active-background);
 }
 
-aside > p {
-  margin: auto 0 0;
-  color: var(--cc-sidebar-text);
-  font-size: 11px;
-}
-
 .control-center__content {
   min-width: 0;
   padding: 30px;
@@ -294,7 +326,7 @@ aside > p {
 .control-center__content :deep(.empty-state),
 .control-center__content :deep(.pending-snoozes),
 .control-center__content :deep(.editor),
-.control-center__content :deep(.scheduler-status) {
+.control-center__content :deep(.reminder-system-settings) {
   background: var(--cc-card-bg);
   border-color: var(--cc-card-border);
   border-width: var(--cc-card-border-width);
@@ -312,10 +344,6 @@ aside > p {
 
   nav {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  aside > p {
-    display: none;
   }
 
   .control-center__content {

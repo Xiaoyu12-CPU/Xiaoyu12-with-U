@@ -12,7 +12,7 @@ function updateDuration(event: Event): void {
 }
 
 function updateBoolean(
-  key: "showDevelopmentMessageOnStartup" | "enableClickDialogue" | "enableDragDialogue",
+  key: "enableClickDialogue" | "enableDragDialogue",
   event: Event,
 ): void {
   settingsManager.updateSetting(
@@ -36,10 +36,6 @@ function updateBoolean(
           <input type="number" min="250" max="60000" step="250" :value="settings.dialogue.bubbleDurationMs" @change="updateDuration" />
           <span>ms</span>
         </div>
-      </label>
-      <label class="setting-row">
-        <span><strong>启动时显示开发提示</strong></span>
-        <input class="toggle" type="checkbox" :checked="settings.dialogue.showDevelopmentMessageOnStartup" @change="updateBoolean('showDevelopmentMessageOnStartup', $event)" />
       </label>
     </article>
 

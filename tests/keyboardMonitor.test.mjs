@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { createServer } from "vite";
 
 const vite = await createServer({
@@ -81,6 +82,13 @@ try {
   assert.equal(controllerRuntime.getSnapshot().status, "permission-required");
   assert.equal(controllerRuntime.getSnapshot().message, "permission needed");
   assert.ok(updates.length >= 8);
+
+  const monitorSource = await readFile(new URL("../src/input/keyboardMonitor.ts", import.meta.url), "utf8");
+  const settingsSource = await readFile(new URL("../src/settings/KeyboardInputSettings.vue", import.meta.url), "utf8");
+  assert.match(monitorSource, /KEYBOARD_PERMISSION_RETRY_INTERVAL_MS/);
+  assert.doesNotMatch(settingsSource, /setInterval/);
+  assert.match(settingsSource, /<strong>键盘历史窗口<\/strong>/);
+  assert.doesNotMatch(settingsSource, /Show Keyboard History/);
 
   // Stuck-key GC: a lost "up" must not block the next "down" of the same key.
   const gcRuntime = createKeyboardInputRuntime();

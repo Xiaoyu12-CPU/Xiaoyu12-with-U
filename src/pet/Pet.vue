@@ -5,8 +5,6 @@ import ReminderFeedbackActions from "../components/ReminderFeedbackActions.vue";
 import SpeechBubble from "../components/SpeechBubble.vue";
 import { usePetAnimation } from "./animationEngine";
 import { initializePetAssets, resolveCurrentPetAsset } from "./assetLoader";
-import { triggerDialogueEvent } from "./dialogue";
-import { DIALOGUE_EVENT_TYPES } from "./dialogueEvents";
 import { usePetInteraction } from "./interaction";
 import { createPetControl } from "./petControl";
 import type { PetControlActionType } from "./petControl";
@@ -156,9 +154,6 @@ async function handleReminderSnooze(minutes: SnoozeMinutes): Promise<void> {
 onMounted(async () => {
   document.addEventListener("pointerdown", closeContextMenu);
   await Promise.all([initializePetAssets(), settingsManager.initialize()]);
-  if (settingsManager.settings.value.dialogue.showDevelopmentMessageOnStartup) {
-    triggerDialogueEvent(DIALOGUE_EVENT_TYPES.DEVELOPMENT, { candidateIndex: 0 });
-  }
 });
 
 onBeforeUnmount(() => {
@@ -206,7 +201,6 @@ onBeforeUnmount(() => {
       :visible="contextMenu.visible"
       :x="contextMenu.x"
       :y="contextMenu.y"
-      :is-paused="isPaused"
       @action="handleContextMenuAction"
     />
   </div>

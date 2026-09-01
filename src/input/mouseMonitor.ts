@@ -12,6 +12,7 @@ import type {
 
 const MOUSE_INPUT_EVENT = "desktop-pet://mouse-input";
 const MOUSE_STATUS_EVENT = "desktop-pet://mouse-status";
+export const MOUSE_PERMISSION_RETRY_INTERVAL_MS = 2000;
 
 export interface MouseNativeAdapter {
   start: () => Promise<NativeMouseMonitorSnapshot>;
@@ -112,6 +113,21 @@ export function useMouseMonitor(): void {
   let unlistenInput: UnlistenFn | undefined;
   let unlistenStatus: UnlistenFn | undefined;
   let stopWatching: (() => void) | undefined;
+  let permissionRetryTimer: ReturnType<typeof setInterval> | undefined;
+
+  function reconcilePermissionRetry(): void {
+    const shouldRetry = !disposed
+      && settingsManager.settings.value.input.mouseEnabled
+      && runtime.getSnapshot().status === "permission-required";
+    if (shouldRetry && permissionRetryTimer === undefined) {
+      permissionRetryTimer = setInterval(() => {
+        void controller.start().then(reconcilePermissionRetry);
+      }, MOUSE_PERMISSION_RETRY_INTERVAL_MS);
+    } else if (!shouldRetry && permissionRetryTimer !== undefined) {
+      clearInterval(permissionRetryTimer);
+      permissionRetryTimer = undefined;
+    }
+  }
 
   async function initialize(): Promise<void> {
     if (!isTauri()) {
@@ -125,6 +141,7 @@ export function useMouseMonitor(): void {
       }),
       listen<NativeMouseMonitorSnapshot>(MOUSE_STATUS_EVENT, ({ payload }) => {
         controller.applyNativeStatus(payload);
+        reconcilePermissionRetry();
       }),
     ]);
 
@@ -138,7 +155,9 @@ export function useMouseMonitor(): void {
     stopWatching = watch(
       () => settingsManager.settings.value.input.mouseEnabled,
       (enabled) => {
-        void (enabled ? controller.start() : controller.stop());
+        reconcilePermissionRetry();
+        void (enabled ? controller.start() : controller.stop())
+          .then(reconcilePermissionRetry);
       },
       { immediate: true },
     );
@@ -154,6 +173,10 @@ export function useMouseMonitor(): void {
   function dispose(): void {
     disposed = true;
     stopWatching?.();
+    if (permissionRetryTimer !== undefined) {
+      clearInterval(permissionRetryTimer);
+      permissionRetryTimer = undefined;
+    }
     unlistenInput?.();
     unlistenStatus?.();
     void controller.stop();

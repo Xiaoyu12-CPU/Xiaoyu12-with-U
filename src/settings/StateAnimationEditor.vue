@@ -27,6 +27,10 @@ defineProps<{
   runtimeState?: PetState;
 }>();
 
+const emit = defineEmits<{
+  dirtyChange: [dirty: boolean];
+}>();
+
 const selectedState = ref<PetState>("idle");
 const frames = ref<EditorFrame[]>([]);
 const loop = ref(true);
@@ -37,6 +41,7 @@ const isSaving = ref(false);
 const isUploading = ref(false);
 const message = ref("");
 const error = ref("");
+const savedDraftSignature = ref("");
 
 const stateInfos = computed(() => {
   void assetRevision.value;
@@ -65,6 +70,14 @@ const dimensionsWarning = computed(() => {
   );
   return dimensions.size > 1;
 });
+const draftSignature = computed(() => JSON.stringify({
+  frames: frames.value.map(({ src: _src, width: _width, height: _height, ...frame }) => frame),
+  loop: loop.value,
+  replayMode: replayMode.value,
+  fixedDelayMs: fixedDelayMs.value,
+  randomDelaysText: randomDelaysText.value,
+}));
+const isDirty = computed(() => draftSignature.value !== savedDraftSignature.value);
 
 const previewAsset = computed<ResolvedPetAsset>(() => {
   if (frames.value.length === 0) {
@@ -96,6 +109,7 @@ const previewAsset = computed<ResolvedPetAsset>(() => {
 const preview = usePetAnimation(previewAsset);
 
 watch([selectedState, assetRevision], loadDraft, { immediate: true });
+watch(isDirty, (dirty) => emit("dirtyChange", dirty), { immediate: true });
 
 onMounted(async () => {
   await initializePetAssets();
@@ -109,6 +123,7 @@ function loadDraft(): void {
   replayMode.value = info.animation.replay.mode;
   fixedDelayMs.value = info.animation.replay.delayMs;
   randomDelaysText.value = info.animation.replay.delayOptionsMs.join("\n");
+  savedDraftSignature.value = draftSignature.value;
   message.value = "";
   error.value = "";
 
@@ -117,6 +132,14 @@ function loadDraft(): void {
       void readImageDimensions(frame);
     }
   }
+}
+
+function selectState(state: PetState): void {
+  if (state === selectedState.value) return;
+  if (isDirty.value && !window.confirm("当前状态有未保存修改，确定切换并放弃修改吗？")) {
+    return;
+  }
+  selectedState.value = state;
 }
 
 async function handleUpload(event: Event): Promise<void> {
@@ -199,7 +222,7 @@ async function save(): Promise<void> {
     error.value = "每帧 duration 必须是大于或等于 0 的毫秒数。";
     return;
   }
-  if (replayMode.value === "random" && randomDelayOptions.value.length === 0) {
+  if (loop.value && replayMode.value === "random" && randomDelayOptions.value.length === 0) {
     error.value = "Random Delay 至少需要一个有效的毫秒值。";
     return;
   }
@@ -217,6 +240,7 @@ async function save(): Promise<void> {
         },
       },
     });
+    savedDraftSignature.value = draftSignature.value;
     message.value = "已保存并通知桌宠热重载。";
   } catch (saveError) {
     error.value = toErrorMessage(saveError);
@@ -271,7 +295,7 @@ function toErrorMessage(value: unknown): string {
           :key="entry.metadata.id"
           type="button"
           :class="{ selected: selectedState === entry.metadata.id }"
-          @click="selectedState = entry.metadata.id"
+          @click="selectState(entry.metadata.id)"
         >
           <div>
             <strong>{{ entry.metadata.id }}</strong>
@@ -379,7 +403,7 @@ function toErrorMessage(value: unknown): string {
         <section class="playback">
           <h4>播放设置</h4>
           <label class="check"><input v-model="loop" type="checkbox" /> Loop</label>
-          <label>
+          <label v-if="loop">
             Replay Delay
             <select v-model="replayMode">
               <option value="continuous">Continuous</option>
@@ -387,14 +411,15 @@ function toErrorMessage(value: unknown): string {
               <option value="random">Random Delay</option>
             </select>
           </label>
-          <label v-if="replayMode === 'fixed'">
+          <label v-if="loop && replayMode === 'fixed'">
             Fixed Delay (ms)
             <input v-model.number="fixedDelayMs" type="number" min="0" />
           </label>
-          <label v-if="replayMode === 'random'">
+          <label v-if="loop && replayMode === 'random'">
             Random Delay 数组（毫秒，换行或逗号分隔）
             <textarea v-model="randomDelaysText" rows="4" />
           </label>
+          <p v-if="!loop" class="playback-note">非循环动画播放一次后停留在末帧，不使用 Replay Delay。</p>
         </section>
 
         <footer class="save-bar">
@@ -420,19 +445,19 @@ h2 { color: var(--cc-text-primary, #211b31); font-size: 26px; }
 .state-list > button.selected { border-color: var(--cc-accent, #9b87de); box-shadow: 0 0 0 2px color-mix(in srgb, var(--cc-accent, #8b78ff) 10%, transparent); }
 .state-list button > div { display: flex; align-items: center; justify-content: space-between; }
 .state-list strong { color: var(--cc-text-primary, #2d253a); font-size: 13px; }
-.state-list small { padding: 2px 5px; color: #fff; background: var(--cc-accent, #725bc7); border-radius: 999px; font-size: 9px; }
+.state-list small { padding: 2px 5px; color: var(--cc-on-accent, #fff); background: var(--cc-accent, #725bc7); border-radius: 999px; font-size: 9px; }
 .state-list span, .state-list p { font-size: 10px; }
-.state-list span { color: #9b6970; }
-.state-list span.configured { color: #438064; }
-.state-list .state-error { color: #b14855; font-weight: 700; }
+.state-list span { color: var(--cc-text-secondary, #9b6970); }
+.state-list span.configured { color: var(--cc-success, #438064); }
+.state-list .state-error { color: var(--cc-danger, #b14855); font-weight: 700; }
 .detail { display: grid; gap: 16px; min-width: 0; }
-.detail-heading { padding-bottom: 12px; border-bottom: 1px solid #eeeaf4; }
+.detail-heading { padding-bottom: 12px; border-bottom: 1px solid var(--cc-card-border, #eeeaf4); }
 .detail-heading h3 { font-size: 22px; }
 .source { padding: 5px 8px; color: var(--cc-accent, #6550ac); font-size: 11px; background: var(--cc-card-bg, #f0ecff); border-radius: 999px; }
 .warning, .error, .success { padding: 9px 11px; font-size: 12px; border-radius: 8px; }
-.warning { color: #8a5f20; background: #fff7df; }
-.error { color: #a13e4a; background: #fff0f2; }
-.success { color: #397256; background: #ebf8f0; }
+.warning { color: var(--cc-warning, #8a5f20); background: var(--cc-warning-bg, #fff7df); }
+.error { color: var(--cc-danger, #a13e4a); background: var(--cc-danger-bg, #fff0f2); }
+.success { color: var(--cc-success, #397256); background: var(--cc-success-bg, #ebf8f0); }
 .preview-panel { padding: 13px; background: var(--cc-card-bg, #f7f4fc); border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e5dff0); border-radius: 12px; }
 .preview-panel img { width: 96px; height: 96px; object-fit: contain; image-rendering: pixelated; }
 section { display: grid; gap: 12px; }
@@ -440,23 +465,24 @@ section { display: grid; gap: 12px; }
 .upload input { display: none; }
 .frame-list { display: grid; gap: 8px; }
 .frame-list article { display: grid; grid-template-columns: 24px 54px minmax(120px, 1fr) 105px auto; gap: 9px; align-items: center; padding: 9px; background: var(--cc-card-bg, #faf9fd); border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e9e5ef); border-radius: 10px; }
-.order { color: #8d8299; font-size: 11px; text-align: center; }
+.order { color: var(--cc-text-secondary, #8d8299); font-size: 11px; text-align: center; }
 .frame-list img { width: 52px; height: 52px; object-fit: contain; background: repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 50% / 12px 12px; image-rendering: pixelated; }
 .frame-meta { display: grid; gap: 3px; min-width: 0; }
 .frame-meta strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.frame-meta span { color: #867d92; font-size: 10px; }
-.duration { display: flex; align-items: center; gap: 4px; color: #756d80; font-size: 11px; }
+.frame-meta span { color: var(--cc-text-secondary, #867d92); font-size: 10px; }
+.duration { display: flex; align-items: center; gap: 4px; color: var(--cc-text-secondary, #756d80); font-size: 11px; }
 .duration input { width: 68px; }
 input, select, textarea { box-sizing: border-box; padding: 7px 8px; color: var(--cc-text-primary, #30283d); font: inherit; font-size: 12px; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #dcd6e7); border-radius: 7px; }
 .frame-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
-button { padding: 7px 9px; color: #fff; font: inherit; font-size: 11px; font-weight: 650; background: var(--cc-accent, #6f57c8); border: 1px solid var(--cc-accent, #6f57c8); border-radius: 7px; cursor: pointer; }
+button { padding: 7px 9px; color: var(--cc-on-accent, #fff); font: inherit; font-size: 11px; font-weight: 650; background: var(--cc-accent, #6f57c8); border: 1px solid var(--cc-accent, #6f57c8); border-radius: 7px; cursor: pointer; }
 button:disabled { opacity: .45; cursor: default; }
-button.danger { color: #a14552; background: #fff; border-color: #efcbd0; }
+button.danger { color: var(--cc-danger, #a14552); background: var(--cc-input-bg, #fff); border-color: color-mix(in srgb, var(--cc-danger, #a14552) 35%, transparent); }
 .empty { padding: 18px; color: var(--cc-text-secondary, #8d8498); font-size: 12px; text-align: center; background: var(--cc-card-bg, #faf9fd); border: 1px dashed var(--cc-card-border, #dcd6e7); border-radius: 10px; }
 .playback { padding: 14px; background: var(--cc-card-bg, #faf9fd); border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e9e5ef); border-radius: 11px; }
-.playback label { display: grid; gap: 6px; color: #645b70; font-size: 12px; }
+.playback label { display: grid; gap: 6px; color: var(--cc-text-secondary, #645b70); font-size: 12px; }
 .playback label.check { display: flex; align-items: center; }
 .playback textarea { resize: vertical; }
+.playback-note { color: var(--cc-text-secondary, #81798f); font-size: 11px; }
 .save-bar { display: flex; justify-content: flex-end; padding-top: 4px; }
 .save-bar button { padding: 9px 14px; font-size: 12px; }
 @media (max-width: 820px) { .workspace { grid-template-columns: 1fr; } .state-list { grid-template-columns: repeat(2,minmax(0,1fr)); position: static; } .frame-list article { grid-template-columns: 24px 50px 1fr; } .duration, .frame-actions { grid-column: 3; justify-content: flex-start; } }

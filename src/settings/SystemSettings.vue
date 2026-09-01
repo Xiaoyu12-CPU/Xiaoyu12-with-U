@@ -10,12 +10,9 @@ const panelScalePercent = computed(() => Math.round(settings.value.systemStatusB
 
 function updateStatusWindowEnabled(event: Event): void {
   const enabled = (event.target as HTMLInputElement).checked;
-  settingsManager.update({
-    windows: { systemStatusWindowEnabled: enabled },
-    systemStatusBubble: { displayMode: enabled ? "both" : "pet-only" },
-  });
+  settingsManager.updateSetting("windows", "systemStatusWindowEnabled", enabled);
 }
-function updateWindowBoolean(key: "systemStatusClickThrough" | "followPet", event: Event): void {
+function updateWindowBoolean(key: "systemStatusClickThrough", event: Event): void {
   settingsManager.updateSetting("windows", key, (event.target as HTMLInputElement).checked);
 }
 function updateVisibleItem(itemId: SystemStatusItemId, event: Event): void {
@@ -54,8 +51,7 @@ function updateMonitorNumber(key: "cpuPollIntervalMs" | "cpuHighThreshold" | "me
         <span><strong>系统状态窗口</strong><small>与桌宠主窗口完全分离，可独立拖动。</small></span>
         <input class="toggle" type="checkbox" :checked="settings.windows.systemStatusWindowEnabled" @change="updateStatusWindowEnabled" />
       </div>
-      <label class="setting-row"><span><strong>跟随桌宠</strong><small>三个浮层都保持各自相对位置；关闭后停在屏幕原位。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.followPet" @change="updateWindowBoolean('followPet', $event)" /></label>
-      <label class="setting-row"><span><strong>鼠标穿透</strong><small>开启后不能直接拖动此窗口，可在这里关闭。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.systemStatusClickThrough" @change="updateWindowBoolean('systemStatusClickThrough', $event)" /></label>
+      <label class="setting-row"><span><strong>鼠标穿透</strong><small>开启后不能直接拖动此窗口，可在这里关闭。</small></span><input class="toggle" type="checkbox" :checked="settings.windows.systemStatusClickThrough" :disabled="!settings.windows.systemStatusWindowEnabled" @change="updateWindowBoolean('systemStatusClickThrough', $event)" /></label>
       <div class="setting-row">
         <span><strong>显示内容</strong><small>全部取消时仍保留最小标题。</small></span>
         <div class="item-options"><label v-for="item in SYSTEM_STATUS_ITEMS" :key="item.id"><input type="checkbox" :checked="settings.systemStatusBubble.visibleItems.includes(item.id)" @change="updateVisibleItem(item.id, $event)" />{{ item.label }}</label></div>
@@ -75,19 +71,19 @@ function updateMonitorNumber(key: "cpuPollIntervalMs" | "cpuHighThreshold" | "me
     <article id="system-monitor-settings">
       <div class="section-heading"><h3>System Monitor</h3><p>由桌宠主窗口调用Rust读取真实硬件状态。</p></div>
       <label class="setting-row"><span><strong>System Monitor Master</strong><small>暂停时保留各子Monitor开关。</small></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.enabled" @change="updateMonitorBoolean('enabled', $event)" /></label>
-      <label class="setting-row"><span><strong>Fast Poll Interval</strong><small>CPU、Memory、Network共用，500～10000ms。</small></span><div class="number-control"><input type="number" min="500" max="10000" step="500" :value="settings.systemMonitor.cpuPollIntervalMs" :disabled="!settings.systemMonitor.enabled || (!settings.systemMonitor.cpuEnabled && !settings.systemMonitor.memoryEnabled && !settings.systemMonitor.networkEnabled)" @change="updateMonitorNumber('cpuPollIntervalMs', $event)" /><span>ms</span></div></label>
+      <label class="setting-row"><span><strong>Fast Poll Interval</strong><small>CPU、Memory、Network共用；Master 关闭时仍保留配置。</small></span><div class="number-control"><input type="number" min="500" max="10000" step="500" :value="settings.systemMonitor.cpuPollIntervalMs" :disabled="!settings.systemMonitor.cpuEnabled && !settings.systemMonitor.memoryEnabled && !settings.systemMonitor.networkEnabled" @change="updateMonitorNumber('cpuPollIntervalMs', $event)" /><span>ms</span></div></label>
       <h4 class="settings-group-heading">CPU</h4>
-      <label class="setting-row"><span><strong>Enable CPU Monitor</strong></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.cpuEnabled" :disabled="!settings.systemMonitor.enabled" @change="updateMonitorBoolean('cpuEnabled', $event)" /></label>
-      <label class="setting-row"><span><strong>CPU High Threshold</strong><small>退出阈值低10个百分点。</small></span><div class="number-control"><input type="number" min="10" max="100" step="5" :value="settings.systemMonitor.cpuHighThreshold" :disabled="!settings.systemMonitor.enabled || !settings.systemMonitor.cpuEnabled" @change="updateMonitorNumber('cpuHighThreshold', $event)" /><span>%</span></div></label>
+      <label class="setting-row"><span><strong>Enable CPU Monitor</strong></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.cpuEnabled" @change="updateMonitorBoolean('cpuEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>CPU High Threshold</strong><small>退出阈值低10个百分点。</small></span><div class="number-control"><input type="number" min="10" max="100" step="5" :value="settings.systemMonitor.cpuHighThreshold" :disabled="!settings.systemMonitor.cpuEnabled" @change="updateMonitorNumber('cpuHighThreshold', $event)" /><span>%</span></div></label>
       <h4 class="settings-group-heading">Memory</h4>
-      <label class="setting-row"><span><strong>Enable Memory Monitor</strong></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.memoryEnabled" :disabled="!settings.systemMonitor.enabled" @change="updateMonitorBoolean('memoryEnabled', $event)" /></label>
-      <label class="setting-row"><span><strong>Memory High Threshold</strong><small>退出阈值低5个百分点。</small></span><div class="number-control"><input type="number" min="50" max="100" step="5" :value="settings.systemMonitor.memoryHighThreshold" :disabled="!settings.systemMonitor.enabled || !settings.systemMonitor.memoryEnabled" @change="updateMonitorNumber('memoryHighThreshold', $event)" /><span>%</span></div></label>
+      <label class="setting-row"><span><strong>Enable Memory Monitor</strong></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.memoryEnabled" @change="updateMonitorBoolean('memoryEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>Memory High Threshold</strong><small>退出阈值低5个百分点。</small></span><div class="number-control"><input type="number" min="50" max="100" step="5" :value="settings.systemMonitor.memoryHighThreshold" :disabled="!settings.systemMonitor.memoryEnabled" @change="updateMonitorNumber('memoryHighThreshold', $event)" /><span>%</span></div></label>
       <h4 class="settings-group-heading">Network</h4>
-      <label class="setting-row"><span><strong>Enable Network Monitor</strong><small>显示全系统实时下载与上传速度。</small></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.networkEnabled" :disabled="!settings.systemMonitor.enabled" @change="updateMonitorBoolean('networkEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>Enable Network Monitor</strong><small>显示全系统实时下载与上传速度。</small></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.networkEnabled" @change="updateMonitorBoolean('networkEnabled', $event)" /></label>
       <h4 class="settings-group-heading">Storage</h4>
-      <label class="setting-row"><span><strong>Enable Storage Monitor</strong><small>每30秒读取主要系统卷。</small></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.storageEnabled" :disabled="!settings.systemMonitor.enabled" @change="updateMonitorBoolean('storageEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>Enable Storage Monitor</strong><small>每30秒读取主要系统卷。</small></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.storageEnabled" @change="updateMonitorBoolean('storageEnabled', $event)" /></label>
       <h4 class="settings-group-heading">Battery</h4>
-      <label class="setting-row"><span><strong>Enable Battery Monitor</strong><small>每30秒读取主电池状态。</small></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.batteryEnabled" :disabled="!settings.systemMonitor.enabled" @change="updateMonitorBoolean('batteryEnabled', $event)" /></label>
+      <label class="setting-row"><span><strong>Enable Battery Monitor</strong><small>每30秒读取主电池状态。</small></span><input class="toggle" type="checkbox" :checked="settings.systemMonitor.batteryEnabled" @change="updateMonitorBoolean('batteryEnabled', $event)" /></label>
     </article>
   </div>
 </template>

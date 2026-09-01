@@ -13,16 +13,16 @@ function updateScale(event: Event): void {
   );
 }
 
-function updateBoolean(
-  section: "appearance" | "animation",
-  key: "alwaysOnTop" | "enabled",
-  event: Event,
-): void {
-  settingsManager.updateSetting(
-    section,
-    key as never,
-    (event.target as HTMLInputElement).checked as never,
-  );
+function updateAlwaysOnTop(event: Event): void {
+  settingsManager.updateSetting("appearance", "alwaysOnTop", (event.target as HTMLInputElement).checked);
+}
+
+function updateAnimationEnabled(event: Event): void {
+  settingsManager.updateSetting("animation", "enabled", (event.target as HTMLInputElement).checked);
+}
+
+function updateFollowPet(event: Event): void {
+  settingsManager.updateSetting("windows", "followPet", (event.target as HTMLInputElement).checked);
 }
 </script>
 
@@ -41,8 +41,12 @@ function updateBoolean(
         </div>
       </label>
       <label class="setting-row">
-        <span><strong>Always On Top</strong><small>控制桌宠窗口是否始终置顶。</small></span>
-        <input class="toggle" type="checkbox" :checked="settings.appearance.alwaysOnTop" @change="updateBoolean('appearance', 'alwaysOnTop', $event)" />
+        <span><strong>Always On Top</strong><small>控制桌宠及三个浮层窗口是否始终置顶。</small></span>
+        <input class="toggle" type="checkbox" :checked="settings.appearance.alwaysOnTop" @change="updateAlwaysOnTop" />
+      </label>
+      <label class="setting-row">
+        <span><strong>浮层跟随桌宠</strong><small>系统状态、键盘历史和鼠标可视化保持各自相对位置。</small></span>
+        <input class="toggle" type="checkbox" :checked="settings.windows.followPet" @change="updateFollowPet" />
       </label>
     </article>
 
@@ -53,7 +57,7 @@ function updateBoolean(
       </div>
       <label class="setting-row">
         <span><strong>Animation Enabled</strong></span>
-        <input class="toggle" type="checkbox" :checked="settings.animation.enabled" @change="updateBoolean('animation', 'enabled', $event)" />
+        <input class="toggle" type="checkbox" :checked="settings.animation.enabled" @change="updateAnimationEnabled" />
       </label>
     </article>
   </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onScopeDispose, watch } from "vue";
+import { computed } from "vue";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useRemotePetRuntime } from "../pet/runtimeBridge";
@@ -47,26 +47,6 @@ function openInputMonitoringSettings(): void {
   }
 }
 
-// 授权后无需手动点「重新检测」：每 2 秒重试一次，直到状态离开 permission-required。
-let permissionPollTimer: ReturnType<typeof setInterval> | undefined;
-watch(keyboardStatus, (status) => {
-  if (status === "permission-required") {
-    if (permissionPollTimer === undefined) {
-      permissionPollTimer = setInterval(() => {
-        retryKeyboardMonitor();
-      }, 2000);
-    }
-  } else if (permissionPollTimer !== undefined) {
-    clearInterval(permissionPollTimer);
-    permissionPollTimer = undefined;
-  }
-}, { immediate: true });
-onScopeDispose(() => {
-  if (permissionPollTimer !== undefined) {
-    clearInterval(permissionPollTimer);
-    permissionPollTimer = undefined;
-  }
-});
 const durationSeconds = computed(() => (settings.value.input.keyDisplayDurationMs / 1000).toFixed(1));
 const lineOpacityPercent = computed(() => Math.round(settings.value.input.keyDisplayStartLineOpacity * 100));
 
@@ -74,8 +54,16 @@ function updateBoolean(key: "keyboardEnabled" | "keyDisplayEnabled" | "keyDispla
   settingsManager.updateSetting("input", key, (event.target as HTMLInputElement).checked);
 }
 
-function updateWindowBoolean(key: "keyboardHistoryWindowEnabled" | "keyboardHistoryClickThrough", event: Event): void {
+function updateWindowBoolean(key: "keyboardHistoryClickThrough", event: Event): void {
   settingsManager.updateSetting("windows", key, (event.target as HTMLInputElement).checked);
+}
+
+function updateHistoryWindow(event: Event): void {
+  const enabled = (event.target as HTMLInputElement).checked;
+  settingsManager.update({
+    input: { keyDisplayEnabled: enabled },
+    windows: { keyboardHistoryWindowEnabled: enabled },
+  });
 }
 
 function updateNumber(key: "keyDisplayMaxItems" | "keyDisplayDurationMs" | "keyDisplayStartLineGapPx", event: Event): void {
@@ -123,16 +111,12 @@ function resetPosition(): void {
         <button v-if="showRetry" type="button" class="retry-button" @click="retryKeyboardMonitor">重新检测</button>
       </p>
       <label class="setting-row">
-        <span><strong>Show Keyboard History</strong><small>只控制可视化；关闭后Keyboard仍可驱动WORKING。</small></span>
-        <input class="toggle" type="checkbox" :checked="settings.input.keyDisplayEnabled" @change="updateBoolean('keyDisplayEnabled', $event)" />
-      </label>
-      <label class="setting-row">
-        <span><strong>键盘历史窗口</strong><small>独立于桌宠主窗口显示，位置会自动保存。</small></span>
-        <input class="toggle" type="checkbox" :checked="settings.windows.keyboardHistoryWindowEnabled" @change="updateWindowBoolean('keyboardHistoryWindowEnabled', $event)" />
+        <span><strong>键盘历史窗口</strong><small>显示独立键位历史窗口；关闭不影响键盘活动驱动桌宠状态。</small></span>
+        <input class="toggle" type="checkbox" :checked="settings.input.keyDisplayEnabled && settings.windows.keyboardHistoryWindowEnabled" @change="updateHistoryWindow" />
       </label>
       <label class="setting-row">
         <span><strong>鼠标穿透</strong><small>开启后不能拖动窗口，可在控制中心关闭。</small></span>
-        <input class="toggle" type="checkbox" :checked="settings.windows.keyboardHistoryClickThrough" @change="updateWindowBoolean('keyboardHistoryClickThrough', $event)" />
+        <input class="toggle" type="checkbox" :checked="settings.windows.keyboardHistoryClickThrough" :disabled="!settings.input.keyDisplayEnabled || !settings.windows.keyboardHistoryWindowEnabled" @change="updateWindowBoolean('keyboardHistoryClickThrough', $event)" />
       </label>
     </article>
 
@@ -189,17 +173,17 @@ function resetPosition(): void {
   border-radius: 8px;
   font-size: 12px;
   line-height: 1.6;
-  background: rgba(96, 165, 250, 0.12);
+  background: var(--cc-muted-surface, rgba(96, 165, 250, 0.12));
   color: var(--control-center-text, inherit);
 }
 
 .monitor-status-note[data-status="permission-required"],
 .monitor-status-note[data-status="error"] {
-  background: rgba(248, 113, 113, 0.16);
+  background: var(--cc-danger-bg, rgba(248, 113, 113, 0.16));
 }
 
 .monitor-status-note[data-status="active"] {
-  background: rgba(74, 222, 128, 0.14);
+  background: var(--cc-success-bg, rgba(74, 222, 128, 0.14));
 }
 
 .retry-button {

@@ -13,7 +13,6 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
   },
   dialogue: {
     bubbleDurationMs: 2500,
-    showDevelopmentMessageOnStartup: true,
     enableClickDialogue: true,
     // Legacy field retained so existing settings.json files remain compatible.
     enableHoverDialogue: true,
@@ -34,7 +33,6 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     batteryEnabled: false,
   },
   systemStatusBubble: {
-    displayMode: "pet-only",
     offsetX: 190,
     offsetY: 0,
     panelWidth: 184,

@@ -122,14 +122,12 @@ pub(crate) fn key_name(vk_code: u16) -> String {
 
 fn letter_name(vk_code: u16) -> String {
     // VK 0x41..=0x5A map to 'A'..='Z' in order regardless of layout.
-    let letter = char::from_u32(u32::from(b'A') + u32::from(vk_code - 0x41))
-        .unwrap_or('?');
+    let letter = char::from_u32(u32::from(b'A') + u32::from(vk_code - 0x41)).unwrap_or('?');
     letter.to_string()
 }
 
 fn digit_name(vk_code: u16) -> String {
-    let digit = char::from_u32(u32::from(b'0') + u32::from(vk_code - 0x30))
-        .unwrap_or('?');
+    let digit = char::from_u32(u32::from(b'0') + u32::from(vk_code - 0x30)).unwrap_or('?');
     digit.to_string()
 }
 

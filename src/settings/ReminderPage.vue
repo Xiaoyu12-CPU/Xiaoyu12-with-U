@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { reminderManager } from "../reminder/reminderManager";
 import { playReminderSound } from "../reminder/reminderSoundPlayer";
 import { sortReminderSnoozesByTriggerAt } from "../reminder/reminderSnooze";
@@ -17,6 +17,10 @@ import { settingsManager } from "./settingsManager";
 
 defineProps<{
   runtime?: PetRuntimeSnapshot;
+}>();
+
+const emit = defineEmits<{
+  dirtyChange: [dirty: boolean];
 }>();
 
 const isEditing = ref(false);
@@ -38,6 +42,8 @@ const reminderSoundVolumePercent = computed(() =>
   Math.round(settingsManager.settings.value.reminder.soundVolume * 100),
 );
 
+watch(isEditing, (dirty) => emit("dirtyChange", dirty), { immediate: true });
+
 onMounted(() => {
   void reminderManager.initialize();
   void settingsManager.initialize();
@@ -51,6 +57,9 @@ function beginCreate(): void {
 }
 
 function beginEdit(reminder: Reminder): void {
+  if (isEditing.value && !window.confirm("当前提醒有未保存修改，确定放弃并编辑另一条提醒吗？")) {
+    return;
+  }
   editingId.value = reminder.id;
   Object.assign(form, {
     text: reminder.text,
@@ -66,7 +75,10 @@ function beginEdit(reminder: Reminder): void {
   isEditing.value = true;
 }
 
-function cancelEdit(): void {
+function cancelEdit(confirmDiscard = true): void {
+  if (confirmDiscard && isEditing.value && !window.confirm("确定放弃当前提醒的未保存修改吗？")) {
+    return;
+  }
   isEditing.value = false;
   editingId.value = undefined;
   formError.value = undefined;
@@ -96,7 +108,7 @@ async function saveReminder(): Promise<void> {
     } else {
       await reminderManager.create(input);
     }
-    cancelEdit();
+    cancelEdit(false);
   } catch (error) {
     formError.value = error instanceof Error ? error.message : String(error);
   }
@@ -134,7 +146,7 @@ async function confirmDelete(id: string): Promise<void> {
     await reminderManager.delete(id);
     pendingDeleteId.value = undefined;
     if (editingId.value === id) {
-      cancelEdit();
+      cancelEdit(false);
     }
   } catch (error) {
     formError.value = error instanceof Error ? error.message : String(error);
@@ -227,40 +239,27 @@ function formatRuntimeDate(value: string): string {
         <span><strong>Reminder Sound Volume</strong><small>作用于之后触发或试听的内置提醒声音。</small></span>
         <div class="volume-control"><input type="range" min="0" max="100" step="5" :value="reminderSoundVolumePercent" @input="updateReminderSoundVolume" /><output>{{ reminderSoundVolumePercent }}%</output></div>
       </label>
-    </article>
-
-    <article class="scheduler-status">
-      <div>
-        <p class="eyebrow">Reminder System</p>
-        <strong>{{ settingsManager.settings.value.reminder.enabled ? "Enabled" : "Paused" }}</strong>
-      </div>
-      <div class="runtime-detail">
-        <span>Scheduler</span>
-        <strong v-if="runtime">
-          {{ runtime.reminderSchedulerStatus === "enabled" ? "Active" : "Paused" }}
-        </strong>
-        <strong v-else>连接中…</strong>
-      </div>
-      <div class="runtime-detail">
-        <span>Next Reminder</span>
-        <strong v-if="runtime?.nextReminder">{{ runtime.nextReminder.text }}</strong>
-        <small v-if="runtime?.nextReminder">
-          {{ runtime.nextReminder.occurrenceType === "snooze"
-            ? "稍后提醒"
-            : runtime.nextReminder.scheduleType === "once" ? "一次" : "每日" }} ·
-          {{ formatRuntimeDate(runtime.nextReminder.nextTriggerAt) }}
-        </small>
-        <small v-else>暂无待触发提醒</small>
-      </div>
-      <div class="runtime-detail">
-        <span>Last Trigger</span>
-        <strong v-if="runtime?.lastReminderTrigger">
-          {{ runtime.lastReminderTrigger.text }}
-        </strong>
-        <small v-if="runtime?.lastReminderTrigger">
-          {{ formatRuntimeDate(runtime.lastReminderTrigger.triggeredAt) }}
-        </small>
-        <small v-else>暂无触发记录</small>
+      <div class="reminder-runtime">
+        <div class="runtime-detail">
+          <span>Scheduler</span>
+          <strong v-if="runtime">{{ runtime.reminderSchedulerStatus === "enabled" ? "Active" : "Paused" }}</strong>
+          <strong v-else>连接中…</strong>
+        </div>
+        <div class="runtime-detail">
+          <span>Next Reminder</span>
+          <strong v-if="runtime?.nextReminder">{{ runtime.nextReminder.text }}</strong>
+          <small v-if="runtime?.nextReminder">
+            {{ runtime.nextReminder.occurrenceType === "snooze" ? "稍后提醒" : runtime.nextReminder.scheduleType === "once" ? "一次" : "每日" }} ·
+            {{ formatRuntimeDate(runtime.nextReminder.nextTriggerAt) }}
+          </small>
+          <small v-else>暂无待触发提醒</small>
+        </div>
+        <div class="runtime-detail">
+          <span>Last Trigger</span>
+          <strong v-if="runtime?.lastReminderTrigger">{{ runtime.lastReminderTrigger.text }}</strong>
+          <small v-if="runtime?.lastReminderTrigger">{{ formatRuntimeDate(runtime.lastReminderTrigger.triggeredAt) }}</small>
+          <small v-else>暂无触发记录</small>
+        </div>
       </div>
     </article>
 
@@ -375,7 +374,7 @@ function formatRuntimeDate(value: string): string {
       </div>
 
       <div class="editor-actions">
-        <button type="button" @click="cancelEdit">取消</button>
+        <button type="button" @click="cancelEdit()">取消</button>
         <button class="primary" type="submit" :disabled="reminderManager.isSaving.value">
           {{ reminderManager.isSaving.value ? "保存中…" : "保存" }}
         </button>
@@ -431,12 +430,12 @@ h2 { color: var(--cc-text-primary, #211b31); font-size: 26px; }
 h3 { font-size: 17px; }
 .subtitle { margin-top: 5px; color: var(--cc-text-secondary, #857c91); font-size: 11px; }
 button { padding: 8px 11px; color: var(--cc-accent, #5d48a6); font: inherit; font-size: 12px; font-weight: 650; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #d9d1ef); border-radius: 8px; cursor: pointer; }
-button:hover { background: #f3efff; }
+button:hover { background: var(--cc-muted-surface, #f3efff); }
 button:disabled { cursor: default; opacity: .55; }
-.primary { color: #fff; background: var(--cc-accent, #745bc9); border-color: var(--cc-accent, #745bc9); }
-.primary:hover { background: #654db9; }
-.danger { color: #a44050; border-color: #e9cbd0; }
-.editor, .reminder-list article, .empty-state, .scheduler-status, .pending-snoozes, .reminder-system-settings { padding: 17px; background: var(--cc-card-bg, #faf9fd); border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e8e4f0); border-radius: 13px; }
+.primary { color: var(--cc-on-accent, #fff); background: var(--cc-accent, #745bc9); border-color: var(--cc-accent, #745bc9); }
+.primary:hover { background: var(--cc-accent-hover, #654db9); }
+.danger { color: var(--cc-danger, #a44050); border-color: color-mix(in srgb, var(--cc-danger, #a44050) 35%, transparent); }
+.editor, .reminder-list article, .empty-state, .pending-snoozes, .reminder-system-settings { padding: 17px; background: var(--cc-card-bg, #faf9fd); border: var(--cc-card-border-width, 1px) solid var(--cc-card-border, #e8e4f0); border-radius: 13px; }
 .reminder-system-settings { display: grid; gap: 4px; }
 .section-heading { padding-bottom: 8px; }
 .system-setting-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 42px; padding: 9px 0; border-top: 1px solid var(--cc-card-border, #ede9f2); }
@@ -446,52 +445,54 @@ button:disabled { cursor: default; opacity: .55; }
 .volume-control { display: flex; align-items: center; gap: 10px; min-width: 230px; }
 .volume-control input { flex: 1; accent-color: var(--cc-accent, #745bc9); }
 .volume-control output { width: 50px; color: var(--cc-accent, #604ca5); font-size: 12px; font-weight: 700; text-align: right; }
-.scheduler-status { display: grid; grid-template-columns: minmax(110px, .7fr) minmax(90px, .6fr) repeat(2, minmax(150px, 1fr)); gap: 16px; }
-.scheduler-status > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
-.scheduler-status strong { overflow: hidden; color: #433750; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
-.runtime-detail { padding-left: 14px; border-left: 1px solid #e5dfed; }
-.runtime-detail span, .runtime-detail small { color: #8a8094; font-size: 10px; }
+.reminder-runtime { display: grid; grid-template-columns: minmax(90px, .6fr) repeat(2, minmax(150px, 1fr)); gap: 16px; padding-top: 12px; border-top: 1px solid var(--cc-card-border, #e5dfed); }
+.reminder-runtime > div { display: grid; align-content: start; gap: 4px; min-width: 0; }
+.reminder-runtime strong { overflow: hidden; color: var(--cc-text-primary, #433750); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.runtime-detail { padding-left: 14px; border-left: 1px solid var(--cc-card-border, #e5dfed); }
+.runtime-detail:first-child { padding-left: 0; border-left: 0; }
+.runtime-detail span, .runtime-detail small { color: var(--cc-text-secondary, #8a8094); font-size: 10px; }
 .pending-snoozes { display: grid; gap: 10px; }
 .pending-snoozes__heading, .pending-snoozes__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.pending-snoozes__heading > span { color: #8a8094; font-size: 11px; }
-.pending-snoozes__row { padding-top: 9px; border-top: 1px solid #ebe6f1; }
+.pending-snoozes__heading > span { color: var(--cc-text-secondary, #8a8094); font-size: 11px; }
+.pending-snoozes__row { padding-top: 9px; border-top: 1px solid var(--cc-card-border, #ebe6f1); }
 .pending-snoozes__row > div { display: grid; gap: 3px; min-width: 0; }
 .pending-snoozes__row strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.pending-snoozes__row small { color: #8a8094; font-size: 10px; }
-.pending-snoozes__empty { padding: 12px 0 2px; color: #8a8094; font-size: 12px; text-align: center; }
+.pending-snoozes__row small { color: var(--cc-text-secondary, #8a8094); font-size: 10px; }
+.pending-snoozes__empty { padding: 12px 0 2px; color: var(--cc-text-secondary, #8a8094); font-size: 12px; text-align: center; }
 .editor { display: grid; gap: 15px; }
-.enabled-control { display: flex; align-items: center; gap: 8px; color: #655b70; font-size: 12px; }
-.enabled-control input, fieldset input { accent-color: #745bc9; }
-.field { display: grid; gap: 6px; min-width: 180px; color: #6e6479; font-size: 11px; }
+.enabled-control { display: flex; align-items: center; gap: 8px; color: var(--cc-text-secondary, #655b70); font-size: 12px; }
+.enabled-control input, fieldset input { accent-color: var(--cc-accent, #745bc9); }
+.field { display: grid; gap: 6px; min-width: 180px; color: var(--cc-text-secondary, #6e6479); font-size: 11px; }
 .field--wide { width: 100%; }
-.field input { padding: 9px 10px; color: #30283d; font: inherit; font-size: 13px; background: #fff; border: 1px solid #dcd6e7; border-radius: 8px; }
-.field select { padding: 9px 10px; color: #30283d; font: inherit; font-size: 12px; background: #fff; border: 1px solid #dcd6e7; border-radius: 8px; }
+.field input { padding: 9px 10px; color: var(--cc-text-primary, #30283d); font: inherit; font-size: 13px; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #dcd6e7); border-radius: 8px; }
+.field select { padding: 9px 10px; color: var(--cc-text-primary, #30283d); font: inherit; font-size: 12px; background: var(--cc-input-bg, #fff); border: 1px solid var(--cc-card-border, #dcd6e7); border-radius: 8px; }
 fieldset { display: flex; gap: 18px; margin: 0; padding: 0; border: 0; }
-fieldset legend { margin-bottom: 7px; color: #6e6479; font-size: 11px; }
-fieldset label { display: flex; align-items: center; gap: 6px; color: #4d4358; font-size: 12px; }
+fieldset legend { margin-bottom: 7px; color: var(--cc-text-secondary, #6e6479); font-size: 11px; }
+fieldset label { display: flex; align-items: center; gap: 6px; color: var(--cc-text-primary, #4d4358); font-size: 12px; }
 .date-time-fields { display: flex; gap: 14px; }
-.sound-fields { display: flex; align-items: flex-end; gap: 14px; padding-top: 12px; border-top: 1px solid #ebe6f1; }
+.sound-fields { display: flex; align-items: flex-end; gap: 14px; padding-top: 12px; border-top: 1px solid var(--cc-card-border, #ebe6f1); }
 .sound-select { flex: 1; }
 .editor-actions { justify-content: flex-end; padding-top: 2px; }
-.empty-state { display: grid; gap: 5px; min-height: 110px; color: #8a8094; font-size: 12px; place-content: center; text-align: center; }
-.empty-state strong { color: #4e4359; font-size: 14px; }
+.empty-state { display: grid; gap: 5px; min-height: 110px; color: var(--cc-text-secondary, #8a8094); font-size: 12px; place-content: center; text-align: center; }
+.empty-state strong { color: var(--cc-text-primary, #4e4359); font-size: 14px; }
 .reminder-list { display: grid; gap: 10px; }
 .reminder-main { display: grid; gap: 7px; min-width: 0; }
 .reminder-title { display: flex; align-items: center; gap: 8px; }
 .reminder-title strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
-.status-dot { width: 8px; height: 8px; background: #6ab493; border-radius: 50%; flex: none; }
-.status-dot.disabled { background: #b9b1c1; }
-.schedule { justify-content: flex-start; gap: 7px; color: #81778c; font-size: 10px; }
-.schedule span, .schedule time { padding: 3px 6px; background: #f0edf5; border-radius: 5px; }
+.status-dot { width: 8px; height: 8px; background: var(--cc-success, #6ab493); border-radius: 50%; flex: none; }
+.status-dot.disabled { background: var(--cc-text-secondary, #b9b1c1); }
+.schedule { justify-content: flex-start; gap: 7px; color: var(--cc-text-secondary, #81778c); font-size: 10px; }
+.schedule span, .schedule time { padding: 3px 6px; background: var(--cc-muted-surface, #f0edf5); border-radius: 5px; }
 .row-actions, .delete-confirmation { justify-content: flex-end; flex: none; }
-.delete-confirmation span { color: #9b4552; font-size: 11px; }
-.error { padding: 10px 12px; color: #9d3f4b; font-size: 12px; background: #fff0f2; border-radius: 9px; }
+.delete-confirmation span { color: var(--cc-danger, #9b4552); font-size: 11px; }
+.error { padding: 10px 12px; color: var(--cc-danger, #9d3f4b); font-size: 12px; background: var(--cc-danger-bg, #fff0f2); border-radius: 9px; }
 @media (max-width: 720px) {
   header, .reminder-list article { align-items: flex-start; flex-direction: column; }
   .date-time-fields { flex-direction: column; }
   .sound-fields { align-items: stretch; flex-direction: column; }
   .row-actions, .delete-confirmation { align-self: stretch; justify-content: flex-start; }
-  .scheduler-status { grid-template-columns: 1fr; }
+  .reminder-runtime { grid-template-columns: 1fr; }
   .runtime-detail { padding: 10px 0 0; border-top: 1px solid #e5dfed; border-left: 0; }
+  .runtime-detail:first-child { padding-top: 0; border-top: 0; }
 }
 </style>
