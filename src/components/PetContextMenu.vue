@@ -4,6 +4,7 @@ import {
   PET_CONTROL_ACTION_TYPES,
 } from "../pet/petControl";
 import type { PetControlActionType } from "../pet/petControl";
+import { calculateContextMenuPosition } from "../pet/contextMenuLayout";
 
 const props = defineProps<{
   visible: boolean;
@@ -15,10 +16,18 @@ const emit = defineEmits<{
   action: [type: PetControlActionType];
 }>();
 
-const menuStyle = computed(() => ({
-  left: `${Math.min(Math.max(props.x, 4), Math.max(4, window.innerWidth - 136))}px`,
-  top: `${Math.min(Math.max(props.y, 4), Math.max(4, window.innerHeight - 94))}px`,
-}));
+const menuStyle = computed(() => {
+  const position = calculateContextMenuPosition({
+    x: props.x,
+    y: props.y,
+    viewportWidth: window.innerWidth,
+    viewportHeight: window.innerHeight,
+  });
+  return {
+    left: `${position.left}px`,
+    top: `${position.top}px`,
+  };
+});
 
 function select(type: PetControlActionType): void {
   emit("action", type);
@@ -56,10 +65,11 @@ function select(type: PetControlActionType): void {
 
 <style scoped>
 .pet-context-menu {
+  box-sizing: border-box;
   position: absolute;
   z-index: 20;
   display: grid;
-  width: 132px;
+  width: min(144px, calc(100vw - 8px));
   padding: 5px;
   overflow: hidden;
   font-family: system-ui, -apple-system, sans-serif;
@@ -77,6 +87,7 @@ button {
   font: inherit;
   font-size: 12px;
   text-align: left;
+  white-space: nowrap;
   background: transparent;
   border: 0;
   border-radius: 5px;
