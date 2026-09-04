@@ -617,6 +617,12 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         controlCenter.contentTextShadowColor,
         DEFAULT_SETTINGS.controlCenter.contentTextShadowColor,
       ),
+      contentTextShadowOpacity: clampNumber(
+        controlCenter.contentTextShadowOpacity,
+        0,
+        1,
+        DEFAULT_SETTINGS.controlCenter.contentTextShadowOpacity,
+      ),
       contentTextShadowSize: clampNumber(
         controlCenter.contentTextShadowSize,
         0,

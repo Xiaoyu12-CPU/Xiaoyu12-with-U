@@ -112,6 +112,7 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     primaryTextColor: "#30283D",
     secondaryTextColor: "#857C91",
     contentTextShadowColor: "#FFFFFF",
+    contentTextShadowOpacity: 0.75,
     contentTextShadowSize: 0,
     contentTextShadowBlur: 0,
     cardBackgroundColor: "#FFFFFF",

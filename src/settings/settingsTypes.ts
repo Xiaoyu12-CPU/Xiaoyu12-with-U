@@ -126,6 +126,7 @@ export interface DesktopPetSettings {
     primaryTextColor: string;
     secondaryTextColor: string;
     contentTextShadowColor: string;
+    contentTextShadowOpacity: number;
     contentTextShadowSize: number;
     contentTextShadowBlur: number;
     cardBackgroundColor: string;

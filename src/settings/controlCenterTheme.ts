@@ -37,7 +37,7 @@ export function createContentTextShadow(theme: ControlCenterTheme): string {
   const blur = theme.contentTextShadowBlur;
   if (size <= 0 && blur <= 0) return "none";
 
-  const color = theme.contentTextShadowColor;
+  const color = hexToRgba(theme.contentTextShadowColor, theme.contentTextShadowOpacity);
   if (size <= 0) return `0 0 ${blur}px ${color}`;
 
   return [

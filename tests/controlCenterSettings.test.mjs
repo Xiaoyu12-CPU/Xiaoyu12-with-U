@@ -82,6 +82,7 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
       primaryTextColor: "#101010",
       secondaryTextColor: "#202020",
       contentTextShadowColor: "#aabbcc",
+      contentTextShadowOpacity: 0.35,
       contentTextShadowSize: 99,
       contentTextShadowBlur: 99,
       cardBackgroundColor: "#303030",
@@ -101,6 +102,7 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
   assert.equal(normalized.controlCenter.cardBorderWidth, 6);
   assert.equal(normalized.controlCenter.sidebarTextColor, "#ABCDEF");
   assert.equal(normalized.controlCenter.contentTextShadowColor, "#AABBCC");
+  assert.equal(normalized.controlCenter.contentTextShadowOpacity, 0.35);
   assert.equal(normalized.controlCenter.contentTextShadowSize, 8);
   assert.equal(normalized.controlCenter.contentTextShadowBlur, 30);
   assert.equal(normalized.systemMonitor.cpuHighThreshold, 73);
@@ -134,10 +136,12 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
   assert.equal(variables["--cc-card-bg"], "rgba(48, 48, 48, 0.7)");
   assert.equal(variables["--cc-sidebar-background"], "rgba(1, 2, 3, 0.4)");
   assert.equal(variables["--cc-accent"], "#505050");
-  assert.equal(variables["--cc-content-text-shadow"], "8px 0 30px #AABBCC, -8px 0 30px #AABBCC, 0 8px 30px #AABBCC, 0 -8px 30px #AABBCC");
+  assert.equal(variables["--cc-content-text-shadow"], "8px 0 30px rgba(170, 187, 204, 0.35), -8px 0 30px rgba(170, 187, 204, 0.35), 0 8px 30px rgba(170, 187, 204, 0.35), 0 -8px 30px rgba(170, 187, 204, 0.35)");
   assert.equal(theme.createControlCenterThemeVariables(missing.controlCenter)["--cc-content-text-shadow"], "none");
-  const glow = normalizeSettings({ controlCenter: { contentTextShadowColor: "#123456", contentTextShadowSize: 0, contentTextShadowBlur: 6 } });
-  assert.equal(theme.createContentTextShadow(glow.controlCenter), "0 0 6px #123456");
+  const glow = normalizeSettings({ controlCenter: { contentTextShadowColor: "#123456", contentTextShadowOpacity: 0.4, contentTextShadowSize: 0, contentTextShadowBlur: 6 } });
+  assert.equal(theme.createContentTextShadow(glow.controlCenter), "0 0 6px rgba(18, 52, 86, 0.4)");
+  assert.equal(normalizeSettings({ controlCenter: { contentTextShadowOpacity: -1 } }).controlCenter.contentTextShadowOpacity, 0);
+  assert.equal(normalizeSettings({ controlCenter: { contentTextShadowOpacity: 2 } }).controlCenter.contentTextShadowOpacity, 1);
   assert.equal(normalizeSettings({ controlCenter: { contentTextShadowSize: -1, contentTextShadowBlur: -1 } }).controlCenter.contentTextShadowSize, 0);
   assert.equal(normalizeSettings({ controlCenter: { contentTextShadowSize: -1, contentTextShadowBlur: -1 } }).controlCenter.contentTextShadowBlur, 0);
 
@@ -168,6 +172,7 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
     primaryTextColor: "#30283D",
     secondaryTextColor: "#857C91",
     contentTextShadowColor: "#FFFFFF",
+    contentTextShadowOpacity: 0.75,
     contentTextShadowSize: 0,
     contentTextShadowBlur: 0,
     cardBackgroundColor: "#FFFFFF",
