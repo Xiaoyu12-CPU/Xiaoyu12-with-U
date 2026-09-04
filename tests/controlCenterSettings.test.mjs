@@ -301,8 +301,8 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
   assert.equal(createHash("sha256").update(bytes).digest("hex"), "2bcfbff435781a319be5008ad459b9f12d39bf56e16624e182a7e07179588ce2");
   const mikanBytes = await readFile(new URL("../src/assets/control-center/mikan-background.png", import.meta.url));
   const mikanPreviewBytes = await readFile(new URL("../src/assets/control-center/mikan-background-preview.jpg", import.meta.url));
-  assert.equal(createHash("sha256").update(mikanBytes).digest("hex"), "2b8e29575f1e51e46f6a91e0962c3c9e93cd4e656e7fba78576c3c9cfa2489af");
-  assert.equal(createHash("sha256").update(mikanPreviewBytes).digest("hex"), "41ef377a41ccf22de74a78201072e16c6bedc01409ae955af5616377309977b4");
+  assert.equal(createHash("sha256").update(mikanBytes).digest("hex"), "d4d5678fce23db0d2e09d57dc2c61ecbc505708ff945f5a428db28cec4bf1ac4");
+  assert.equal(createHash("sha256").update(mikanPreviewBytes).digest("hex"), "3d9ba8abc824da2ecd9cd45cd4ce3e493c15d63d2da9c4f0916b6e51bf24804e");
   const referenceSource = await readFile(new URL("../src/settings/controlCenterBackgroundReference.ts", import.meta.url), "utf8");
   assert.match(referenceSource, /\.\.\/assets\/control-center\/default-background\.jpg/);
   assert.doesNotMatch(referenceSource, /\/Users\//);
