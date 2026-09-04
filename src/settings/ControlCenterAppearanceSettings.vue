@@ -20,6 +20,7 @@ function update<Key extends keyof DesktopPetSettings["controlCenter"]>(key: Key,
 }
 function updateColor(key: ColorKey, event: Event): void { update(key, (event.target as HTMLInputElement).value); }
 function updateOpacity(key: OpacityKey, event: Event): void { update(key, Number((event.target as HTMLInputElement).value) / 100); }
+function updateImageBlur(event: Event): void { update("backgroundImageBlur", Number((event.target as HTMLInputElement).value)); }
 function updateBorderWidth(event: Event): void { update("cardBorderWidth", Number((event.target as HTMLInputElement).value)); }
 function updateImageFit(event: Event): void { update("backgroundImageFit", (event.target as HTMLSelectElement).value as ControlCenterBackgroundImageFit); }
 function openFilePicker(): void { fileInput.value?.click(); }
@@ -85,6 +86,7 @@ function backgroundLabel(reference: string | null): string {
       <div class="setting-row"><span><strong>{{ $t("背景图片") }}</strong><small>{{ backgroundLabel(appearance.backgroundImage) }}</small></span><div class="inline-actions"><input ref="fileInput" class="file-input" type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" @change="importBackground" /><button type="button" @click="openFilePicker">{{ $t("选择图片") }}</button><button type="button" :disabled="!appearance.backgroundImage" @click="removeBackground">{{ $t("移除图片") }}</button></div></div>
       <label class="setting-row"><span><strong>{{ $t("图片填充") }}</strong></span><select class="select-control" :value="appearance.backgroundImageFit" :disabled="!appearance.backgroundImage" @change="updateImageFit"><option value="cover">{{ $t("填满") }}</option><option value="contain">{{ $t("完整显示") }}</option><option value="stretch">{{ $t("拉伸") }}</option><option value="center">{{ $t("居中原尺寸") }}</option><option value="tile">{{ $t("平铺") }}</option></select></label>
       <label class="setting-row scale-row"><span><strong>{{ $t("图片透明度") }}</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="percent(appearance.backgroundImageOpacity)" :disabled="!appearance.backgroundImage" @input="updateOpacity('backgroundImageOpacity', $event)" /><output>{{ percent(appearance.backgroundImageOpacity) }}%</output></div></label>
+      <label class="setting-row scale-row"><span><strong>{{ $t("图片模糊度") }}</strong></span><div class="scale-control"><input type="range" min="0" max="30" step="1" :value="appearance.backgroundImageBlur" :disabled="!appearance.backgroundImage" @input="updateImageBlur" /><output>{{ appearance.backgroundImageBlur }} px</output></div></label>
     </article>
 
     <article>

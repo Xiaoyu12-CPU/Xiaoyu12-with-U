@@ -116,6 +116,7 @@ export interface DesktopPetSettings {
     backgroundImage: string | null;
     backgroundImageFit: ControlCenterBackgroundImageFit;
     backgroundImageOpacity: number;
+    backgroundImageBlur: number;
     sidebarBackgroundColor: string;
     sidebarBackgroundOpacity: number;
     sidebarTextColor: string;

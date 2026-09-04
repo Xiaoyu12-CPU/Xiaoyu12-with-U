@@ -36,12 +36,15 @@ export function createControlCenterBackgroundStyle(
   imageUrl?: string,
 ): Record<string, string> {
   const fit = theme.backgroundImageFit;
+  const blur = imageUrl ? theme.backgroundImageBlur : 0;
   return {
     backgroundImage: imageUrl ? `url("${imageUrl}")` : "none",
     backgroundPosition: "center",
     backgroundRepeat: fit === "tile" ? "repeat" : "no-repeat",
     backgroundSize: fit === "stretch" ? "100% 100%" : fit === "center" || fit === "tile" ? "auto" : fit,
     opacity: String(theme.backgroundImageOpacity),
+    filter: blur > 0 ? `blur(${blur}px)` : "none",
+    inset: blur > 0 ? `-${blur}px` : "0",
   };
 }
 

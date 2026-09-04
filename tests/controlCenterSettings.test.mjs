@@ -72,6 +72,7 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
       backgroundImage: "/Users/example/Desktop/background.png",
       backgroundImageFit: "invalid",
       backgroundImageOpacity: 2,
+      backgroundImageBlur: 99,
       sidebarBackgroundColor: "#010203",
       sidebarBackgroundOpacity: 0.4,
       sidebarTextColor: "#abcdef",
@@ -93,6 +94,7 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
   assert.equal(normalized.controlCenter.backgroundImage, null);
   assert.equal(normalized.controlCenter.backgroundImageFit, "cover");
   assert.equal(normalized.controlCenter.backgroundImageOpacity, 1);
+  assert.equal(normalized.controlCenter.backgroundImageBlur, 30);
   assert.equal(normalized.controlCenter.cardBorderWidth, 6);
   assert.equal(normalized.controlCenter.sidebarTextColor, "#ABCDEF");
   assert.equal(normalized.systemMonitor.cpuHighThreshold, 73);
@@ -110,6 +112,16 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
     assert.equal(value.controlCenter.backgroundImageFit, fit);
     assert.ok(theme.createControlCenterBackgroundStyle(value.controlCenter, "blob:test").backgroundSize);
   }
+
+  const blurred = normalizeSettings({ controlCenter: { backgroundImageBlur: 12 } });
+  const blurredStyle = theme.createControlCenterBackgroundStyle(blurred.controlCenter, "blob:test");
+  assert.equal(blurredStyle.filter, "blur(12px)");
+  assert.equal(blurredStyle.inset, "-12px");
+  const clearStyle = theme.createControlCenterBackgroundStyle(missing.controlCenter, "blob:test");
+  assert.equal(clearStyle.filter, "none");
+  assert.equal(clearStyle.inset, "0");
+  assert.equal(theme.createControlCenterBackgroundStyle(blurred.controlCenter).filter, "none");
+  assert.equal(normalizeSettings({ controlCenter: { backgroundImageBlur: -5 } }).controlCenter.backgroundImageBlur, 0);
 
   const variables = theme.createControlCenterThemeVariables(normalized.controlCenter);
   assert.equal(variables["--cc-background"], "rgba(18, 58, 188, 0)");
@@ -134,6 +146,7 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
     backgroundImage: references.CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE,
     backgroundImageFit: "cover",
     backgroundImageOpacity: 0.7,
+    backgroundImageBlur: 0,
     sidebarBackgroundColor: "#2E073E",
     sidebarBackgroundOpacity: 0.5,
     sidebarTextColor: "#EBEBEB",

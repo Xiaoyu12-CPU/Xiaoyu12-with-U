@@ -571,6 +571,12 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         1,
         DEFAULT_SETTINGS.controlCenter.backgroundImageOpacity,
       ),
+      backgroundImageBlur: clampNumber(
+        controlCenter.backgroundImageBlur,
+        0,
+        30,
+        DEFAULT_SETTINGS.controlCenter.backgroundImageBlur,
+      ),
       sidebarBackgroundColor: hexColorOrDefault(
         controlCenter.sidebarBackgroundColor,
         DEFAULT_SETTINGS.controlCenter.sidebarBackgroundColor,

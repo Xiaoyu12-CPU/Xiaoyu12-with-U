@@ -102,6 +102,7 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     backgroundImage: CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE,
     backgroundImageFit: "cover",
     backgroundImageOpacity: 0.7,
+    backgroundImageBlur: 0,
     sidebarBackgroundColor: "#2E073E",
     sidebarBackgroundOpacity: 0.5,
     sidebarTextColor: "#EBEBEB",
