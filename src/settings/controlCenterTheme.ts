@@ -14,6 +14,7 @@ export function createControlCenterThemeVariables(
     "--cc-sidebar-active-text": theme.sidebarActiveTextColor,
     "--cc-text-primary": theme.primaryTextColor,
     "--cc-text-secondary": theme.secondaryTextColor,
+    "--cc-content-text-shadow": createContentTextShadow(theme),
     "--cc-card-bg": cardBackground,
     "--cc-card-border": hexToRgba(theme.cardBorderColor, theme.cardBorderOpacity),
     "--cc-card-border-width": `${theme.cardBorderWidth}px`,
@@ -29,6 +30,22 @@ export function createControlCenterThemeVariables(
     "--cc-warning-bg": `color-mix(in srgb, #D99A37 14%, ${cardBackground})`,
     "--cc-input-bg": hexToRgba(theme.cardBackgroundColor, Math.max(theme.cardBackgroundOpacity, 0.78)),
   };
+}
+
+export function createContentTextShadow(theme: ControlCenterTheme): string {
+  const size = theme.contentTextShadowSize;
+  const blur = theme.contentTextShadowBlur;
+  if (size <= 0 && blur <= 0) return "none";
+
+  const color = theme.contentTextShadowColor;
+  if (size <= 0) return `0 0 ${blur}px ${color}`;
+
+  return [
+    `${size}px 0 ${blur}px ${color}`,
+    `-${size}px 0 ${blur}px ${color}`,
+    `0 ${size}px ${blur}px ${color}`,
+    `0 -${size}px ${blur}px ${color}`,
+  ].join(", ");
 }
 
 export function createControlCenterBackgroundStyle(

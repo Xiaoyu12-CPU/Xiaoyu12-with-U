@@ -125,6 +125,9 @@ export interface DesktopPetSettings {
     sidebarActiveTextColor: string;
     primaryTextColor: string;
     secondaryTextColor: string;
+    contentTextShadowColor: string;
+    contentTextShadowSize: number;
+    contentTextShadowBlur: number;
     cardBackgroundColor: string;
     cardBackgroundOpacity: number;
     cardBorderColor: string;

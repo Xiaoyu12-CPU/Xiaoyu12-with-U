@@ -341,6 +341,7 @@ nav button.active {
   padding: 30px;
   overflow: auto;
   background: transparent;
+  text-shadow: var(--cc-content-text-shadow, none);
 }
 
 .control-center__content :deep(input),

@@ -12,8 +12,9 @@ const fileInput = ref<HTMLInputElement>();
 const operationError = ref("");
 const appearance = computed(() => settings.value.controlCenter);
 
-type ColorKey = "backgroundColor" | "sidebarBackgroundColor" | "sidebarTextColor" | "sidebarActiveBackgroundColor" | "sidebarActiveTextColor" | "primaryTextColor" | "secondaryTextColor" | "cardBackgroundColor" | "cardBorderColor" | "accentColor";
+type ColorKey = "backgroundColor" | "sidebarBackgroundColor" | "sidebarTextColor" | "sidebarActiveBackgroundColor" | "sidebarActiveTextColor" | "primaryTextColor" | "secondaryTextColor" | "contentTextShadowColor" | "cardBackgroundColor" | "cardBorderColor" | "accentColor";
 type OpacityKey = "backgroundOpacity" | "backgroundImageOpacity" | "sidebarBackgroundOpacity" | "sidebarActiveBackgroundOpacity" | "cardBackgroundOpacity" | "cardBorderOpacity";
+type TextShadowNumberKey = "contentTextShadowSize" | "contentTextShadowBlur";
 
 function update<Key extends keyof DesktopPetSettings["controlCenter"]>(key: Key, value: DesktopPetSettings["controlCenter"][Key]): void {
   settingsManager.updateSetting("controlCenter", key, value);
@@ -21,6 +22,7 @@ function update<Key extends keyof DesktopPetSettings["controlCenter"]>(key: Key,
 function updateColor(key: ColorKey, event: Event): void { update(key, (event.target as HTMLInputElement).value); }
 function updateOpacity(key: OpacityKey, event: Event): void { update(key, Number((event.target as HTMLInputElement).value) / 100); }
 function updateImageBlur(event: Event): void { update("backgroundImageBlur", Number((event.target as HTMLInputElement).value)); }
+function updateTextShadowNumber(key: TextShadowNumberKey, event: Event): void { update(key, Number((event.target as HTMLInputElement).value)); }
 function updateBorderWidth(event: Event): void { update("cardBorderWidth", Number((event.target as HTMLInputElement).value)); }
 function updateImageFit(event: Event): void { update("backgroundImageFit", (event.target as HTMLSelectElement).value as ControlCenterBackgroundImageFit); }
 function openFilePicker(): void { fileInput.value?.click(); }
@@ -104,6 +106,10 @@ function backgroundLabel(reference: string | null): string {
       <label class="setting-row"><span><strong>{{ $t("主要文字颜色") }}</strong></span><div class="color-control"><input type="color" :value="appearance.primaryTextColor" @input="updateColor('primaryTextColor', $event)" /><code>{{ appearance.primaryTextColor }}</code></div></label>
       <label class="setting-row"><span><strong>{{ $t("次要文字颜色") }}</strong></span><div class="color-control"><input type="color" :value="appearance.secondaryTextColor" @input="updateColor('secondaryTextColor', $event)" /><code>{{ appearance.secondaryTextColor }}</code></div></label>
       <label class="setting-row"><span><strong>{{ $t("强调色") }}</strong></span><div class="color-control"><input type="color" :value="appearance.accentColor" @input="updateColor('accentColor', $event)" /><code>{{ appearance.accentColor }}</code></div></label>
+      <h4 class="settings-group-heading">{{ $t("文字阴影") }}</h4>
+      <label class="setting-row"><span><strong>{{ $t("阴影颜色") }}</strong><small>{{ $t("阴影环绕内容文字，提高复杂背景上的可读性。") }}</small></span><div class="color-control"><input type="color" :value="appearance.contentTextShadowColor" @input="updateColor('contentTextShadowColor', $event)" /><code>{{ appearance.contentTextShadowColor }}</code></div></label>
+      <label class="setting-row scale-row"><span><strong>{{ $t("阴影大小") }}</strong><small>{{ $t("大小和模糊范围均为 0 时关闭。") }}</small></span><div class="scale-control"><input type="range" min="0" max="8" step="0.5" :value="appearance.contentTextShadowSize" @input="updateTextShadowNumber('contentTextShadowSize', $event)" /><output>{{ appearance.contentTextShadowSize }} px</output></div></label>
+      <label class="setting-row scale-row"><span><strong>{{ $t("模糊范围") }}</strong></span><div class="scale-control"><input type="range" min="0" max="30" step="1" :value="appearance.contentTextShadowBlur" @input="updateTextShadowNumber('contentTextShadowBlur', $event)" /><output>{{ appearance.contentTextShadowBlur }} px</output></div></label>
     </article>
 
     <article>

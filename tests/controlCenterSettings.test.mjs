@@ -81,6 +81,9 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
       sidebarActiveTextColor: "#eeeeee",
       primaryTextColor: "#101010",
       secondaryTextColor: "#202020",
+      contentTextShadowColor: "#aabbcc",
+      contentTextShadowSize: 99,
+      contentTextShadowBlur: 99,
       cardBackgroundColor: "#303030",
       cardBackgroundOpacity: 0.7,
       cardBorderColor: "#404040",
@@ -97,6 +100,9 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
   assert.equal(normalized.controlCenter.backgroundImageBlur, 30);
   assert.equal(normalized.controlCenter.cardBorderWidth, 6);
   assert.equal(normalized.controlCenter.sidebarTextColor, "#ABCDEF");
+  assert.equal(normalized.controlCenter.contentTextShadowColor, "#AABBCC");
+  assert.equal(normalized.controlCenter.contentTextShadowSize, 8);
+  assert.equal(normalized.controlCenter.contentTextShadowBlur, 30);
   assert.equal(normalized.systemMonitor.cpuHighThreshold, 73);
   assert.equal(normalized.input.keyDisplayMaxItems, 7);
   assert.equal(normalized.input.mouseVisualizerPosition, "right");
@@ -128,6 +134,12 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
   assert.equal(variables["--cc-card-bg"], "rgba(48, 48, 48, 0.7)");
   assert.equal(variables["--cc-sidebar-background"], "rgba(1, 2, 3, 0.4)");
   assert.equal(variables["--cc-accent"], "#505050");
+  assert.equal(variables["--cc-content-text-shadow"], "8px 0 30px #AABBCC, -8px 0 30px #AABBCC, 0 8px 30px #AABBCC, 0 -8px 30px #AABBCC");
+  assert.equal(theme.createControlCenterThemeVariables(missing.controlCenter)["--cc-content-text-shadow"], "none");
+  const glow = normalizeSettings({ controlCenter: { contentTextShadowColor: "#123456", contentTextShadowSize: 0, contentTextShadowBlur: 6 } });
+  assert.equal(theme.createContentTextShadow(glow.controlCenter), "0 0 6px #123456");
+  assert.equal(normalizeSettings({ controlCenter: { contentTextShadowSize: -1, contentTextShadowBlur: -1 } }).controlCenter.contentTextShadowSize, 0);
+  assert.equal(normalizeSettings({ controlCenter: { contentTextShadowSize: -1, contentTextShadowBlur: -1 } }).controlCenter.contentTextShadowBlur, 0);
 
   const reset = normalizeSettings({
     ...normalized,
@@ -155,6 +167,9 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
     sidebarActiveTextColor: "#FFFFFF",
     primaryTextColor: "#30283D",
     secondaryTextColor: "#857C91",
+    contentTextShadowColor: "#FFFFFF",
+    contentTextShadowSize: 0,
+    contentTextShadowBlur: 0,
     cardBackgroundColor: "#FFFFFF",
     cardBackgroundOpacity: 0.55,
     cardBorderColor: "#E392FE",

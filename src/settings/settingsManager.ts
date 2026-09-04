@@ -613,6 +613,22 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         controlCenter.secondaryTextColor,
         DEFAULT_SETTINGS.controlCenter.secondaryTextColor,
       ),
+      contentTextShadowColor: hexColorOrDefault(
+        controlCenter.contentTextShadowColor,
+        DEFAULT_SETTINGS.controlCenter.contentTextShadowColor,
+      ),
+      contentTextShadowSize: clampNumber(
+        controlCenter.contentTextShadowSize,
+        0,
+        8,
+        DEFAULT_SETTINGS.controlCenter.contentTextShadowSize,
+      ),
+      contentTextShadowBlur: clampNumber(
+        controlCenter.contentTextShadowBlur,
+        0,
+        30,
+        DEFAULT_SETTINGS.controlCenter.contentTextShadowBlur,
+      ),
       cardBackgroundColor: hexColorOrDefault(
         controlCenter.cardBackgroundColor,
         DEFAULT_SETTINGS.controlCenter.cardBackgroundColor,
