@@ -2,17 +2,16 @@
 import { computed, ref } from "vue";
 import { controlCenterBackgroundManager } from "./controlCenterBackground";
 import {
-  CONTROL_CENTER_APPEARANCE_THEMES,
-  createControlCenterAppearanceTheme,
-  matchControlCenterAppearanceTheme,
+  controlCenterThemePreviewUrl,
+  DEFAULT_CONTROL_CENTER_THEME_ID,
+  MIKAN_CONTROL_CENTER_THEME_ID,
 } from "./controlCenterAppearanceThemes";
+import { settingsManager } from "./settingsManager";
 import type {
   ControlCenterAppearanceTheme,
-  ControlCenterAppearanceThemeId,
-} from "./controlCenterAppearanceThemes";
-import { createDefaultControlCenterAppearance } from "./defaultSettings";
-import { settingsManager } from "./settingsManager";
-import type { ControlCenterBackgroundImageFit, DesktopPetSettings } from "./settingsTypes";
+  ControlCenterBackgroundImageFit,
+  DesktopPetSettings,
+} from "./settingsTypes";
 import {
   CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE,
   isBuiltinControlCenterBackground,
@@ -24,7 +23,8 @@ const fileInput = ref<HTMLInputElement>();
 const themeRail = ref<HTMLElement>();
 const operationError = ref("");
 const appearance = computed(() => settings.value.controlCenter);
-const activeThemeId = computed(() => matchControlCenterAppearanceTheme(appearance.value));
+const themes = computed(() => settings.value.controlCenterThemes.themes);
+const activeThemeId = computed(() => settings.value.controlCenterThemes.activeThemeId);
 const isDraggingThemes = ref(false);
 let dragPointerId: number | undefined;
 let dragStartX = 0;
@@ -37,7 +37,7 @@ type OpacityKey = "backgroundOpacity" | "backgroundImageOpacity" | "sidebarBackg
 type TextShadowNumberKey = "contentTextShadowSize" | "contentTextShadowBlur";
 
 function update<Key extends keyof DesktopPetSettings["controlCenter"]>(key: Key, value: DesktopPetSettings["controlCenter"][Key]): void {
-  settingsManager.updateSetting("controlCenter", key, value);
+  settingsManager.updateControlCenterAppearance(key, value);
 }
 function updateColor(key: ColorKey, event: Event): void { update(key, (event.target as HTMLInputElement).value); }
 function updateOpacity(key: OpacityKey, event: Event): void { update(key, Number((event.target as HTMLInputElement).value) / 100); }
@@ -47,22 +47,52 @@ function updateBorderWidth(event: Event): void { update("cardBorderWidth", Numbe
 function updateImageFit(event: Event): void { update("backgroundImageFit", (event.target as HTMLSelectElement).value as ControlCenterBackgroundImageFit); }
 function openFilePicker(): void { fileInput.value?.click(); }
 
-function applyAppearanceTheme(id: ControlCenterAppearanceThemeId): void {
+function applyAppearanceTheme(id: string): void {
   if (suppressThemeClick || activeThemeId.value === id) return;
   operationError.value = "";
-  settingsManager.update({ controlCenter: createControlCenterAppearanceTheme(id) });
+  settingsManager.selectControlCenterTheme(id);
+}
+
+function createAppearanceTheme(): void {
+  if (suppressThemeClick) return;
+  operationError.value = "";
+  settingsManager.createControlCenterTheme();
 }
 
 function themePreviewStyle(theme: ControlCenterAppearanceTheme): Record<string, string> {
-  return theme.previewUrl
+  const previewUrl = theme.appearance.backgroundImage === CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE
+    ? controlCenterThemePreviewUrl(MIKAN_CONTROL_CENTER_THEME_ID)
+    : isBuiltinControlCenterBackground(theme.appearance.backgroundImage)
+      ? controlCenterThemePreviewUrl(DEFAULT_CONTROL_CENTER_THEME_ID)
+      : theme.id === activeThemeId.value
+        ? controlCenterBackgroundManager.imageUrl.value
+        : undefined;
+  return previewUrl
     ? {
         backgroundColor: theme.appearance.backgroundColor,
-        backgroundImage: `linear-gradient(145deg, transparent 35%, ${theme.appearance.sidebarBackgroundColor}99), url("${theme.previewUrl}")`,
+        backgroundImage: `linear-gradient(145deg, transparent 35%, ${theme.appearance.sidebarBackgroundColor}99), url("${previewUrl}")`,
       }
     : {
         backgroundColor: theme.appearance.backgroundColor,
         backgroundImage: `linear-gradient(145deg, ${theme.appearance.cardBackgroundColor}, ${theme.appearance.sidebarBackgroundColor}22)`,
       };
+}
+
+function themeTitle(theme: ControlCenterAppearanceTheme): string {
+  return theme.builtin ? translate(theme.name as "默认主题" | "蜜柑主题") : theme.name;
+}
+
+function themeSubtitle(theme: ControlCenterAppearanceTheme): string {
+  if (theme.id === DEFAULT_CONTROL_CENTER_THEME_ID) return translate("外观主题 1");
+  if (theme.id === MIKAN_CONTROL_CENTER_THEME_ID) return translate("外观主题 2");
+  return translate("自定义主题");
+}
+
+function backgroundUsedByAnotherTheme(reference: string | null): boolean {
+  return settings.value.controlCenterThemes.themes.some(
+    (theme) => theme.id !== activeThemeId.value
+      && theme.appearance.backgroundImage === reference,
+  );
 }
 
 function beginThemeDrag(event: PointerEvent): void {
@@ -107,7 +137,7 @@ async function importBackground(event: Event): Promise<void> {
     const uploaded = await controlCenterBackgroundManager.upload(file);
     await controlCenterBackgroundManager.sync(uploaded.storedName);
     update("backgroundImage", uploaded.storedName);
-    if (previous !== uploaded.storedName) {
+    if (previous !== uploaded.storedName && !backgroundUsedByAnotherTheme(previous)) {
       await controlCenterBackgroundManager.deleteManaged(previous);
     }
   } catch (error) {
@@ -120,21 +150,30 @@ async function removeBackground(): Promise<void> {
   const previous = appearance.value.backgroundImage;
   update("backgroundImage", null);
   try {
-    await controlCenterBackgroundManager.remove(previous);
+    if (backgroundUsedByAnotherTheme(previous)) {
+      await controlCenterBackgroundManager.sync(null);
+    } else {
+      await controlCenterBackgroundManager.remove(previous);
+    }
   } catch (error) {
     operationError.value = error instanceof Error ? error.message : String(error);
   }
 }
 
 async function resetAppearance(): Promise<void> {
-  if (!window.confirm(translate("恢复控制中心默认视觉？当前托管背景图片会被清除。"))) {
+  if (!window.confirm(translate("恢复默认主题的初始视觉并切换到该主题？其他主题不会改变。"))) {
     return;
   }
   operationError.value = "";
-  const previous = appearance.value.backgroundImage;
-  settingsManager.update({ controlCenter: createDefaultControlCenterAppearance() });
+  const previousThemeId = activeThemeId.value;
+  const previousBackground = appearance.value.backgroundImage;
+  settingsManager.resetControlCenterAppearance();
+  if (previousThemeId !== DEFAULT_CONTROL_CENTER_THEME_ID
+      || backgroundUsedByAnotherTheme(previousBackground)) {
+    return;
+  }
   try {
-    await controlCenterBackgroundManager.remove(previous);
+    await controlCenterBackgroundManager.deleteManaged(previousBackground);
   } catch (error) {
     operationError.value = error instanceof Error ? error.message : String(error);
   }
@@ -152,7 +191,7 @@ function backgroundLabel(reference: string | null): string {
   <div class="settings-sections" data-settings-category="appearance">
     <p v-if="operationError || controlCenterBackgroundManager.lastError.value" class="error">{{ operationError || controlCenterBackgroundManager.lastError.value }}</p>
     <article class="appearance-themes">
-      <div class="section-heading"><h3>{{ $t("外观主题") }}</h3><p>{{ $t("横向拖动浏览；选择主题会替换下方的控制中心外观设置。") }}</p></div>
+      <div class="section-heading"><h3>{{ $t("外观主题") }}</h3><p>{{ $t("当前主题的修改会自动保存；横向拖动浏览其他主题。") }}</p></div>
       <div
         ref="themeRail"
         class="theme-carousel"
@@ -165,19 +204,29 @@ function backgroundLabel(reference: string | null): string {
       >
         <div class="theme-track">
           <button
-            v-for="theme in CONTROL_CENTER_APPEARANCE_THEMES"
+            v-for="theme in themes"
             :key="theme.id"
             type="button"
             class="theme-card"
-            :class="{ 'theme-card--active': activeThemeId === theme.id, 'theme-card--blank': theme.id === 'blank' }"
+            :class="{ 'theme-card--active': activeThemeId === theme.id }"
             :aria-pressed="activeThemeId === theme.id"
             @click="applyAppearanceTheme(theme.id)"
           >
             <span class="theme-card__preview" :style="themePreviewStyle(theme)">
-              <span v-if="theme.id === 'blank'" class="theme-card__plus" aria-hidden="true">＋</span>
               <span v-if="activeThemeId === theme.id" class="theme-card__badge">{{ $t("当前") }}</span>
             </span>
-            <span class="theme-card__copy"><strong>{{ $t(theme.title) }}</strong><small>{{ $t(theme.subtitle) }}</small></span>
+            <span class="theme-card__copy"><strong>{{ themeTitle(theme) }}</strong><small>{{ themeSubtitle(theme) }}</small></span>
+          </button>
+          <button
+            type="button"
+            class="theme-card theme-card--blank"
+            :aria-label="$t('新增主题')"
+            @click="createAppearanceTheme"
+          >
+            <span class="theme-card__preview">
+              <span class="theme-card__plus" aria-hidden="true">＋</span>
+            </span>
+            <span class="theme-card__copy"><strong>{{ $t("新增主题") }}</strong><small>{{ $t("空白主题") }}</small></span>
           </button>
         </div>
       </div>
@@ -222,7 +271,7 @@ function backgroundLabel(reference: string | null): string {
       <label class="setting-row scale-row"><span><strong>{{ $t("边框透明度") }}</strong></span><div class="scale-control"><input type="range" min="0" max="100" step="5" :value="percent(appearance.cardBorderOpacity)" @input="updateOpacity('cardBorderOpacity', $event)" /><output>{{ percent(appearance.cardBorderOpacity) }}%</output></div></label>
       <label class="setting-row scale-row"><span><strong>{{ $t("边框粗细") }}</strong></span><div class="scale-control"><input type="range" min="0" max="6" step="0.5" :value="appearance.cardBorderWidth" @input="updateBorderWidth" /><output>{{ appearance.cardBorderWidth }} px</output></div></label>
     </article>
-    <article><div class="setting-row"><span><strong>{{ $t("重置控制中心外观") }}</strong><small>{{ $t("只重置主题并清理当前托管背景副本，不影响其他设置。") }}</small></span><button type="button" @click="resetAppearance">{{ $t("恢复默认视觉") }}</button></div></article>
+    <article><div class="setting-row"><span><strong>{{ $t("重置控制中心外观") }}</strong><small>{{ $t("恢复默认主题的初始外观；其他主题和设置不会改变。") }}</small></span><button type="button" @click="resetAppearance">{{ $t("恢复默认视觉") }}</button></div></article>
   </div>
 </template>
 

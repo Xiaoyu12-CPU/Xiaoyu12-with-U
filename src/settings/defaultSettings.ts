@@ -1,9 +1,37 @@
-import type { DesktopPetSettings } from "./settingsTypes";
+import type { ControlCenterAppearance, DesktopPetSettings } from "./settingsTypes";
 import {
   TYPING_BUSY_DEFAULT_TEXT,
   TYPING_SPEED_DEFAULT_TEXT,
 } from "../input/typingFeedback";
 import { CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE } from "./controlCenterBackgroundReference";
+import { createDefaultControlCenterThemeState } from "./controlCenterAppearanceThemes";
+
+export const DEFAULT_CONTROL_CENTER_APPEARANCE: Readonly<ControlCenterAppearance> = {
+  backgroundColor: "#ECF3F8",
+  backgroundOpacity: 0.75,
+  backgroundImage: CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE,
+  backgroundImageFit: "cover",
+  backgroundImageOpacity: 0.7,
+  backgroundImageBlur: 0,
+  sidebarBackgroundColor: "#2E073E",
+  sidebarBackgroundOpacity: 0.5,
+  sidebarTextColor: "#EBEBEB",
+  sidebarActiveBackgroundColor: "#8B78FF",
+  sidebarActiveBackgroundOpacity: 0.55,
+  sidebarActiveTextColor: "#FFFFFF",
+  primaryTextColor: "#30283D",
+  secondaryTextColor: "#857C91",
+  contentTextShadowColor: "#FFFFFF",
+  contentTextShadowOpacity: 0.75,
+  contentTextShadowSize: 0,
+  contentTextShadowBlur: 0,
+  cardBackgroundColor: "#FFFFFF",
+  cardBackgroundOpacity: 0.55,
+  cardBorderColor: "#E392FE",
+  cardBorderOpacity: 0.4,
+  cardBorderWidth: 2.5,
+  accentColor: "#745BC9",
+};
 
 export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
   schemaVersion: 1,
@@ -96,32 +124,10 @@ export const DEFAULT_SETTINGS: Readonly<DesktopPetSettings> = {
     mouseVisualizerClickThrough: false,
     followPet: true,
   },
-  controlCenter: {
-    backgroundColor: "#ECF3F8",
-    backgroundOpacity: 0.75,
-    backgroundImage: CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE,
-    backgroundImageFit: "cover",
-    backgroundImageOpacity: 0.7,
-    backgroundImageBlur: 0,
-    sidebarBackgroundColor: "#2E073E",
-    sidebarBackgroundOpacity: 0.5,
-    sidebarTextColor: "#EBEBEB",
-    sidebarActiveBackgroundColor: "#8B78FF",
-    sidebarActiveBackgroundOpacity: 0.55,
-    sidebarActiveTextColor: "#FFFFFF",
-    primaryTextColor: "#30283D",
-    secondaryTextColor: "#857C91",
-    contentTextShadowColor: "#FFFFFF",
-    contentTextShadowOpacity: 0.75,
-    contentTextShadowSize: 0,
-    contentTextShadowBlur: 0,
-    cardBackgroundColor: "#FFFFFF",
-    cardBackgroundOpacity: 0.55,
-    cardBorderColor: "#E392FE",
-    cardBorderOpacity: 0.4,
-    cardBorderWidth: 2.5,
-    accentColor: "#745BC9",
-  },
+  controlCenter: DEFAULT_CONTROL_CENTER_APPEARANCE,
+  controlCenterThemes: createDefaultControlCenterThemeState(
+    DEFAULT_CONTROL_CENTER_APPEARANCE,
+  ),
 };
 
 export function createDefaultSettings(): DesktopPetSettings {

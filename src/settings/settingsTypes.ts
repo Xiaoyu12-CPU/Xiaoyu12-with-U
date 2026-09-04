@@ -20,6 +20,46 @@ export type ControlCenterBackgroundImageFit =
   | "stretch"
   | "center"
   | "tile";
+
+export interface ControlCenterAppearance {
+  backgroundColor: string;
+  backgroundOpacity: number;
+  backgroundImage: string | null;
+  backgroundImageFit: ControlCenterBackgroundImageFit;
+  backgroundImageOpacity: number;
+  backgroundImageBlur: number;
+  sidebarBackgroundColor: string;
+  sidebarBackgroundOpacity: number;
+  sidebarTextColor: string;
+  sidebarActiveBackgroundColor: string;
+  sidebarActiveBackgroundOpacity: number;
+  sidebarActiveTextColor: string;
+  primaryTextColor: string;
+  secondaryTextColor: string;
+  contentTextShadowColor: string;
+  contentTextShadowOpacity: number;
+  contentTextShadowSize: number;
+  contentTextShadowBlur: number;
+  cardBackgroundColor: string;
+  cardBackgroundOpacity: number;
+  cardBorderColor: string;
+  cardBorderOpacity: number;
+  cardBorderWidth: number;
+  accentColor: string;
+}
+
+export interface ControlCenterAppearanceTheme {
+  id: string;
+  name: string;
+  builtin: boolean;
+  appearance: ControlCenterAppearance;
+}
+
+export interface ControlCenterThemeState {
+  activeThemeId: string;
+  nextCustomThemeNumber: number;
+  themes: ControlCenterAppearanceTheme[];
+}
 export type KeyDisplayFlowDirection =
   | "auto"
   | "up"
@@ -110,32 +150,8 @@ export interface DesktopPetSettings {
     soundVolume: number;
   };
   windows: DesktopWindowSettings;
-  controlCenter: {
-    backgroundColor: string;
-    backgroundOpacity: number;
-    backgroundImage: string | null;
-    backgroundImageFit: ControlCenterBackgroundImageFit;
-    backgroundImageOpacity: number;
-    backgroundImageBlur: number;
-    sidebarBackgroundColor: string;
-    sidebarBackgroundOpacity: number;
-    sidebarTextColor: string;
-    sidebarActiveBackgroundColor: string;
-    sidebarActiveBackgroundOpacity: number;
-    sidebarActiveTextColor: string;
-    primaryTextColor: string;
-    secondaryTextColor: string;
-    contentTextShadowColor: string;
-    contentTextShadowOpacity: number;
-    contentTextShadowSize: number;
-    contentTextShadowBlur: number;
-    cardBackgroundColor: string;
-    cardBackgroundOpacity: number;
-    cardBorderColor: string;
-    cardBorderOpacity: number;
-    cardBorderWidth: number;
-    accentColor: string;
-  };
+  controlCenter: ControlCenterAppearance;
+  controlCenterThemes: ControlCenterThemeState;
 }
 
 export type SettingsSection = Exclude<keyof DesktopPetSettings, "schemaVersion">;

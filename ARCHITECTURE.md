@@ -740,9 +740,13 @@ Phase 6-A 已完成 x86_64 Rust check、纯 Intel Release App 构建与 DMG 静�
 
 Control Center 左侧一级导航保持产品功能边界不变；Settings 内部改为 General、System、Input、Dialogue & Interaction、Control Center Appearance 五个真实二级页面，并且一次只渲染当前分类。Input 再以 Keyboard、Typing Feedback、Mouse 三级 Tab 分流现有设置。所有子页面仍直接读写同一份 `settingsManager` 与 `settings.json`，没有引入 Router、第二份存储或业务字段重命名。Reminder Master 与 Sound Volume 已移动到既有 Reminder 页面顶部，继续使用原 `settings.reminder` 字段。
 
-Control Center Theme 由根组件集中计算 Semantic CSS Variables，统一驱动 WebView 内部的 Background、Sidebar、Primary / Secondary Text、Content Text Shadow、Cards / Borders 与 Accent。背景颜色层、托管图片层、Sidebar 与 Cards 的透明度彼此独立，绝不通过整个组件 `opacity` 实现，也不修改 Tauri 原生窗口透明属性。背景图片支持 PNG、JPG / JPEG 与 WebP，以及 Cover、Contain、Stretch、Center、Tile 和独立 Blur；Rust command 校验扩展名、文件签名和 20MB 上限后复制到 `app_data_dir()/control-center/background/`，Settings 只保存安全的托管文件名。源文件移动或删除不影响托管副本，读取失败时安全回退到背景颜色。Reset Appearance 只恢复 `controlCenter` Theme 并清理其托管背景引用，不改变 Pet、Monitor、Reminder、Input 或 Dialogue 设置。
+Control Center Theme 由根组件集中计算 Semantic CSS Variables，统一驱动 WebView 内部的 Background、Sidebar、Primary / Secondary Text、Content Text Shadow、Cards / Borders 与 Accent。背景颜色层、托管图片层、Sidebar 与 Cards 的透明度彼此独立，绝不通过整个组件 `opacity` 实现，也不修改 Tauri 原生窗口透明属性。背景图片支持 PNG、JPG / JPEG 与 WebP，以及 Cover、Contain、Stretch、Center、Tile 和独立 Blur；Rust command 校验扩展名、文件签名和 20MB 上限后复制到 `app_data_dir()/control-center/background/`，Settings 只保存安全的托管文件名。源文件移动或删除不影响托管副本，读取失败时安全回退到背景颜色。Reset Appearance 只还原默认主题并切换到它，不改变其他主题，也不改变 Pet、Monitor、Reminder、Input 或 Dialogue 设置。
 
-v0.4.6 的 `controlCenterAppearanceThemes.ts` 将主题实现为完整 `controlCenter` 外观快照。默认、蜜柑与空白主题都是只读预设，选择时克隆为新的 Settings 值，后续滑块修改不会反向污染预设。主题选择器使用原生横向滚动容器并增加 Pointer Events 拖动；主题卡仍是可聚焦的原生按钮。默认背景使用 `builtin:shipping-default`，蜜柑背景使用 `builtin:mikan`，两者均由 Background Resolver 解析为 Vite 内置资源，不调用 app-data 读取命令；主题切换不会删除已有的用户托管背景文件。
+v0.4.6.1 在现有 Settings schema `1` 中增加 `controlCenterThemes`：它保存当前主题 id、自定义主题序号，以及默认、蜜柑和用户主题的完整 `ControlCenterAppearance`。当前选中的主题就是编辑对象，所有既有外观控件都写回该主题；顶层 `controlCenter` 继续作为当前主题的渲染与旧调用兼容镜像，载入时始终由活动主题重建，避免主题状态与显示背景分离。默认和蜜柑主题保留且可编辑；新增主题使用基础默认 token，但显式清空背景图片。
+
+缺少 `controlCenterThemes` 的 v0.4.6 设置会进行一次内存迁移：内置背景 token 可直接确认默认或蜜柑主题；托管蜜柑背景通过既有外观参数匹配到蜜柑主题，无法可靠判断来源的外观则保存在“自定义主题1”中。迁移不删除或改写托管背景文件，并完整保留合法的背景、颜色、透明度、文字阴影、侧栏、导航、卡片与强调色。主题选择器仍使用原生横向滚动容器和 Pointer Events 拖动，没有重做 UI。
+
+默认背景使用 `builtin:shipping-default`，蜜柑背景使用 `builtin:mikan`，两者均由 Background Resolver 解析为 Vite 内置资源，不调用 app-data 读取命令。用户托管背景文件可被不同主题引用；替换或移除背景时，只有在没有其他主题继续引用旧文件后才删除。
 
 ### Release Baseline Freeze：Shipping Control Center Appearance
 

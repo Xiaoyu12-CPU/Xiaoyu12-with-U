@@ -39,7 +39,7 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "bundleVersion": "40600",
+      "bundleVersion": "40601",
       "signingIdentity": "-"
     }
   }

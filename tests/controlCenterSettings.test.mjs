@@ -10,7 +10,7 @@ const vite = await createServer({ appType: "custom", logLevel: "silent", server:
 
 try {
   const navigation = await vite.ssrLoadModule("/src/settings/settingsNavigation.ts");
-  const { normalizeSettings } = await vite.ssrLoadModule("/src/settings/settingsManager.ts");
+  const { normalizeSettings, settingsManager } = await vite.ssrLoadModule("/src/settings/settingsManager.ts");
   const defaults = await vite.ssrLoadModule("/src/settings/defaultSettings.ts");
   const theme = await vite.ssrLoadModule("/src/settings/controlCenterTheme.ts");
   const appearanceThemes = await vite.ssrLoadModule("/src/settings/controlCenterAppearanceThemes.ts");
@@ -20,7 +20,7 @@ try {
 
   await testInformationArchitecture(navigation);
   testThemeSettings(normalizeSettings, defaults, theme);
-  testAppearanceThemes(appearanceThemes, defaults, references);
+  await testAppearanceThemes(appearanceThemes, defaults, references, normalizeSettings, settingsManager);
   await testShippingBaseline(normalizeSettings, defaults, references);
   await testLanguageSettings(normalizeSettings, i18n);
   await testManagedBackground(background, references);
@@ -54,7 +54,7 @@ async function testInformationArchitecture(navigation) {
   assert.doesNotMatch(reminderPage, /class="scheduler-status"/);
   assert.match(controlCenter, /beforeunload/);
   assert.match(controlCenter, /dirty-change/);
-  assert.match(controlCenter, /<small>v0\.4\.6<\/small>/);
+  assert.match(controlCenter, /<small>v0\.4\.6\.1<\/small>/);
   assert.doesNotMatch(controlCenter, /<p>withXiaoyu12<\/p>/);
   assert.doesNotMatch(systemSettings, /displayMode/);
   assert.doesNotMatch(dialogueSettings, /showDevelopmentMessageOnStartup/);
@@ -64,19 +64,21 @@ async function testInformationArchitecture(navigation) {
   assert.match(appearanceSettings, /@lostpointercapture="endThemeDrag"/);
   assert.match(appearanceSettings, /overflow-x: scroll/);
   assert.match(appearanceSettings, /grid-auto-flow: column/);
+  assert.match(appearanceSettings, /settingsManager\.updateControlCenterAppearance/);
+  assert.match(appearanceSettings, /settingsManager\.createControlCenterTheme/);
+  assert.doesNotMatch(appearanceSettings, /matchControlCenterAppearanceTheme/);
 }
 
-function testAppearanceThemes(themes, defaults, references) {
-  assert.deepEqual(
-    themes.CONTROL_CENTER_APPEARANCE_THEMES.map(({ id }) => id),
-    ["default", "mikan", "blank"],
+async function testAppearanceThemes(themes, defaults, references, normalizeSettings, settingsManager) {
+  const initial = themes.createDefaultControlCenterThemeState(
+    defaults.createDefaultControlCenterAppearance(),
   );
-  assert.deepEqual(
-    themes.createControlCenterAppearanceTheme("default"),
-    defaults.DEFAULT_SETTINGS.controlCenter,
-  );
+  assert.equal(initial.activeThemeId, "default");
+  assert.equal(initial.nextCustomThemeNumber, 1);
+  assert.deepEqual(initial.themes.map(({ id }) => id), ["default", "mikan"]);
+  assert.deepEqual(initial.themes[0].appearance, defaults.DEFAULT_SETTINGS.controlCenter);
 
-  const mikan = themes.createControlCenterAppearanceTheme("mikan");
+  const mikan = initial.themes[1].appearance;
   assert.deepEqual(mikan, {
     backgroundColor: "#FFFFFF",
     backgroundOpacity: 0,
@@ -103,20 +105,100 @@ function testAppearanceThemes(themes, defaults, references) {
     cardBorderWidth: 1,
     accentColor: "#745BC9",
   });
-  assert.equal(themes.matchControlCenterAppearanceTheme(mikan), "mikan");
-
-  const customized = structuredClone(mikan);
-  customized.backgroundImageBlur = 4;
-  assert.equal(themes.matchControlCenterAppearanceTheme(customized), undefined);
-
-  const blank = themes.createControlCenterAppearanceTheme("blank");
+  const blank = themes.createBlankControlCenterAppearance(
+    defaults.createDefaultControlCenterAppearance(),
+  );
   assert.equal(blank.backgroundImage, null);
   assert.equal(blank.backgroundColor, "#FFFFFF");
   assert.equal(blank.backgroundOpacity, 1);
-  assert.equal(themes.matchControlCenterAppearanceTheme(blank), "blank");
 
-  blank.backgroundColor = "#000000";
-  assert.equal(themes.createControlCenterAppearanceTheme("blank").backgroundColor, "#FFFFFF");
+  const legacyMikan = {
+    ...structuredClone(mikan),
+    backgroundImage: "legacy-mikan-managed.png",
+    primaryTextColor: "#123456",
+    cardBackgroundOpacity: 0.15,
+    contentTextShadowColor: "#FF6A00",
+  };
+  const migratedMikan = normalizeSettings({
+    schemaVersion: 1,
+    controlCenter: legacyMikan,
+  });
+  assert.equal(migratedMikan.controlCenterThemes.activeThemeId, "mikan");
+  assert.deepEqual(migratedMikan.controlCenter, legacyMikan);
+  assert.deepEqual(
+    migratedMikan.controlCenterThemes.themes.find(({ id }) => id === "mikan").appearance,
+    legacyMikan,
+  );
+
+  const legacyCustom = {
+    ...defaults.createDefaultControlCenterAppearance(),
+    backgroundImage: "user-scene.jpg",
+    accentColor: "#112233",
+  };
+  const migratedCustom = normalizeSettings({ controlCenter: legacyCustom });
+  assert.equal(migratedCustom.controlCenterThemes.activeThemeId, "custom:1");
+  assert.equal(migratedCustom.controlCenterThemes.nextCustomThemeNumber, 2);
+  assert.deepEqual(migratedCustom.controlCenter, legacyCustom);
+  assert.deepEqual(
+    migratedCustom.controlCenterThemes.themes.find(({ id }) => id === "custom:1").appearance,
+    legacyCustom,
+  );
+
+  settingsManager.resetDefaults();
+  assert.equal(settingsManager.selectControlCenterTheme("mikan"), true);
+  settingsManager.updateControlCenterAppearance("primaryTextColor", "#123456");
+  settingsManager.updateControlCenterAppearance("cardBackgroundOpacity", 0.35);
+  assert.equal(settingsManager.settings.value.controlCenter.primaryTextColor, "#123456");
+
+  settingsManager.selectControlCenterTheme("default");
+  assert.equal(
+    settingsManager.settings.value.controlCenter.primaryTextColor,
+    defaults.DEFAULT_SETTINGS.controlCenter.primaryTextColor,
+  );
+  settingsManager.selectControlCenterTheme("mikan");
+  assert.equal(settingsManager.settings.value.controlCenter.primaryTextColor, "#123456");
+  assert.equal(settingsManager.settings.value.controlCenter.cardBackgroundOpacity, 0.35);
+
+  const customOneId = settingsManager.createControlCenterTheme();
+  assert.equal(customOneId, "custom:1");
+  assert.equal(settingsManager.settings.value.controlCenterThemes.activeThemeId, customOneId);
+  assert.equal(settingsManager.settings.value.controlCenter.backgroundImage, null);
+  assert.equal(settingsManager.settings.value.controlCenter.backgroundOpacity, 1);
+  settingsManager.updateControlCenterAppearance("accentColor", "#ABCDEF");
+
+  settingsManager.selectControlCenterTheme("default");
+  assert.equal(settingsManager.settings.value.controlCenter.backgroundImage, references.CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE);
+  settingsManager.selectControlCenterTheme("mikan");
+  assert.equal(settingsManager.settings.value.controlCenter.primaryTextColor, "#123456");
+  settingsManager.selectControlCenterTheme(customOneId);
+  assert.equal(settingsManager.settings.value.controlCenter.accentColor, "#ABCDEF");
+  assert.equal(settingsManager.settings.value.controlCenter.backgroundImage, null);
+
+  const restarted = normalizeSettings(JSON.parse(JSON.stringify(settingsManager.settings.value)));
+  assert.equal(restarted.controlCenterThemes.activeThemeId, customOneId);
+  assert.equal(restarted.controlCenter.accentColor, "#ABCDEF");
+  assert.equal(
+    restarted.controlCenterThemes.themes.find(({ id }) => id === "mikan").appearance.primaryTextColor,
+    "#123456",
+  );
+
+  const mismatchedMirror = normalizeSettings({
+    ...structuredClone(restarted),
+    controlCenter: defaults.createDefaultControlCenterAppearance(),
+  });
+  assert.equal(mismatchedMirror.controlCenterThemes.activeThemeId, customOneId);
+  assert.deepEqual(
+    mismatchedMirror.controlCenter,
+    mismatchedMirror.controlCenterThemes.themes.find(({ id }) => id === customOneId).appearance,
+  );
+  assert.equal(mismatchedMirror.controlCenter.backgroundImage, null);
+  assert.equal(mismatchedMirror.controlCenter.accentColor, "#ABCDEF");
+
+  const customTwoId = settingsManager.createControlCenterTheme();
+  assert.equal(customTwoId, "custom:2");
+  assert.equal(settingsManager.settings.value.controlCenter.backgroundImage, null);
+  assert.equal(settingsManager.settings.value.controlCenter.accentColor, defaults.DEFAULT_SETTINGS.controlCenter.accentColor);
+  await settingsManager.save();
 }
 
 function testThemeSettings(normalizeSettings, defaults, theme) {
@@ -206,14 +288,12 @@ function testThemeSettings(normalizeSettings, defaults, theme) {
   assert.equal(normalizeSettings({ controlCenter: { contentTextShadowSize: -1, contentTextShadowBlur: -1 } }).controlCenter.contentTextShadowSize, 0);
   assert.equal(normalizeSettings({ controlCenter: { contentTextShadowSize: -1, contentTextShadowBlur: -1 } }).controlCenter.contentTextShadowBlur, 0);
 
-  const reset = normalizeSettings({
-    ...normalized,
-    controlCenter: defaults.createDefaultControlCenterAppearance(),
-  });
-  assert.deepEqual(reset.controlCenter, defaults.DEFAULT_SETTINGS.controlCenter);
-  assert.equal(reset.systemMonitor.cpuHighThreshold, 73);
-  assert.equal(reset.input.keyDisplayMaxItems, 7);
-  assert.equal(reset.reminder.enabled, true);
+  const roundTrip = normalizeSettings(structuredClone(normalized));
+  assert.deepEqual(roundTrip.controlCenter, normalized.controlCenter);
+  assert.deepEqual(roundTrip.controlCenterThemes, normalized.controlCenterThemes);
+  assert.equal(roundTrip.systemMonitor.cpuHighThreshold, 73);
+  assert.equal(roundTrip.input.keyDisplayMaxItems, 7);
+  assert.equal(roundTrip.reminder.enabled, true);
 }
 
 async function testShippingBaseline(normalizeSettings, defaults, references) {

@@ -1,24 +1,18 @@
 import mikanPreviewUrl from "../assets/control-center/mikan-background-preview.jpg";
-import type { TranslationKey } from "../i18n";
-import { createDefaultControlCenterAppearance } from "./defaultSettings";
 import {
   CONTROL_CENTER_BUILTIN_BACKGROUND_URL,
   CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE,
 } from "./controlCenterBackgroundReference";
-import type { DesktopPetSettings } from "./settingsTypes";
+import type {
+  ControlCenterAppearance,
+  ControlCenterAppearanceTheme,
+  ControlCenterThemeState,
+} from "./settingsTypes";
 
-export type ControlCenterAppearance = DesktopPetSettings["controlCenter"];
-export type ControlCenterAppearanceThemeId = "default" | "mikan" | "blank";
-
-export interface ControlCenterAppearanceTheme {
-  id: ControlCenterAppearanceThemeId;
-  title: TranslationKey;
-  subtitle: TranslationKey;
-  previewUrl?: string;
-  appearance: Readonly<ControlCenterAppearance>;
-}
-
-const defaultAppearance = createDefaultControlCenterAppearance();
+export const DEFAULT_CONTROL_CENTER_THEME_ID = "default";
+export const MIKAN_CONTROL_CENTER_THEME_ID = "mikan";
+export const DEFAULT_CONTROL_CENTER_THEME_NAME = "默认主题";
+export const MIKAN_CONTROL_CENTER_THEME_NAME = "蜜柑主题";
 
 export const MIKAN_CONTROL_CENTER_APPEARANCE: Readonly<ControlCenterAppearance> = {
   backgroundColor: "#FFFFFF",
@@ -47,58 +41,55 @@ export const MIKAN_CONTROL_CENTER_APPEARANCE: Readonly<ControlCenterAppearance> 
   accentColor: "#745BC9",
 };
 
-export const BLANK_CONTROL_CENTER_APPEARANCE: Readonly<ControlCenterAppearance> = {
-  ...defaultAppearance,
-  backgroundColor: "#FFFFFF",
-  backgroundOpacity: 1,
-  backgroundImage: null,
-  backgroundImageOpacity: 1,
-  backgroundImageBlur: 0,
-};
-
-export const CONTROL_CENTER_APPEARANCE_THEMES: readonly ControlCenterAppearanceTheme[] = [
-  {
-    id: "default",
-    title: "默认主题",
-    subtitle: "外观主题 1",
-    previewUrl: CONTROL_CENTER_BUILTIN_BACKGROUND_URL,
-    appearance: defaultAppearance,
-  },
-  {
-    id: "mikan",
-    title: "蜜柑主题",
-    subtitle: "外观主题 2",
-    previewUrl: mikanPreviewUrl,
-    appearance: MIKAN_CONTROL_CENTER_APPEARANCE,
-  },
-  {
-    id: "blank",
-    title: "新增主题",
-    subtitle: "空白主题",
-    appearance: BLANK_CONTROL_CENTER_APPEARANCE,
-  },
-];
-
-export function createControlCenterAppearanceTheme(
-  id: ControlCenterAppearanceThemeId,
+export function createBlankControlCenterAppearance(
+  defaultAppearance: ControlCenterAppearance,
 ): ControlCenterAppearance {
-  const theme = CONTROL_CENTER_APPEARANCE_THEMES.find((candidate) => candidate.id === id);
-  if (!theme) return structuredClone(defaultAppearance);
-  return structuredClone(theme.appearance);
+  return {
+    ...structuredClone(defaultAppearance),
+    backgroundColor: "#FFFFFF",
+    backgroundOpacity: 1,
+    backgroundImage: null,
+    backgroundImageOpacity: 1,
+    backgroundImageBlur: 0,
+  };
 }
 
-export function matchControlCenterAppearanceTheme(
-  appearance: ControlCenterAppearance,
-): ControlCenterAppearanceThemeId | undefined {
-  return CONTROL_CENTER_APPEARANCE_THEMES.find(
-    (theme) => appearancesEqual(appearance, theme.appearance),
-  )?.id;
+export function createDefaultControlCenterThemeState(
+  defaultAppearance: ControlCenterAppearance,
+): ControlCenterThemeState {
+  return {
+    activeThemeId: DEFAULT_CONTROL_CENTER_THEME_ID,
+    nextCustomThemeNumber: 1,
+    themes: [
+      {
+        id: DEFAULT_CONTROL_CENTER_THEME_ID,
+        name: DEFAULT_CONTROL_CENTER_THEME_NAME,
+        builtin: true,
+        appearance: structuredClone(defaultAppearance),
+      },
+      {
+        id: MIKAN_CONTROL_CENTER_THEME_ID,
+        name: MIKAN_CONTROL_CENTER_THEME_NAME,
+        builtin: true,
+        appearance: structuredClone(MIKAN_CONTROL_CENTER_APPEARANCE),
+      },
+    ],
+  };
 }
 
-function appearancesEqual(
-  left: ControlCenterAppearance,
-  right: Readonly<ControlCenterAppearance>,
-): boolean {
-  return (Object.keys(right) as Array<keyof ControlCenterAppearance>)
-    .every((key) => left[key] === right[key]);
+export function findControlCenterTheme(
+  state: ControlCenterThemeState,
+  id: string,
+): ControlCenterAppearanceTheme | undefined {
+  return state.themes.find((theme) => theme.id === id);
+}
+
+export function controlCenterThemePreviewUrl(themeId: string): string | undefined {
+  if (themeId === DEFAULT_CONTROL_CENTER_THEME_ID) {
+    return CONTROL_CENTER_BUILTIN_BACKGROUND_URL;
+  }
+  if (themeId === MIKAN_CONTROL_CENTER_THEME_ID) {
+    return mikanPreviewUrl;
+  }
+  return undefined;
 }

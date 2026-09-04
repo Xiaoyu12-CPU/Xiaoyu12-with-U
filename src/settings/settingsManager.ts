@@ -8,14 +8,29 @@ import { SYSTEM_STATUS_ITEM_IDS } from "../system/statusItems";
 import type { SystemStatusItemId } from "../system/statusItems";
 import type {
   AppLanguage,
+  ControlCenterAppearance,
+  ControlCenterAppearanceTheme,
+  ControlCenterThemeState,
   DesktopPetSettings,
   SettingsPatch,
   SettingsSection,
 } from "./settingsTypes";
 import {
+  CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE,
+  CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE,
   isBuiltinControlCenterBackground,
   isManagedControlCenterBackground,
 } from "./controlCenterBackgroundReference";
+import {
+  createBlankControlCenterAppearance,
+  createDefaultControlCenterThemeState,
+  DEFAULT_CONTROL_CENTER_THEME_ID,
+  DEFAULT_CONTROL_CENTER_THEME_NAME,
+  findControlCenterTheme,
+  MIKAN_CONTROL_CENTER_APPEARANCE,
+  MIKAN_CONTROL_CENTER_THEME_ID,
+  MIKAN_CONTROL_CENTER_THEME_NAME,
+} from "./controlCenterAppearanceThemes";
 
 const SAVE_DEBOUNCE_MS = 150;
 const settings = ref<DesktopPetSettings>(createDefaultSettings());
@@ -85,6 +100,21 @@ function updateSetting<
 }
 
 function update(patch: SettingsPatch): void {
+  const nextControlCenter = {
+    ...settings.value.controlCenter,
+    ...patch.controlCenter,
+  };
+  const controlCenterThemePatch = patch.controlCenter
+      && patch.controlCenterThemes?.themes === undefined
+    ? {
+        ...patch.controlCenterThemes,
+        themes: settings.value.controlCenterThemes.themes.map((theme) => (
+          theme.id === settings.value.controlCenterThemes.activeThemeId
+            ? { ...theme, appearance: nextControlCenter }
+            : theme
+        )),
+      }
+    : patch.controlCenterThemes;
   settings.value = normalizeSettings({
     ...settings.value,
     general: { ...settings.value.general, ...patch.general },
@@ -102,12 +132,91 @@ function update(patch: SettingsPatch): void {
     input: { ...settings.value.input, ...patch.input },
     reminder: { ...settings.value.reminder, ...patch.reminder },
     windows: { ...settings.value.windows, ...patch.windows },
-    controlCenter: {
-      ...settings.value.controlCenter,
-      ...patch.controlCenter,
+    controlCenter: nextControlCenter,
+    controlCenterThemes: {
+      ...settings.value.controlCenterThemes,
+      ...controlCenterThemePatch,
     },
   });
   scheduleSave();
+}
+
+function updateControlCenterAppearance<
+  Key extends keyof ControlCenterAppearance,
+>(key: Key, value: ControlCenterAppearance[Key]): void {
+  const activeThemeId = settings.value.controlCenterThemes.activeThemeId;
+  const appearance = {
+    ...settings.value.controlCenter,
+    [key]: value,
+  };
+  update({
+    controlCenter: appearance,
+    controlCenterThemes: {
+      themes: settings.value.controlCenterThemes.themes.map((theme) => (
+        theme.id === activeThemeId
+          ? { ...theme, appearance }
+          : theme
+      )),
+    },
+  });
+}
+
+function selectControlCenterTheme(themeId: string): boolean {
+  if (!findControlCenterTheme(settings.value.controlCenterThemes, themeId)) {
+    return false;
+  }
+  if (themeId !== settings.value.controlCenterThemes.activeThemeId) {
+    update({ controlCenterThemes: { activeThemeId: themeId } });
+  }
+  return true;
+}
+
+function createControlCenterTheme(): string {
+  const currentState = settings.value.controlCenterThemes;
+  let number = currentState.nextCustomThemeNumber;
+  let id = `custom:${number}`;
+  while (findControlCenterTheme(currentState, id)) {
+    number += 1;
+    id = `custom:${number}`;
+  }
+  const theme: ControlCenterAppearanceTheme = {
+    id,
+    name: `自定义主题${number}`,
+    builtin: false,
+    appearance: createBlankControlCenterAppearance(
+      structuredClone(DEFAULT_SETTINGS.controlCenter),
+    ),
+  };
+  update({
+    controlCenter: theme.appearance,
+    controlCenterThemes: {
+      activeThemeId: id,
+      nextCustomThemeNumber: number + 1,
+      themes: [...currentState.themes, theme],
+    },
+  });
+  return id;
+}
+
+function resetControlCenterAppearance(): void {
+  const appearance = structuredClone(DEFAULT_SETTINGS.controlCenter);
+  const themes = settings.value.controlCenterThemes.themes.map((theme) => (
+    theme.id === DEFAULT_CONTROL_CENTER_THEME_ID
+      ? {
+          ...theme,
+          name: DEFAULT_CONTROL_CENTER_THEME_NAME,
+          builtin: true,
+          appearance,
+        }
+      : theme
+  ));
+  update({
+    controlCenter: appearance,
+    controlCenterThemes: {
+      activeThemeId: DEFAULT_CONTROL_CENTER_THEME_ID,
+      themes,
+    },
+  });
 }
 
 function resetDefaults(): void {
@@ -177,6 +286,18 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
   const reminder = isRecord(value.reminder) ? value.reminder : {};
   const windows = isRecord(value.windows) ? value.windows : {};
   const controlCenter = isRecord(value.controlCenter) ? value.controlCenter : {};
+  const normalizedLegacyControlCenter = normalizeControlCenterAppearance(
+    controlCenter,
+    DEFAULT_SETTINGS.controlCenter,
+  );
+  const controlCenterThemes = normalizeControlCenterThemeState(
+    value.controlCenterThemes,
+    normalizedLegacyControlCenter,
+  );
+  const activeControlCenter = findControlCenterTheme(
+    controlCenterThemes,
+    controlCenterThemes.activeThemeId,
+  )?.appearance ?? DEFAULT_SETTINGS.controlCenter;
   const legacyInputWindowEnabled = optionalBoolean(
     windows.inputMonitorWindowEnabled,
   );
@@ -552,121 +673,295 @@ export function normalizeSettings(value: unknown): DesktopPetSettings {
         DEFAULT_SETTINGS.windows.followPet,
       ),
     },
-    controlCenter: {
-      backgroundColor: hexColorOrDefault(
-        controlCenter.backgroundColor,
-        DEFAULT_SETTINGS.controlCenter.backgroundColor,
-      ),
-      backgroundOpacity: clampNumber(
-        controlCenter.backgroundOpacity,
-        0,
-        1,
-        DEFAULT_SETTINGS.controlCenter.backgroundOpacity,
-      ),
-      backgroundImage: backgroundReferenceOrDefault(controlCenter.backgroundImage),
-      backgroundImageFit: backgroundFitOrDefault(controlCenter.backgroundImageFit),
-      backgroundImageOpacity: clampNumber(
-        controlCenter.backgroundImageOpacity,
-        0,
-        1,
-        DEFAULT_SETTINGS.controlCenter.backgroundImageOpacity,
-      ),
-      backgroundImageBlur: clampNumber(
-        controlCenter.backgroundImageBlur,
-        0,
-        30,
-        DEFAULT_SETTINGS.controlCenter.backgroundImageBlur,
-      ),
-      sidebarBackgroundColor: hexColorOrDefault(
-        controlCenter.sidebarBackgroundColor,
-        DEFAULT_SETTINGS.controlCenter.sidebarBackgroundColor,
-      ),
-      sidebarBackgroundOpacity: clampNumber(
-        controlCenter.sidebarBackgroundOpacity,
-        0,
-        1,
-        DEFAULT_SETTINGS.controlCenter.sidebarBackgroundOpacity,
-      ),
-      sidebarTextColor: hexColorOrDefault(
-        controlCenter.sidebarTextColor,
-        DEFAULT_SETTINGS.controlCenter.sidebarTextColor,
-      ),
-      sidebarActiveBackgroundColor: hexColorOrDefault(
-        controlCenter.sidebarActiveBackgroundColor,
-        DEFAULT_SETTINGS.controlCenter.sidebarActiveBackgroundColor,
-      ),
-      sidebarActiveBackgroundOpacity: clampNumber(
-        controlCenter.sidebarActiveBackgroundOpacity,
-        0,
-        1,
-        DEFAULT_SETTINGS.controlCenter.sidebarActiveBackgroundOpacity,
-      ),
-      sidebarActiveTextColor: hexColorOrDefault(
-        controlCenter.sidebarActiveTextColor,
-        DEFAULT_SETTINGS.controlCenter.sidebarActiveTextColor,
-      ),
-      primaryTextColor: hexColorOrDefault(
-        controlCenter.primaryTextColor,
-        DEFAULT_SETTINGS.controlCenter.primaryTextColor,
-      ),
-      secondaryTextColor: hexColorOrDefault(
-        controlCenter.secondaryTextColor,
-        DEFAULT_SETTINGS.controlCenter.secondaryTextColor,
-      ),
-      contentTextShadowColor: hexColorOrDefault(
-        controlCenter.contentTextShadowColor,
-        DEFAULT_SETTINGS.controlCenter.contentTextShadowColor,
-      ),
-      contentTextShadowOpacity: clampNumber(
-        controlCenter.contentTextShadowOpacity,
-        0,
-        1,
-        DEFAULT_SETTINGS.controlCenter.contentTextShadowOpacity,
-      ),
-      contentTextShadowSize: clampNumber(
-        controlCenter.contentTextShadowSize,
-        0,
-        8,
-        DEFAULT_SETTINGS.controlCenter.contentTextShadowSize,
-      ),
-      contentTextShadowBlur: clampNumber(
-        controlCenter.contentTextShadowBlur,
-        0,
-        30,
-        DEFAULT_SETTINGS.controlCenter.contentTextShadowBlur,
-      ),
-      cardBackgroundColor: hexColorOrDefault(
-        controlCenter.cardBackgroundColor,
-        DEFAULT_SETTINGS.controlCenter.cardBackgroundColor,
-      ),
-      cardBackgroundOpacity: clampNumber(
-        controlCenter.cardBackgroundOpacity,
-        0,
-        1,
-        DEFAULT_SETTINGS.controlCenter.cardBackgroundOpacity,
-      ),
-      cardBorderColor: hexColorOrDefault(
-        controlCenter.cardBorderColor,
-        DEFAULT_SETTINGS.controlCenter.cardBorderColor,
-      ),
-      cardBorderOpacity: clampNumber(
-        controlCenter.cardBorderOpacity,
-        0,
-        1,
-        DEFAULT_SETTINGS.controlCenter.cardBorderOpacity,
-      ),
-      cardBorderWidth: clampNumber(
-        controlCenter.cardBorderWidth,
-        0,
-        6,
-        DEFAULT_SETTINGS.controlCenter.cardBorderWidth,
-      ),
-      accentColor: hexColorOrDefault(
-        controlCenter.accentColor,
-        DEFAULT_SETTINGS.controlCenter.accentColor,
-      ),
-    },
+    controlCenter: structuredClone(activeControlCenter),
+    controlCenterThemes,
   };
+}
+
+function normalizeControlCenterAppearance(
+  value: unknown,
+  fallback: ControlCenterAppearance,
+): ControlCenterAppearance {
+  const appearance = isRecord(value) ? value : {};
+  return {
+    backgroundColor: hexColorOrDefault(
+      appearance.backgroundColor,
+      fallback.backgroundColor,
+    ),
+    backgroundOpacity: clampNumber(
+      appearance.backgroundOpacity,
+      0,
+      1,
+      fallback.backgroundOpacity,
+    ),
+    backgroundImage: backgroundReferenceOrDefault(
+      appearance.backgroundImage,
+      fallback.backgroundImage,
+    ),
+    backgroundImageFit: backgroundFitOrDefault(
+      appearance.backgroundImageFit,
+      fallback.backgroundImageFit,
+    ),
+    backgroundImageOpacity: clampNumber(
+      appearance.backgroundImageOpacity,
+      0,
+      1,
+      fallback.backgroundImageOpacity,
+    ),
+    backgroundImageBlur: clampNumber(
+      appearance.backgroundImageBlur,
+      0,
+      30,
+      fallback.backgroundImageBlur,
+    ),
+    sidebarBackgroundColor: hexColorOrDefault(
+      appearance.sidebarBackgroundColor,
+      fallback.sidebarBackgroundColor,
+    ),
+    sidebarBackgroundOpacity: clampNumber(
+      appearance.sidebarBackgroundOpacity,
+      0,
+      1,
+      fallback.sidebarBackgroundOpacity,
+    ),
+    sidebarTextColor: hexColorOrDefault(
+      appearance.sidebarTextColor,
+      fallback.sidebarTextColor,
+    ),
+    sidebarActiveBackgroundColor: hexColorOrDefault(
+      appearance.sidebarActiveBackgroundColor,
+      fallback.sidebarActiveBackgroundColor,
+    ),
+    sidebarActiveBackgroundOpacity: clampNumber(
+      appearance.sidebarActiveBackgroundOpacity,
+      0,
+      1,
+      fallback.sidebarActiveBackgroundOpacity,
+    ),
+    sidebarActiveTextColor: hexColorOrDefault(
+      appearance.sidebarActiveTextColor,
+      fallback.sidebarActiveTextColor,
+    ),
+    primaryTextColor: hexColorOrDefault(
+      appearance.primaryTextColor,
+      fallback.primaryTextColor,
+    ),
+    secondaryTextColor: hexColorOrDefault(
+      appearance.secondaryTextColor,
+      fallback.secondaryTextColor,
+    ),
+    contentTextShadowColor: hexColorOrDefault(
+      appearance.contentTextShadowColor,
+      fallback.contentTextShadowColor,
+    ),
+    contentTextShadowOpacity: clampNumber(
+      appearance.contentTextShadowOpacity,
+      0,
+      1,
+      fallback.contentTextShadowOpacity,
+    ),
+    contentTextShadowSize: clampNumber(
+      appearance.contentTextShadowSize,
+      0,
+      8,
+      fallback.contentTextShadowSize,
+    ),
+    contentTextShadowBlur: clampNumber(
+      appearance.contentTextShadowBlur,
+      0,
+      30,
+      fallback.contentTextShadowBlur,
+    ),
+    cardBackgroundColor: hexColorOrDefault(
+      appearance.cardBackgroundColor,
+      fallback.cardBackgroundColor,
+    ),
+    cardBackgroundOpacity: clampNumber(
+      appearance.cardBackgroundOpacity,
+      0,
+      1,
+      fallback.cardBackgroundOpacity,
+    ),
+    cardBorderColor: hexColorOrDefault(
+      appearance.cardBorderColor,
+      fallback.cardBorderColor,
+    ),
+    cardBorderOpacity: clampNumber(
+      appearance.cardBorderOpacity,
+      0,
+      1,
+      fallback.cardBorderOpacity,
+    ),
+    cardBorderWidth: clampNumber(
+      appearance.cardBorderWidth,
+      0,
+      6,
+      fallback.cardBorderWidth,
+    ),
+    accentColor: hexColorOrDefault(
+      appearance.accentColor,
+      fallback.accentColor,
+    ),
+  };
+}
+
+function normalizeControlCenterThemeState(
+  value: unknown,
+  legacyAppearance: ControlCenterAppearance,
+): ControlCenterThemeState {
+  if (!isRecord(value) || !Array.isArray(value.themes)) {
+    return migrateLegacyControlCenterThemeState(legacyAppearance);
+  }
+
+  const defaults = createDefaultControlCenterThemeState(
+    structuredClone(DEFAULT_SETTINGS.controlCenter),
+  );
+  const seen = new Set<string>();
+  const normalized: ControlCenterAppearanceTheme[] = [];
+  for (const candidate of value.themes) {
+    if (!isRecord(candidate)) continue;
+    const id = normalizedControlCenterThemeId(candidate.id);
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    const builtin = id === DEFAULT_CONTROL_CENTER_THEME_ID
+      || id === MIKAN_CONTROL_CENTER_THEME_ID;
+    const fallback = id === DEFAULT_CONTROL_CENTER_THEME_ID
+      ? DEFAULT_SETTINGS.controlCenter
+      : id === MIKAN_CONTROL_CENTER_THEME_ID
+        ? MIKAN_CONTROL_CENTER_APPEARANCE
+        : createBlankControlCenterAppearance(
+            structuredClone(DEFAULT_SETTINGS.controlCenter),
+          );
+    const fallbackName = id === DEFAULT_CONTROL_CENTER_THEME_ID
+      ? DEFAULT_CONTROL_CENTER_THEME_NAME
+      : id === MIKAN_CONTROL_CENTER_THEME_ID
+        ? MIKAN_CONTROL_CENTER_THEME_NAME
+        : `自定义主题${customThemeNumber(id) ?? 1}`;
+    normalized.push({
+      id,
+      name: builtin
+        ? fallbackName
+        : nonEmptyTextOrDefault(candidate.name, fallbackName).slice(0, 80),
+      builtin,
+      appearance: normalizeControlCenterAppearance(candidate.appearance, fallback),
+    });
+  }
+
+  const defaultTheme = normalized.find(
+    (theme) => theme.id === DEFAULT_CONTROL_CENTER_THEME_ID,
+  ) ?? defaults.themes[0];
+  const mikanTheme = normalized.find(
+    (theme) => theme.id === MIKAN_CONTROL_CENTER_THEME_ID,
+  ) ?? defaults.themes[1];
+  const customThemes = normalized.filter((theme) => !theme.builtin);
+  const themes = [defaultTheme, mikanTheme, ...customThemes];
+  const requestedActiveId = typeof value.activeThemeId === "string"
+    ? value.activeThemeId
+    : DEFAULT_CONTROL_CENTER_THEME_ID;
+  const activeThemeId = themes.some((theme) => theme.id === requestedActiveId)
+    ? requestedActiveId
+    : DEFAULT_CONTROL_CENTER_THEME_ID;
+  const highestCustomNumber = customThemes.reduce(
+    (highest, theme) => Math.max(highest, customThemeNumber(theme.id) ?? 0),
+    0,
+  );
+  const requestedNextNumber = Number.isSafeInteger(value.nextCustomThemeNumber)
+      && Number(value.nextCustomThemeNumber) > 0
+    ? Number(value.nextCustomThemeNumber)
+    : 1;
+
+  return {
+    activeThemeId,
+    nextCustomThemeNumber: Math.max(requestedNextNumber, highestCustomNumber + 1),
+    themes,
+  };
+}
+
+function migrateLegacyControlCenterThemeState(
+  appearance: ControlCenterAppearance,
+): ControlCenterThemeState {
+  const state = createDefaultControlCenterThemeState(
+    structuredClone(DEFAULT_SETTINGS.controlCenter),
+  );
+  const inferredBuiltinId = inferLegacyBuiltinThemeId(appearance);
+  if (inferredBuiltinId) {
+    return {
+      ...state,
+      activeThemeId: inferredBuiltinId,
+      themes: state.themes.map((theme) => (
+        theme.id === inferredBuiltinId
+          ? { ...theme, appearance: structuredClone(appearance) }
+          : theme
+      )),
+    };
+  }
+
+  const customTheme: ControlCenterAppearanceTheme = {
+    id: "custom:1",
+    name: "自定义主题1",
+    builtin: false,
+    appearance: structuredClone(appearance),
+  };
+  return {
+    activeThemeId: customTheme.id,
+    nextCustomThemeNumber: 2,
+    themes: [...state.themes, customTheme],
+  };
+}
+
+function inferLegacyBuiltinThemeId(
+  appearance: ControlCenterAppearance,
+): string | undefined {
+  if (appearance.backgroundImage === CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE) {
+    return DEFAULT_CONTROL_CENTER_THEME_ID;
+  }
+  if (appearance.backgroundImage === CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE) {
+    return MIKAN_CONTROL_CENTER_THEME_ID;
+  }
+  if (!isManagedControlCenterBackground(appearance.backgroundImage)) {
+    return undefined;
+  }
+
+  const defaultScore = appearanceSimilarityScore(
+    appearance,
+    DEFAULT_SETTINGS.controlCenter,
+  );
+  const mikanScore = appearanceSimilarityScore(
+    appearance,
+    MIKAN_CONTROL_CENTER_APPEARANCE,
+  );
+  return mikanScore >= defaultScore + 4
+    ? MIKAN_CONTROL_CENTER_THEME_ID
+    : undefined;
+}
+
+function appearanceSimilarityScore(
+  appearance: ControlCenterAppearance,
+  reference: Readonly<ControlCenterAppearance>,
+): number {
+  return (Object.keys(reference) as Array<keyof ControlCenterAppearance>)
+    .filter((key) => key !== "backgroundImage")
+    .reduce(
+      (score, key) => score + Number(appearance[key] === reference[key]),
+      0,
+    );
+}
+
+function normalizedControlCenterThemeId(value: unknown): string | undefined {
+  if (value === DEFAULT_CONTROL_CENTER_THEME_ID
+      || value === MIKAN_CONTROL_CENTER_THEME_ID) {
+    return value;
+  }
+  return typeof value === "string" && customThemeNumber(value) !== undefined
+    ? value
+    : undefined;
+}
+
+function customThemeNumber(id: string): number | undefined {
+  const match = /^custom:([1-9]\d*)$/.exec(id);
+  if (!match) return undefined;
+  const number = Number(match[1]);
+  return Number.isSafeInteger(number) && number > 0 ? number : undefined;
 }
 
 function languageOrDefault(value: unknown, fallback: AppLanguage): AppLanguage {
@@ -675,9 +970,12 @@ function languageOrDefault(value: unknown, fallback: AppLanguage): AppLanguage {
     : fallback;
 }
 
-function backgroundReferenceOrDefault(value: unknown): string | null {
+function backgroundReferenceOrDefault(
+  value: unknown,
+  fallback: string | null,
+): string | null {
   if (value === undefined) {
-    return DEFAULT_SETTINGS.controlCenter.backgroundImage;
+    return fallback;
   }
   if (value === null) {
     return null;
@@ -691,6 +989,7 @@ function backgroundReferenceOrDefault(value: unknown): string | null {
 
 function backgroundFitOrDefault(
   value: unknown,
+  fallback: DesktopPetSettings["controlCenter"]["backgroundImageFit"],
 ): DesktopPetSettings["controlCenter"]["backgroundImageFit"] {
   return value === "cover"
       || value === "contain"
@@ -698,7 +997,7 @@ function backgroundFitOrDefault(
       || value === "center"
       || value === "tile"
     ? value
-    : DEFAULT_SETTINGS.controlCenter.backgroundImageFit;
+    : fallback;
 }
 
 function clampNumber(
@@ -782,6 +1081,10 @@ export const settingsManager = {
   getSettings,
   updateSetting,
   update,
+  updateControlCenterAppearance,
+  selectControlCenterTheme,
+  createControlCenterTheme,
+  resetControlCenterAppearance,
   resetDefaults,
   save,
 };
