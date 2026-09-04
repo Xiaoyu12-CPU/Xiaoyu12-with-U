@@ -740,12 +740,14 @@ Phase 6-A 已完成 x86_64 Rust check、纯 Intel Release App 构建与 DMG 静�
 
 Control Center 左侧一级导航保持产品功能边界不变；Settings 内部改为 General、System、Input、Dialogue & Interaction、Control Center Appearance 五个真实二级页面，并且一次只渲染当前分类。Input 再以 Keyboard、Typing Feedback、Mouse 三级 Tab 分流现有设置。所有子页面仍直接读写同一份 `settingsManager` 与 `settings.json`，没有引入 Router、第二份存储或业务字段重命名。Reminder Master 与 Sound Volume 已移动到既有 Reminder 页面顶部，继续使用原 `settings.reminder` 字段。
 
-Control Center Theme 由根组件集中计算 Semantic CSS Variables，统一驱动 WebView 内部的 Background、Sidebar、Primary / Secondary Text、Cards / Borders 与 Accent。背景颜色层、托管图片层、Sidebar 与 Cards 的透明度彼此独立，绝不通过整个组件 `opacity` 实现，也不修改 Tauri 原生窗口透明属性。背景图片支持 PNG、JPG / JPEG 与 WebP，以及 Cover、Contain、Stretch、Center、Tile；Rust command 校验扩展名、文件签名和 20MB 上限后复制到 `app_data_dir()/control-center/background/`，Settings 只保存安全的托管文件名。源文件移动或删除不影响托管副本，读取失败时安全回退到背景颜色。Reset Appearance 只恢复 `controlCenter` Theme 并清理其托管背景引用，不改变 Pet、Monitor、Reminder、Input 或 Dialogue 设置。
+Control Center Theme 由根组件集中计算 Semantic CSS Variables，统一驱动 WebView 内部的 Background、Sidebar、Primary / Secondary Text、Content Text Shadow、Cards / Borders 与 Accent。背景颜色层、托管图片层、Sidebar 与 Cards 的透明度彼此独立，绝不通过整个组件 `opacity` 实现，也不修改 Tauri 原生窗口透明属性。背景图片支持 PNG、JPG / JPEG 与 WebP，以及 Cover、Contain、Stretch、Center、Tile 和独立 Blur；Rust command 校验扩展名、文件签名和 20MB 上限后复制到 `app_data_dir()/control-center/background/`，Settings 只保存安全的托管文件名。源文件移动或删除不影响托管副本，读取失败时安全回退到背景颜色。Reset Appearance 只恢复 `controlCenter` Theme 并清理其托管背景引用，不改变 Pet、Monitor、Reminder、Input 或 Dialogue 设置。
+
+v0.4.6 的 `controlCenterAppearanceThemes.ts` 将主题实现为完整 `controlCenter` 外观快照。默认、蜜柑与空白主题都是只读预设，选择时克隆为新的 Settings 值，后续滑块修改不会反向污染预设。主题选择器使用原生横向滚动容器并增加 Pointer Events 拖动；主题卡仍是可聚焦的原生按钮。默认背景使用 `builtin:shipping-default`，蜜柑背景使用 `builtin:mikan`，两者均由 Background Resolver 解析为 Vite 内置资源，不调用 app-data 读取命令；主题切换不会删除已有的用户托管背景文件。
 
 ### Release Baseline Freeze：Shipping Control Center Appearance
 
 正式Shipping Theme由开发机当前确认的 `controlCenter` 字段冻结为 `DEFAULT_SETTINGS.controlCenter`；没有settings.json的fresh install和缺失Appearance字段会得到该默认值。已有settings.json继续逐字段优先，合法的Managed Background filename或显式`null`不会被Shipping Default覆盖。Monitor、Reminder、Input开关、SystemStatus / Keyboard / Mouse offsets及任何Runtime状态均未进入此次Baseline。
 
-默认背景以Vite正式Asset `src/assets/control-center/default-background.jpg`随前端Bundle发布，并通过`builtin:shipping-default` token与用户Managed filename区分。Resolver遇到builtin token直接使用跨平台bundled URL，不访问app_data；Managed filename继续由Rust command从`app_data_dir()/control-center/background/`读取。Reset Appearance清理当前Managed副本后恢复Shipping Theme与builtin token，但绝不删除项目内置Asset。
+默认背景以 Vite 正式 Asset `src/assets/control-center/default-background.jpg` 随前端 Bundle 发布；蜜柑背景原图位于 `src/assets/control-center/mikan-background.png`，主题卡使用独立缩略图避免为预览重复解码完整原图。两张图分别通过 `builtin:shipping-default` 与 `builtin:mikan` token 和用户 Managed filename 区分。Resolver 遇到 builtin token 直接使用跨平台 bundled URL，不访问 app data；Managed filename 继续由 Rust command 从 `app_data_dir()/control-center/background/` 读取。Reset Appearance 清理当前 Managed 副本后恢复 Shipping Theme 与 builtin token，但绝不删除项目内置 Asset。
 
 macOS App Icon 的唯一源图为默认 Pet manifest 中 idle 的首帧 `src/assets/pets/default/idle/normal-001.png`。正式 `src-tauri/icons/app-icon.png` 使用 1024×1024 透明画布，将角色保持原比例缩放并居中留出安全边距；Tauri CLI 由该源图生成 `.icns` 与 macOS bundling 所需 PNG。Windows `.ico` 留待 Windows 平台适配阶段。

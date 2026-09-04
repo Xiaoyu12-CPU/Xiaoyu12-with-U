@@ -13,12 +13,14 @@ try {
   const { normalizeSettings } = await vite.ssrLoadModule("/src/settings/settingsManager.ts");
   const defaults = await vite.ssrLoadModule("/src/settings/defaultSettings.ts");
   const theme = await vite.ssrLoadModule("/src/settings/controlCenterTheme.ts");
+  const appearanceThemes = await vite.ssrLoadModule("/src/settings/controlCenterAppearanceThemes.ts");
   const background = await vite.ssrLoadModule("/src/settings/controlCenterBackground.ts");
   const references = await vite.ssrLoadModule("/src/settings/controlCenterBackgroundReference.ts");
   const i18n = await vite.ssrLoadModule("/src/i18n/index.ts");
 
   await testInformationArchitecture(navigation);
   testThemeSettings(normalizeSettings, defaults, theme);
+  testAppearanceThemes(appearanceThemes, defaults, references);
   await testShippingBaseline(normalizeSettings, defaults, references);
   await testLanguageSettings(normalizeSettings, i18n);
   await testManagedBackground(background, references);
@@ -39,6 +41,7 @@ async function testInformationArchitecture(navigation) {
   const systemSettings = await readFile(new URL("../src/settings/SystemSettings.vue", import.meta.url), "utf8");
   const dialogueSettings = await readFile(new URL("../src/settings/DialogueInteractionSettings.vue", import.meta.url), "utf8");
   const stateEditor = await readFile(new URL("../src/settings/StateAnimationEditor.vue", import.meta.url), "utf8");
+  const appearanceSettings = await readFile(new URL("../src/settings/ControlCenterAppearanceSettings.vue", import.meta.url), "utf8");
   assert.match(settingsPage, /GeneralSettings v-if/);
   assert.match(settingsPage, /SystemSettings v-else-if/);
   assert.match(settingsPage, /InputSettings v-else-if/);
@@ -51,11 +54,69 @@ async function testInformationArchitecture(navigation) {
   assert.doesNotMatch(reminderPage, /class="scheduler-status"/);
   assert.match(controlCenter, /beforeunload/);
   assert.match(controlCenter, /dirty-change/);
-  assert.match(controlCenter, /<small>v0\.4\.5\.2<\/small>/);
+  assert.match(controlCenter, /<small>v0\.4\.6<\/small>/);
   assert.doesNotMatch(controlCenter, /<p>withXiaoyu12<\/p>/);
   assert.doesNotMatch(systemSettings, /displayMode/);
   assert.doesNotMatch(dialogueSettings, /showDevelopmentMessageOnStartup/);
   assert.match(stateEditor, /v-if="loop"/);
+  assert.match(appearanceSettings, /class="theme-carousel"/);
+  assert.match(appearanceSettings, /@pointermove="moveThemeDrag"/);
+  assert.match(appearanceSettings, /@lostpointercapture="endThemeDrag"/);
+  assert.match(appearanceSettings, /overflow-x: scroll/);
+  assert.match(appearanceSettings, /grid-auto-flow: column/);
+}
+
+function testAppearanceThemes(themes, defaults, references) {
+  assert.deepEqual(
+    themes.CONTROL_CENTER_APPEARANCE_THEMES.map(({ id }) => id),
+    ["default", "mikan", "blank"],
+  );
+  assert.deepEqual(
+    themes.createControlCenterAppearanceTheme("default"),
+    defaults.DEFAULT_SETTINGS.controlCenter,
+  );
+
+  const mikan = themes.createControlCenterAppearanceTheme("mikan");
+  assert.deepEqual(mikan, {
+    backgroundColor: "#FFFFFF",
+    backgroundOpacity: 0,
+    backgroundImage: references.CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE,
+    backgroundImageFit: "cover",
+    backgroundImageOpacity: 1,
+    backgroundImageBlur: 0,
+    sidebarBackgroundColor: "#2E073E",
+    sidebarBackgroundOpacity: 0.4,
+    sidebarTextColor: "#EBEBEB",
+    sidebarActiveBackgroundColor: "#8B78FF",
+    sidebarActiveBackgroundOpacity: 0.55,
+    sidebarActiveTextColor: "#FFFFFF",
+    primaryTextColor: "#30283D",
+    secondaryTextColor: "#919191",
+    contentTextShadowColor: "#FFFFFF",
+    contentTextShadowOpacity: 0.1,
+    contentTextShadowSize: 2,
+    contentTextShadowBlur: 3,
+    cardBackgroundColor: "#FFFFFF",
+    cardBackgroundOpacity: 0.2,
+    cardBorderColor: "#FEC700",
+    cardBorderOpacity: 0.2,
+    cardBorderWidth: 1,
+    accentColor: "#745BC9",
+  });
+  assert.equal(themes.matchControlCenterAppearanceTheme(mikan), "mikan");
+
+  const customized = structuredClone(mikan);
+  customized.backgroundImageBlur = 4;
+  assert.equal(themes.matchControlCenterAppearanceTheme(customized), undefined);
+
+  const blank = themes.createControlCenterAppearanceTheme("blank");
+  assert.equal(blank.backgroundImage, null);
+  assert.equal(blank.backgroundColor, "#FFFFFF");
+  assert.equal(blank.backgroundOpacity, 1);
+  assert.equal(themes.matchControlCenterAppearanceTheme(blank), "blank");
+
+  blank.backgroundColor = "#000000";
+  assert.equal(themes.createControlCenterAppearanceTheme("blank").backgroundColor, "#FFFFFF");
 }
 
 function testThemeSettings(normalizeSettings, defaults, theme) {
@@ -238,6 +299,10 @@ async function testShippingBaseline(normalizeSettings, defaults, references) {
   const bytes = await readFile(new URL("../src/assets/control-center/default-background.jpg", import.meta.url));
   assert.equal(bytes.subarray(0, 3).toString("hex"), "ffd8ff");
   assert.equal(createHash("sha256").update(bytes).digest("hex"), "2bcfbff435781a319be5008ad459b9f12d39bf56e16624e182a7e07179588ce2");
+  const mikanBytes = await readFile(new URL("../src/assets/control-center/mikan-background.png", import.meta.url));
+  const mikanPreviewBytes = await readFile(new URL("../src/assets/control-center/mikan-background-preview.jpg", import.meta.url));
+  assert.equal(createHash("sha256").update(mikanBytes).digest("hex"), "2b8e29575f1e51e46f6a91e0962c3c9e93cd4e656e7fba78576c3c9cfa2489af");
+  assert.equal(createHash("sha256").update(mikanPreviewBytes).digest("hex"), "41ef377a41ccf22de74a78201072e16c6bedc01409ae955af5616377309977b4");
   const referenceSource = await readFile(new URL("../src/settings/controlCenterBackgroundReference.ts", import.meta.url), "utf8");
   assert.match(referenceSource, /\.\.\/assets\/control-center\/default-background\.jpg/);
   assert.doesNotMatch(referenceSource, /\/Users\//);
@@ -256,7 +321,7 @@ async function testLanguageSettings(normalizeSettings, i18n) {
   const controlCenter = await readFile(new URL("../src/settings/ControlCenter.vue", import.meta.url), "utf8");
   assert.match(controlCenter, /app-icon\.png/);
   assert.match(controlCenter, /LANGUAGE_OPTIONS/);
-  assert.match(controlCenter, /v0\.4\.5/);
+  assert.match(controlCenter, /v0\.4\.6/);
   assert.doesNotMatch(controlCenter, />\s*12\s*</);
 }
 
@@ -288,6 +353,11 @@ async function testManagedBackground(background, references) {
   await manager.sync(references.CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE);
   assert.equal(loadCount, 0);
   assert.ok(manager.imageUrl.value);
+  await manager.sync(references.CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE);
+  assert.equal(loadCount, 0);
+  assert.equal(manager.imageUrl.value, references.CONTROL_CENTER_MIKAN_BACKGROUND_URL);
+  assert.equal(references.isBuiltinControlCenterBackground("toString"), false);
+  assert.equal(references.resolveBuiltinControlCenterBackground("toString"), undefined);
 
   for (const [name, type] of [["scene.png", "image/png"], ["scene.jpg", "image/jpeg"], ["scene.webp", "image/webp"]]) {
     const file = fakeFile(name, type, [1, 2, 3]);

@@ -4,6 +4,7 @@ import {
   CONTROL_CENTER_BUILTIN_BACKGROUND_URL,
   isBuiltinControlCenterBackground,
   isManagedControlCenterBackground,
+  resolveBuiltinControlCenterBackground,
 } from "./controlCenterBackgroundReference";
 
 export const CONTROL_CENTER_BACKGROUND_MAX_BYTES = 20 * 1024 * 1024;
@@ -106,7 +107,8 @@ export function createControlCenterBackgroundManager(
 
     if (isBuiltinControlCenterBackground(storedName)) {
       clearUrl();
-      imageUrl.value = CONTROL_CENTER_BUILTIN_BACKGROUND_URL;
+      imageUrl.value = resolveBuiltinControlCenterBackground(storedName)
+        ?? CONTROL_CENTER_BUILTIN_BACKGROUND_URL;
       currentStoredName.value = storedName;
       lastError.value = "";
       return;
