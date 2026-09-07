@@ -41,6 +41,8 @@ const lastSavedAt = ref<string>();
 let initializePromise: Promise<void> | undefined;
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let saveRequestedWhileSaving = false;
+let activeSavePromise: Promise<void> | undefined;
+const pendingLocalBroadcasts = new Set<string>();
 
 async function initialize(): Promise<void> {
   if (initializePromise) {
@@ -50,9 +52,15 @@ async function initialize(): Promise<void> {
   initializePromise = (async () => {
     try {
       const stored = await settingsStorage.load();
-      settings.value = stored === undefined
-        ? createDefaultSettings()
-        : normalizeSettings(stored);
+      if (stored === undefined) {
+        settings.value = createDefaultSettings();
+      } else {
+        const normalized = normalizeSettings(stored);
+        settings.value = normalized;
+        if (JSON.stringify(stored) !== JSON.stringify(normalized)) {
+          scheduleSave();
+        }
+      }
       lastError.value = "";
     } catch (error) {
       settings.value = createDefaultSettings();
@@ -65,7 +73,11 @@ async function initialize(): Promise<void> {
     try {
       await settingsStorage.subscribe((value) => {
         try {
-          settings.value = normalizeSettings(value);
+          const normalized = normalizeSettings(value);
+          if (pendingLocalBroadcasts.delete(JSON.stringify(normalized))) {
+            return;
+          }
+          settings.value = normalized;
           lastError.value = "";
         } catch (error) {
           console.error("Ignored invalid settings update.", error);
@@ -162,11 +174,21 @@ function updateControlCenterAppearance<
 }
 
 function selectControlCenterTheme(themeId: string): boolean {
-  if (!findControlCenterTheme(settings.value.controlCenterThemes, themeId)) {
+  const currentState = settings.value.controlCenterThemes;
+  const theme = findControlCenterTheme(currentState, themeId);
+  if (!theme) {
     return false;
   }
-  if (themeId !== settings.value.controlCenterThemes.activeThemeId) {
-    update({ controlCenterThemes: { activeThemeId: themeId } });
+  if (themeId !== currentState.activeThemeId) {
+    settings.value = {
+      ...settings.value,
+      controlCenter: { ...theme.appearance },
+      controlCenterThemes: {
+        ...currentState,
+        activeThemeId: themeId,
+      },
+    };
+    scheduleSave();
   }
   return true;
 }
@@ -187,15 +209,75 @@ function createControlCenterTheme(): string {
       structuredClone(DEFAULT_SETTINGS.controlCenter),
     ),
   };
-  update({
-    controlCenter: theme.appearance,
+  settings.value = {
+    ...settings.value,
+    controlCenter: { ...theme.appearance },
     controlCenterThemes: {
+      ...currentState,
       activeThemeId: id,
       nextCustomThemeNumber: number + 1,
       themes: [...currentState.themes, theme],
     },
-  });
+  };
+  scheduleSave();
   return id;
+}
+
+function renameControlCenterTheme(themeId: string, name: string): boolean {
+  const currentState = settings.value.controlCenterThemes;
+  const theme = findControlCenterTheme(currentState, themeId);
+  const normalizedName = name.trim().slice(0, 80);
+  if (!theme || theme.builtin || !normalizedName) {
+    return false;
+  }
+  if (theme.name === normalizedName) {
+    return true;
+  }
+
+  settings.value = {
+    ...settings.value,
+    controlCenterThemes: {
+      ...currentState,
+      themes: currentState.themes.map((candidate) => (
+        candidate.id === themeId
+          ? { ...candidate, name: normalizedName }
+          : candidate
+      )),
+    },
+  };
+  scheduleSave();
+  return true;
+}
+
+function deleteControlCenterTheme(themeId: string): boolean {
+  const currentState = settings.value.controlCenterThemes;
+  const theme = findControlCenterTheme(currentState, themeId);
+  if (!theme || theme.builtin) {
+    return false;
+  }
+
+  const themes = currentState.themes.filter((candidate) => candidate.id !== themeId);
+  const deletingActiveTheme = currentState.activeThemeId === themeId;
+  const fallbackTheme = themes.find(({ id }) => id === DEFAULT_CONTROL_CENTER_THEME_ID);
+  if (deletingActiveTheme && !fallbackTheme) {
+    return false;
+  }
+
+  settings.value = {
+    ...settings.value,
+    controlCenter: deletingActiveTheme
+      ? { ...fallbackTheme!.appearance }
+      : settings.value.controlCenter,
+    controlCenterThemes: {
+      ...currentState,
+      activeThemeId: deletingActiveTheme
+        ? DEFAULT_CONTROL_CENTER_THEME_ID
+        : currentState.activeThemeId,
+      themes,
+    },
+  };
+  scheduleSave();
+  return true;
 }
 
 function resetControlCenterAppearance(): void {
@@ -240,11 +322,24 @@ async function save(): Promise<void> {
     saveTimer = undefined;
   }
 
-  if (isSaving.value) {
+  if (activeSavePromise) {
     saveRequestedWhileSaving = true;
+    await activeSavePromise;
     return;
   }
 
+  const operation = performSave();
+  activeSavePromise = operation;
+  try {
+    await operation;
+  } finally {
+    if (activeSavePromise === operation) {
+      activeSavePromise = undefined;
+    }
+  }
+}
+
+async function performSave(): Promise<void> {
   isSaving.value = true;
   lastError.value = "";
 
@@ -254,7 +349,19 @@ async function save(): Promise<void> {
     try {
       const snapshot = normalizeSettings(settings.value);
       await settingsStorage.save(snapshot);
-      await settingsStorage.broadcast(snapshot);
+      const fingerprint = JSON.stringify(snapshot);
+      pendingLocalBroadcasts.add(fingerprint);
+      try {
+        await settingsStorage.broadcast(snapshot);
+      } finally {
+        if (pendingLocalBroadcasts.has(fingerprint)) {
+          const cleanupTimer = setTimeout(
+            () => pendingLocalBroadcasts.delete(fingerprint),
+            5_000,
+          );
+          (cleanupTimer as unknown as { unref?: () => void }).unref?.();
+        }
+      }
       lastSavedAt.value = new Date().toISOString();
       lastError.value = "";
     } catch (error) {
@@ -837,13 +944,17 @@ function normalizeControlCenterThemeState(
       : id === MIKAN_CONTROL_CENTER_THEME_ID
         ? MIKAN_CONTROL_CENTER_THEME_NAME
         : `自定义主题${customThemeNumber(id) ?? 1}`;
+    const appearance = normalizeControlCenterAppearance(
+      candidate.appearance,
+      fallback,
+    );
     normalized.push({
       id,
       name: builtin
         ? fallbackName
         : nonEmptyTextOrDefault(candidate.name, fallbackName).slice(0, 80),
       builtin,
-      appearance: normalizeControlCenterAppearance(candidate.appearance, fallback),
+      appearance: migrateLegacyMikanBackground(id, appearance),
     });
   }
 
@@ -885,12 +996,16 @@ function migrateLegacyControlCenterThemeState(
   );
   const inferredBuiltinId = inferLegacyBuiltinThemeId(appearance);
   if (inferredBuiltinId) {
+    const migratedAppearance = migrateLegacyMikanBackground(
+      inferredBuiltinId,
+      appearance,
+    );
     return {
       ...state,
       activeThemeId: inferredBuiltinId,
       themes: state.themes.map((theme) => (
         theme.id === inferredBuiltinId
-          ? { ...theme, appearance: structuredClone(appearance) }
+          ? { ...theme, appearance: structuredClone(migratedAppearance) }
           : theme
       )),
     };
@@ -907,6 +1022,23 @@ function migrateLegacyControlCenterThemeState(
     nextCustomThemeNumber: 2,
     themes: [...state.themes, customTheme],
   };
+}
+
+const LEGACY_MIKAN_MANAGED_BACKGROUND_PATTERN =
+  /^VRChat_2026-08-10_23-45-16596_3840x2160-\d+(?:-\d+)?\.png$/;
+
+function migrateLegacyMikanBackground(
+  themeId: string,
+  appearance: ControlCenterAppearance,
+): ControlCenterAppearance {
+  return themeId === MIKAN_CONTROL_CENTER_THEME_ID
+      && typeof appearance.backgroundImage === "string"
+      && LEGACY_MIKAN_MANAGED_BACKGROUND_PATTERN.test(appearance.backgroundImage)
+    ? {
+        ...appearance,
+        backgroundImage: CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE,
+      }
+    : appearance;
 }
 
 function inferLegacyBuiltinThemeId(
@@ -1084,6 +1216,8 @@ export const settingsManager = {
   updateControlCenterAppearance,
   selectControlCenterTheme,
   createControlCenterTheme,
+  renameControlCenterTheme,
+  deleteControlCenterTheme,
   resetControlCenterAppearance,
   resetDefaults,
   save,

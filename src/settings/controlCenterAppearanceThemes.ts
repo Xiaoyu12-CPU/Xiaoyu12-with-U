@@ -1,5 +1,6 @@
 import mikanPreviewUrl from "../assets/control-center/mikan-background-preview.jpg";
 import {
+  CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE,
   CONTROL_CENTER_BUILTIN_BACKGROUND_URL,
   CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE,
 } from "./controlCenterBackgroundReference";
@@ -11,7 +12,7 @@ import type {
 
 export const DEFAULT_CONTROL_CENTER_THEME_ID = "default";
 export const MIKAN_CONTROL_CENTER_THEME_ID = "mikan";
-export const DEFAULT_CONTROL_CENTER_THEME_NAME = "默认主题";
+export const DEFAULT_CONTROL_CENTER_THEME_NAME = "Xiaoyu主题";
 export const MIKAN_CONTROL_CENTER_THEME_NAME = "蜜柑主题";
 
 export const MIKAN_CONTROL_CENTER_APPEARANCE: Readonly<ControlCenterAppearance> = {
@@ -84,12 +85,15 @@ export function findControlCenterTheme(
   return state.themes.find((theme) => theme.id === id);
 }
 
-export function controlCenterThemePreviewUrl(themeId: string): string | undefined {
-  if (themeId === DEFAULT_CONTROL_CENTER_THEME_ID) {
-    return CONTROL_CENTER_BUILTIN_BACKGROUND_URL;
-  }
-  if (themeId === MIKAN_CONTROL_CENTER_THEME_ID) {
+export function controlCenterThemePreviewUrl(
+  theme: ControlCenterAppearanceTheme,
+): string | undefined {
+  if (theme.appearance.backgroundImage === null) return undefined;
+  if (theme.appearance.backgroundImage === CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE) {
     return mikanPreviewUrl;
+  }
+  if (theme.appearance.backgroundImage === CONTROL_CENTER_BUILTIN_BACKGROUND_REFERENCE) {
+    return CONTROL_CENTER_BUILTIN_BACKGROUND_URL;
   }
   return undefined;
 }

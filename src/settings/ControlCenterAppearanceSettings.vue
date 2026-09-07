@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
 import { controlCenterBackgroundManager } from "./controlCenterBackground";
 import {
   controlCenterThemePreviewUrl,
@@ -26,11 +26,15 @@ const appearance = computed(() => settings.value.controlCenter);
 const themes = computed(() => settings.value.controlCenterThemes.themes);
 const activeThemeId = computed(() => settings.value.controlCenterThemes.activeThemeId);
 const isDraggingThemes = ref(false);
+const renamingThemeId = ref<string>();
+const renameDraft = ref("");
+const savedThemeId = ref<string>();
 let dragPointerId: number | undefined;
 let dragStartX = 0;
 let dragStartScrollLeft = 0;
 let dragMoved = false;
 let suppressThemeClick = false;
+let savedFeedbackTimer: ReturnType<typeof setTimeout> | undefined;
 
 type ColorKey = "backgroundColor" | "sidebarBackgroundColor" | "sidebarTextColor" | "sidebarActiveBackgroundColor" | "sidebarActiveTextColor" | "primaryTextColor" | "secondaryTextColor" | "contentTextShadowColor" | "cardBackgroundColor" | "cardBorderColor" | "accentColor";
 type OpacityKey = "backgroundOpacity" | "backgroundImageOpacity" | "sidebarBackgroundOpacity" | "sidebarActiveBackgroundOpacity" | "contentTextShadowOpacity" | "cardBackgroundOpacity" | "cardBorderOpacity";
@@ -59,14 +63,90 @@ function createAppearanceTheme(): void {
   settingsManager.createControlCenterTheme();
 }
 
+async function saveAppearanceTheme(theme: ControlCenterAppearanceTheme): Promise<void> {
+  if (theme.builtin || suppressThemeClick) return;
+  operationError.value = "";
+  await controlCenterBackgroundManager.preload(theme.appearance.backgroundImage);
+  await settingsManager.save();
+  if (settingsManager.lastError.value) {
+    operationError.value = settingsManager.lastError.value;
+    return;
+  }
+
+  savedThemeId.value = theme.id;
+  if (savedFeedbackTimer !== undefined) clearTimeout(savedFeedbackTimer);
+  savedFeedbackTimer = window.setTimeout(() => {
+    if (savedThemeId.value === theme.id) savedThemeId.value = undefined;
+    savedFeedbackTimer = undefined;
+  }, 1200);
+}
+
+function saveAppearanceThemeFromPointer(
+  event: PointerEvent,
+  theme: ControlCenterAppearanceTheme,
+): void {
+  if (event.button === 0) void saveAppearanceTheme(theme);
+}
+
+function saveAppearanceThemeFromKeyboard(
+  event: MouseEvent,
+  theme: ControlCenterAppearanceTheme,
+): void {
+  if (event.detail === 0) void saveAppearanceTheme(theme);
+}
+
+async function beginThemeRename(theme: ControlCenterAppearanceTheme): Promise<void> {
+  if (theme.builtin || suppressThemeClick) return;
+  renamingThemeId.value = theme.id;
+  renameDraft.value = theme.name;
+  await nextTick();
+  const input = themeRail.value?.querySelector<HTMLInputElement>(
+    `[data-theme-rename="${theme.id}"]`,
+  );
+  input?.focus();
+  input?.select();
+}
+
+function commitThemeRename(theme: ControlCenterAppearanceTheme): void {
+  if (renamingThemeId.value !== theme.id) return;
+  const name = renameDraft.value.trim();
+  renamingThemeId.value = undefined;
+  renameDraft.value = "";
+  if (name) settingsManager.renameControlCenterTheme(theme.id, name);
+}
+
+function cancelThemeRename(): void {
+  renamingThemeId.value = undefined;
+  renameDraft.value = "";
+}
+
+async function deleteAppearanceTheme(theme: ControlCenterAppearanceTheme): Promise<void> {
+  if (theme.builtin) return;
+
+  operationError.value = "";
+  if (renamingThemeId.value === theme.id) cancelThemeRename();
+  if (savedThemeId.value === theme.id) savedThemeId.value = undefined;
+  const background = theme.appearance.backgroundImage;
+  if (!settingsManager.deleteControlCenterTheme(theme.id)) return;
+
+  await settingsManager.save();
+  if (settingsManager.lastError.value) {
+    operationError.value = settingsManager.lastError.value;
+    return;
+  }
+
+  try {
+    if (!backgroundUsedByAnotherTheme(background, theme.id)) {
+      await controlCenterBackgroundManager.deleteManaged(background);
+    }
+  } catch (error) {
+    operationError.value = error instanceof Error ? error.message : String(error);
+  }
+}
+
 function themePreviewStyle(theme: ControlCenterAppearanceTheme): Record<string, string> {
-  const previewUrl = theme.appearance.backgroundImage === CONTROL_CENTER_MIKAN_BACKGROUND_REFERENCE
-    ? controlCenterThemePreviewUrl(MIKAN_CONTROL_CENTER_THEME_ID)
-    : isBuiltinControlCenterBackground(theme.appearance.backgroundImage)
-      ? controlCenterThemePreviewUrl(DEFAULT_CONTROL_CENTER_THEME_ID)
-      : theme.id === activeThemeId.value
-        ? controlCenterBackgroundManager.imageUrl.value
-        : undefined;
+  const previewUrl = controlCenterThemePreviewUrl(theme)
+    ?? controlCenterBackgroundManager.previewUrl(theme.appearance.backgroundImage);
   return previewUrl
     ? {
         backgroundColor: theme.appearance.backgroundColor,
@@ -79,7 +159,7 @@ function themePreviewStyle(theme: ControlCenterAppearanceTheme): Record<string, 
 }
 
 function themeTitle(theme: ControlCenterAppearanceTheme): string {
-  return theme.builtin ? translate(theme.name as "默认主题" | "蜜柑主题") : theme.name;
+  return theme.builtin ? translate(theme.name as "Xiaoyu主题" | "蜜柑主题") : theme.name;
 }
 
 function themeSubtitle(theme: ControlCenterAppearanceTheme): string {
@@ -88,12 +168,29 @@ function themeSubtitle(theme: ControlCenterAppearanceTheme): string {
   return translate("自定义主题");
 }
 
-function backgroundUsedByAnotherTheme(reference: string | null): boolean {
+function backgroundUsedByAnotherTheme(
+  reference: string | null,
+  excludedThemeId = activeThemeId.value,
+): boolean {
   return settings.value.controlCenterThemes.themes.some(
-    (theme) => theme.id !== activeThemeId.value
+    (theme) => theme.id !== excludedThemeId
       && theme.appearance.backgroundImage === reference,
   );
 }
+
+watch(
+  () => themes.value.map(({ appearance: { backgroundImage } }) => backgroundImage ?? "").join("\u0000"),
+  () => {
+    for (const theme of themes.value) {
+      void controlCenterBackgroundManager.preload(theme.appearance.backgroundImage);
+    }
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (savedFeedbackTimer !== undefined) clearTimeout(savedFeedbackTimer);
+});
 
 function beginThemeDrag(event: PointerEvent): void {
   if (event.button !== 0 || !themeRail.value) return;
@@ -101,15 +198,19 @@ function beginThemeDrag(event: PointerEvent): void {
   dragStartX = event.clientX;
   dragStartScrollLeft = themeRail.value.scrollLeft;
   dragMoved = false;
-  isDraggingThemes.value = true;
-  themeRail.value.setPointerCapture(event.pointerId);
+  isDraggingThemes.value = false;
 }
 
 function moveThemeDrag(event: PointerEvent): void {
   if (dragPointerId !== event.pointerId || !themeRail.value) return;
   const deltaX = event.clientX - dragStartX;
-  if (Math.abs(deltaX) > 4) dragMoved = true;
-  if (dragMoved) event.preventDefault();
+  if (!dragMoved && Math.abs(deltaX) > 4) {
+    dragMoved = true;
+    isDraggingThemes.value = true;
+    themeRail.value.setPointerCapture(event.pointerId);
+  }
+  if (!dragMoved) return;
+  event.preventDefault();
   themeRail.value.scrollLeft = dragStartScrollLeft - deltaX;
 }
 
@@ -203,20 +304,79 @@ function backgroundLabel(reference: string | null): string {
         @lostpointercapture="endThemeDrag"
       >
         <div class="theme-track">
-          <button
+          <div
             v-for="theme in themes"
             :key="theme.id"
-            type="button"
-            class="theme-card"
-            :class="{ 'theme-card--active': activeThemeId === theme.id }"
-            :aria-pressed="activeThemeId === theme.id"
-            @click="applyAppearanceTheme(theme.id)"
+            class="theme-card-shell"
           >
-            <span class="theme-card__preview" :style="themePreviewStyle(theme)">
-              <span v-if="activeThemeId === theme.id" class="theme-card__badge">{{ $t("当前") }}</span>
-            </span>
-            <span class="theme-card__copy"><strong>{{ themeTitle(theme) }}</strong><small>{{ themeSubtitle(theme) }}</small></span>
-          </button>
+            <button
+              type="button"
+              class="theme-card"
+              :class="{ 'theme-card--active': activeThemeId === theme.id }"
+              :aria-pressed="activeThemeId === theme.id"
+              @click="applyAppearanceTheme(theme.id)"
+            >
+              <span class="theme-card__preview" :style="themePreviewStyle(theme)">
+                <span v-if="activeThemeId === theme.id" class="theme-card__badge">{{ $t("当前") }}</span>
+              </span>
+              <span class="theme-card__copy">
+                <strong
+                  v-if="renamingThemeId !== theme.id"
+                  @dblclick.stop.prevent="beginThemeRename(theme)"
+                >{{ themeTitle(theme) }}</strong>
+                <strong v-else aria-hidden="true">&nbsp;</strong>
+                <small>{{ themeSubtitle(theme) }}</small>
+              </span>
+            </button>
+            <input
+              v-if="!theme.builtin && renamingThemeId === theme.id"
+              v-model="renameDraft"
+              class="theme-card__rename"
+              type="text"
+              maxlength="80"
+              :data-theme-rename="theme.id"
+              :aria-label="$t('主题名称')"
+              @pointerdown.stop
+              @pointerup.stop
+              @click.stop
+              @dblclick.stop
+              @keydown.enter.stop.prevent="commitThemeRename(theme)"
+              @keydown.esc.stop.prevent="cancelThemeRename"
+              @blur="commitThemeRename(theme)"
+            />
+            <button
+              v-if="!theme.builtin"
+              type="button"
+              class="theme-card__save"
+              :class="{ 'theme-card__save--saved': savedThemeId === theme.id }"
+              :aria-label="savedThemeId === theme.id ? $t('已保存') : $t('保存主题')"
+              :title="savedThemeId === theme.id ? $t('已保存') : $t('保存主题')"
+              @pointerdown.stop
+              @pointerup.stop.prevent="saveAppearanceThemeFromPointer($event, theme)"
+              @click.stop.prevent="saveAppearanceThemeFromKeyboard($event, theme)"
+            >
+              <svg v-if="savedThemeId === theme.id" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="m5 12 4 4L19 6" />
+              </svg>
+              <svg v-else aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M5 4h12l2 2v14H5zM8 4v6h8V4M8 20v-6h8v6" />
+              </svg>
+            </button>
+            <button
+              v-if="!theme.builtin"
+              type="button"
+              class="theme-card__delete"
+              :aria-label="$t('删除主题')"
+              :title="$t('删除主题')"
+              @pointerdown.stop
+              @pointerup.stop
+              @click.stop.prevent="deleteAppearanceTheme(theme)"
+            >
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+              </svg>
+            </button>
+          </div>
           <button
             type="button"
             class="theme-card theme-card--blank"
@@ -300,10 +460,17 @@ function backgroundLabel(reference: string | null): string {
   gap: 12px;
   min-width: 100%;
 }
+.theme-card-shell {
+  position: relative;
+  min-width: 0;
+  scroll-snap-align: start;
+}
 .theme-card {
   display: grid;
   gap: 9px;
   min-width: 0;
+  width: 100%;
+  height: 100%;
   padding: 8px !important;
   overflow: hidden;
   text-align: left;
@@ -311,6 +478,7 @@ function backgroundLabel(reference: string | null): string {
   border: 1px solid var(--cc-card-border, #d9d1ef) !important;
   border-radius: 12px !important;
 }
+.theme-card-shell > .theme-card { scroll-snap-align: none; }
 .theme-card--active {
   border-color: var(--cc-accent, #745bc9) !important;
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--cc-accent, #745bc9) 28%, transparent);
@@ -350,6 +518,74 @@ function backgroundLabel(reference: string | null): string {
   border-radius: 999px;
 }
 .theme-card__copy { display: grid; gap: 2px; padding: 0 2px 2px; }
+.theme-card-shell .theme-card__copy { padding-right: 70px; }
 .theme-card__copy strong { font-size: 12px; }
 .theme-card__copy small { font-size: 10px; }
+.theme-card__rename {
+  position: absolute;
+  right: 78px;
+  bottom: 26px;
+  left: 10px;
+  z-index: 3;
+  min-width: 0;
+  height: 24px;
+  padding: 2px 6px;
+  color: var(--cc-text-primary, #30283d);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--cc-card-bg, #fff) 92%, transparent);
+  border: 1px solid var(--cc-accent, #745bc9);
+  border-radius: 6px;
+  outline: none;
+}
+.theme-card__save,
+.theme-card__delete {
+  position: absolute;
+  bottom: 8px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0 !important;
+  background: color-mix(in srgb, var(--cc-card-bg, #fff) 84%, transparent) !important;
+  border-radius: 8px !important;
+}
+.theme-card__save {
+  right: 43px;
+  color: var(--cc-accent, #745bc9);
+  border: 1px solid color-mix(in srgb, var(--cc-accent, #745bc9) 34%, transparent) !important;
+}
+.theme-card__save:hover,
+.theme-card__save--saved {
+  color: var(--cc-on-accent, #fff);
+  background: var(--cc-accent, #745bc9) !important;
+  border-color: var(--cc-accent, #745bc9) !important;
+}
+.theme-card__delete {
+  right: 9px;
+  color: #c64c62;
+  border: 1px solid color-mix(in srgb, #c64c62 34%, transparent) !important;
+}
+.theme-card__delete:hover {
+  color: #fff;
+  background: #c64c62 !important;
+  border-color: #c64c62 !important;
+}
+.theme-card__save:focus-visible,
+.theme-card__delete:focus-visible {
+  outline: 2px solid var(--cc-accent, #745bc9);
+  outline-offset: 2px;
+}
+.theme-card__save svg,
+.theme-card__delete svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
 </style>

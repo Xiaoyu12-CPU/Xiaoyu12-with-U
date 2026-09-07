@@ -31,15 +31,15 @@ pub fn upload_control_center_background(
 }
 
 #[tauri::command]
-pub fn load_control_center_background(
+pub async fn load_control_center_background(
     app: AppHandle,
     stored_name: String,
-) -> Result<Vec<u8>, String> {
+) -> Result<tauri::ipc::Response, String> {
     validate_stored_name(&stored_name)?;
     let bytes = fs::read(background_directory(&app)?.join(&stored_name))
         .map_err(|error| format!("Failed to read Control Center background: {error}"))?;
     validate_background(&stored_name, &bytes)?;
-    Ok(bytes)
+    Ok(tauri::ipc::Response::new(bytes))
 }
 
 #[tauri::command]
