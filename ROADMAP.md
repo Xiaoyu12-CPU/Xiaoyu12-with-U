@@ -7,7 +7,7 @@
 - 权限、隐私、资源占用和可恢复性属于每个相关阶段的完成条件。
 - 本路线图描述目标，不代表对应功能当前已经实现。
 
-当前实现进度：Phase 1、Phase 1.5、Phase 2-A 至 Phase 2-E、Phase 3-A 至 Phase 3-G、Phase 4 提醒系统和 Phase 5 输入感知均已完成；CPU、Memory、Network、Storage、Battery 使用真实采样。v0.4.4 已完成四窗口桌面重建后的 UI 与稳定性收尾，v0.4.5 已完成中英日界面、品牌信息、默认布局固化和桌宠位置持久化，v0.4.6 已加入控制中心外观主题、背景模糊与文字阴影，v0.4.6.1 正在修正主题的独立编辑与持久化模型。Phase 6 自定义皮肤包与 Phase 7 AI 互动仍属于后续规划。
+当前实现进度：Phase 1、Phase 1.5、Phase 2-A 至 Phase 2-E、Phase 3-A 至 Phase 3-G、Phase 4 提醒系统和 Phase 5 输入感知均已完成；CPU、Memory、Network、Storage、Battery 使用真实采样。v0.4.4 完成四窗口桌面重建后的 UI 与稳定性收尾，v0.4.5 完成多语言与桌面布局；v0.5.0 整合 v0.4.6 / v0.4.6.1 的外观主题与独立持久化修正，并固化 A01–A11 美术资源及当前各状态动画。Phase 6 自定义皮肤包与 Phase 7 AI 互动仍属于后续规划。
 
 Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标交互调整为 Click + Drag。
 
@@ -55,7 +55,7 @@ Phase 2-D 后已完成一次小范围 Interaction Cleanup，Runtime 主动鼠标
 - 保存后通过跨窗口资源事件触发 AssetLoader / AnimationEngine 热重载。
 - 上传边界仅接受静态 PNG；GIF、APNG 和其他格式留待后续资源系统扩展。
 
-当前默认 idle 眨眼迁移为四个逐帧 duration：`250 / 250 / 250 / 0 ms`，Animation Duration 仍为 `750 ms`；Random Delay 继续使用 `3000 / 10000 / 22000 / 30000 ms` 候选值。
+v0.5.0 默认 idle 眨眼采用四个逐帧 duration：`200 / 100 / 200 / 0 ms`，Animation Duration 为 `500 ms`；Random Delay 使用 `10000 / 3000 / 30000 / 22000 ms` 候选值。
 
 ### Phase 2-D 完成记录：Application Settings System
 
@@ -384,6 +384,8 @@ Phase 1～5 Feature Development 已完成，项目进入 Feature Freeze。当前
 - 本小版本不增加主题商店、动态背景、云同步或新的外观 token。
 
 ## Phase 6：自定义皮肤
+
+v0.5.0 已完成默认角色 A01–A11 的 200×200 透明美术资源、白边清理与状态映射，并修复动画编辑器的旧尺寸显示；这是内置资源更新，不代表下述皮肤包导入功能已实现。
 
 目标：允许安全地安装、切换和管理桌宠外观。
 

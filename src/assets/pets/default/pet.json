@@ -15,9 +15,9 @@
   "states": {
     "idle": {
       "frames": [
-        { "path": "idle/normal-001.png", "durationMs": 250 },
-        { "path": "idle/normal-002.png", "durationMs": 250 },
-        { "path": "idle/normal-003.png", "durationMs": 250 },
+        { "path": "idle/normal-001.png", "durationMs": 200 },
+        { "path": "idle/normal-002.png", "durationMs": 100 },
+        { "path": "idle/normal-003.png", "durationMs": 200 },
         { "path": "idle/normal-004.png", "durationMs": 0 }
       ],
       "animation": {
@@ -30,9 +30,14 @@
     },
     "happy": {
       "frames": [
-        { "path": "happy/placeholder-001.png", "durationMs": 1000 }
+        { "path": "happy/happy-001.png", "durationMs": 120 },
+        { "path": "happy/happy-002.png", "durationMs": 120 },
+        { "path": "happy/happy-003.png", "durationMs": 160 }
       ],
-      "animation": { "loop": false }
+      "animation": {
+        "loop": true,
+        "replay": { "mode": "continuous" }
+      }
     },
     "sleep": {
       "frames": [
@@ -42,27 +47,47 @@
     },
     "tired": {
       "frames": [
-        { "path": "tired/placeholder-001.png", "durationMs": 1000 }
+        { "path": "tired/panicked-001.png", "durationMs": 120 },
+        { "path": "tired/panicked-002.png", "durationMs": 120 },
+        { "path": "tired/panicked-003.png", "durationMs": 160 }
       ],
-      "animation": { "loop": false }
+      "animation": {
+        "loop": true,
+        "replay": { "mode": "continuous" }
+      }
     },
     "alert": {
       "frames": [
-        { "path": "alert/placeholder-001.png", "durationMs": 1000 }
+        { "path": "alert/attention-001.png", "durationMs": 120 },
+        { "path": "alert/attention-002.png", "durationMs": 120 },
+        { "path": "alert/attention-003.png", "durationMs": 160 }
       ],
-      "animation": { "loop": false }
+      "animation": {
+        "loop": true,
+        "replay": { "mode": "continuous" }
+      }
     },
     "working": {
       "frames": [
-        { "path": "working/placeholder-001.png", "durationMs": 1000 }
+        { "path": "working/laptop-001.png", "durationMs": 120 },
+        { "path": "working/laptop-002.png", "durationMs": 120 },
+        { "path": "working/laptop-003.png", "durationMs": 160 }
       ],
-      "animation": { "loop": false }
+      "animation": {
+        "loop": true,
+        "replay": { "mode": "continuous" }
+      }
     },
     "dragging": {
       "frames": [
-        { "path": "dragging/placeholder-001.png", "durationMs": 1000 }
+        { "path": "dragging/panicked-001.png", "durationMs": 120 },
+        { "path": "dragging/panicked-002.png", "durationMs": 120 },
+        { "path": "dragging/panicked-003.png", "durationMs": 160 }
       ],
-      "animation": { "loop": false }
+      "animation": {
+        "loop": true,
+        "replay": { "mode": "continuous" }
+      }
     }
   }
 }

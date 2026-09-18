@@ -119,7 +119,13 @@ onMounted(async () => {
 
 function loadDraft(): void {
   const info = getPetStateAssetInfo(selectedState.value);
-  frames.value = info.frames.map((frame) => ({ ...frame }));
+  // Saved dimensions can become stale when a built-in PNG is replaced.
+  // Measure the current source without treating this metadata refresh as an edit.
+  frames.value = info.frames.map((frame) => ({
+    ...frame,
+    width: undefined,
+    height: undefined,
+  }));
   loop.value = info.animation.loop;
   replayMode.value = info.animation.replay.mode;
   fixedDelayMs.value = info.animation.replay.delayMs;
@@ -129,9 +135,7 @@ function loadDraft(): void {
   error.value = "";
 
   for (const frame of frames.value) {
-    if (!frame.width || !frame.height) {
-      void readImageDimensions(frame);
-    }
+    void readImageDimensions(frame);
   }
 }
 
