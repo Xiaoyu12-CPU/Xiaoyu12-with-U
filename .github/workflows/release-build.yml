@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "v*"
+      # Windows-only hotfix: publish the Windows x64 branch build artifact.
+      - "!v0.5.1"
 
 permissions:
   contents: write

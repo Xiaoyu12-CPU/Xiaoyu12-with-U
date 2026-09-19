@@ -56,7 +56,7 @@ async function testInformationArchitecture(navigation) {
   assert.doesNotMatch(reminderPage, /class="scheduler-status"/);
   assert.match(controlCenter, /beforeunload/);
   assert.match(controlCenter, /dirty-change/);
-  assert.match(controlCenter, /<small>v0\.5\.0<\/small>/);
+  assert.match(controlCenter, /<small>v0\.5\.1<\/small>/);
   assert.doesNotMatch(controlCenter, /<p>withXiaoyu12<\/p>/);
   assert.doesNotMatch(systemSettings, /displayMode/);
   assert.doesNotMatch(dialogueSettings, /showDevelopmentMessageOnStartup/);
@@ -535,7 +535,7 @@ async function testLanguageSettings(normalizeSettings, i18n) {
   const controlCenter = await readFile(new URL("../src/settings/ControlCenter.vue", import.meta.url), "utf8");
   assert.match(controlCenter, /app-icon\.png/);
   assert.match(controlCenter, /LANGUAGE_OPTIONS/);
-  assert.match(controlCenter, /v0\.5\.0/);
+  assert.match(controlCenter, /v0\.5\.1/);
   assert.doesNotMatch(controlCenter, />\s*12\s*</);
 }
 

@@ -65,6 +65,7 @@ export function usePetInteraction(
   void settingsManager.initialize();
   let dragSession: DragSession | undefined;
   let suppressClickUntil = 0;
+  let suppressNextDomClick = false;
   let dragEndDialogueTimer: ReturnType<typeof setTimeout> | undefined;
   let unlistenWindowMoved: (() => void) | undefined;
   let disposed = false;
@@ -144,6 +145,11 @@ export function usePetInteraction(
   }
 
   function handleClick(): void {
+    if (suppressNextDomClick) {
+      suppressNextDomClick = false;
+      return;
+    }
+
     if (Date.now() < suppressClickUntil) {
       return;
     }
@@ -156,6 +162,7 @@ export function usePetInteraction(
       return;
     }
 
+    suppressNextDomClick = false;
     dragSession = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -229,7 +236,15 @@ export function usePetInteraction(
     window.addEventListener("mouseup", handleGlobalMouseUp, true);
 
     void windowDrag.onPrimaryButtonReleased?.(() => {
-      if (dragSession === session) finishDragSession();
+      if (dragSession !== session) return;
+      finishDragSession();
+
+      // Windows native dragging can consume the DOM click even without moving.
+      // Restore it once, and ignore a late DOM click from the same press.
+      if (!session.active) {
+        handleClick();
+        suppressNextDomClick = true;
+      }
     }).then((unlisten) => {
       if (dragSession === session) {
         session.stopNativeReleaseObserver = unlisten;
