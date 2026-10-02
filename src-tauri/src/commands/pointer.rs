@@ -27,7 +27,7 @@ pub fn primary_mouse_button_pressed() -> Option<bool> {
             VK_LBUTTON
         };
         let state = unsafe { GetAsyncKeyState(virtual_key) } as u16;
-        return Some(state & 0x8000 != 0);
+        Some(state & 0x8000 != 0)
     }
 
     #[cfg(not(target_os = "windows"))]
