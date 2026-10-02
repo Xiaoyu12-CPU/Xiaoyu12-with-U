@@ -2,16 +2,23 @@
 
 ## 当前发布目标
 
-- 当前版本目标：`v0.5.1`（Windows x64 专项修复）
+- 当前版本目标：`v0.5.2`（Windows x64 专项修复）
 - 完整发布与美术资源基线：`v0.5.0`；macOS 安装包继续使用该版本
-- 历史 Windows x64 修复版：`v0.4.5.2`
+- 历史 Windows x64 修复版：`v0.5.1`、`v0.4.5.2`
 - 正式代码分支：`main`
 - 日常开发分支：`develop`
-- 本次发布标签：`v0.5.1`（新建，不复用旧标签）
+- 本次发布标签：`v0.5.2`（新建，不复用旧标签）
 - 版本变化：[CHANGELOG.md](./CHANGELOG.md)
 - 架构说明：[ARCHITECTURE.md](./ARCHITECTURE.md)
 
-v0.5.1 在 v0.5.0 基础上仅修复 Windows 普通点击未进入 happy 的问题，继续沿用原有主题、美术资源与动画。发布目标是让 `main` 与 `develop` 指向同一个经过验证的发布提交，再由该提交创建 `v0.5.1`，仅发布新的 Windows x64 安装程序；实际分支、构建和发布状态须读取 Git 与 Actions 确认。本文件不表示这些步骤已经完成。旧发布标签只作为历史快照保留，不应复用或移动。
+v0.5.2 在 v0.5.1 基础上仅修复 Windows 桌宠常驻任务栏的问题，继承点击开心修复，继续沿用原有主题、美术资源与动画。发布目标是让 `main` 与 `develop` 指向同一个经过验证的发布提交，再由该提交创建 `v0.5.2`，仅发布新的 Windows x64 安装程序；实际分支、构建和发布状态须读取 Git 与 Actions 确认。本文件不表示这些步骤已经完成。旧发布标签只作为历史快照保留，不应复用或移动。
+
+## v0.5.2 任务栏修复
+
+- `src-tauri/tauri.conf.json` 的主桌宠窗口增加 `skipTaskbar: true`，避免 Windows 常驻桌宠产生任务栏按钮；三个悬浮组件原有的 `skip_taskbar(true)` 不变。
+- 控制中心保留普通窗口行为：打开时可显示任务栏入口，关闭后不再占位。管理入口仍是右键桌宠打开控制中心或退出，未新增系统托盘。
+- Tauri 在 macOS 上不支持该设置，本次不改变 macOS Dock 行为，也不发布新版 DMG。
+- Windows 实机需验证启动、拖拽、显示各浮层及关闭控制中心后均不留下任务栏按钮，并检查右键菜单仍可正常管理应用；这些验收尚未完成。
 
 ## v0.5.1 点击修复
 
@@ -49,13 +56,15 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -
 cargo fmt --check --manifest-path src-tauri/Cargo.toml
 ```
 
+Windows 分支 CI 同样执行 Rust 格式检查、测试和 Clippy。v0.5.2 准备期间，本机 Xcode 许可状态阻止了 macOS Rust 链接，因此 Rust 测试与 Clippy 以对应发布提交的 Windows CI 结果为准。
+
 ## 发布流程
 
-1. 在开发分支完成修改、文档和上述验证，核对 package、Tauri、Cargo 与界面版本为 `0.5.1`。
+1. 在开发分支完成修改、文档和上述验证，核对 package、Tauri、Cargo 与界面版本为 `0.5.2`。
 2. 将确认后的提交合并到 `develop` 和 `main`，核对本地及远端两分支指向同一发布提交；保留其他有效工作，不以强制覆盖替代合并。
-3. 验证完成后在该发布提交创建新的不可移动标签 `v0.5.1`，不要复用或移动已经公开的旧标签。
-4. `Release Build` 排除 `v0.5.1` 标签，本次不运行三平台标签发布。等待 `main` 分支的 `Windows x64 Build` 成功，核对其提交与发布标签一致，再下载并校验 NSIS 安装包。
-5. 手动创建 GitHub Release `v0.5.1`，只上传该 Windows x64 安装程序并检查附件、版本与说明；如实记录尚未完成 Windows 实机验证。macOS 用户继续下载 v0.5.0，分支 CI 的 macOS 测试产物不作为新版 DMG 发布。其他版本标签继续使用原三平台自动发布流程。
+3. 验证完成后在该发布提交创建新的不可移动标签 `v0.5.2`，不要复用或移动已经公开的旧标签。
+4. `Release Build` 标签过滤增加 `!v0.5.2`，保留 `!v0.5.1`，本次不运行三平台标签发布。等待 `main` 分支的 `Windows x64 Build` 成功，核对其提交与发布标签一致，再下载并校验 NSIS 安装包。
+5. 手动创建 GitHub Release `v0.5.2`，只上传该 Windows x64 安装程序并检查附件、版本与说明；如实记录尚未完成 Windows 实机验证。macOS 用户继续下载 v0.5.0，分支 CI 的 macOS 测试产物不作为新版 DMG 发布。其他版本标签继续使用原三平台自动发布流程。
 
 ## 当前发布限制
 

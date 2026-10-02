@@ -33,6 +33,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
+          components: rustfmt, clippy
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
@@ -50,6 +51,18 @@ jobs:
       - name: Compile Rust (cargo check)
         run: cargo check --color never 2>&1 | tee check-log.txt
         shell: bash
+        working-directory: src-tauri
+
+      - name: Check Rust formatting
+        run: cargo fmt --check
+        working-directory: src-tauri
+
+      - name: Run Rust tests
+        run: cargo test --locked
+        working-directory: src-tauri
+
+      - name: Run Clippy
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
         working-directory: src-tauri
 
       - name: Build NSIS installer
